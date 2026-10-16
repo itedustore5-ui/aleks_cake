@@ -1,0 +1,41 @@
+# Testovi na svaki push (nalaz A5, faza 4): čista PostgreSQL baza u GitHub-u, sve migracije +
+# demo podaci, server samo sa /api, svi E2E testovi. Render-ova demo baza se ne dira.
+# Talas 6: pa testovi ekrana — izgrađena aplikacija, server kao na Renderu, Chrome (već je na GitHub-ovom
+# računaru) u veličini telefona, svih pet uloga i rad bez mreže.
+# Ishod: GitHub → Actions (zelena kvačica / crveni krstić pored commita).
+name: Testovi
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  testovi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: pilot_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run test:ci
+        env:
+          TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/pilot_test

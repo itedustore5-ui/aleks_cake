@@ -1,0 +1,47 @@
+[
+  {
+    "kod": "P3",
+    "naziv": "Čišćenje i dezinfekcija",
+    "uloge": ["operater", "bzr", "izvodjac"],
+    "polja": [
+      { "kljuc": "prostorija", "oznaka": "Prostorija/oprema", "tip": "text", "obavezno": true },
+      { "kljuc": "sredstvo", "oznaka": "Sredstvo za dezinfekciju", "tip": "text", "obavezno": true }
+    ]
+  },
+  {
+    "kod": "P7",
+    "naziv": "Kontrola štetočina",
+    "uloge": ["operater", "bzr", "izvodjac"],
+    "polja": [
+      { "kljuc": "tragovi", "oznaka": "Ima li tragova štetočina?", "tip": "checkbox", "odstupanjeAko": true },
+      { "kljuc": "mjesto", "oznaka": "Provjerena mjesta", "tip": "text", "obavezno": true }
+    ]
+  },
+  {
+    "kod": "P8",
+    "naziv": "Lična higijena i zdravstveno stanje",
+    "uloge": ["operater", "bzr", "izvodjac"],
+    "polja": [
+      { "kljuc": "radna_odjeca", "oznaka": "Radna odjeća i obuća uredni", "tip": "checkbox", "odstupanjeAko": false },
+      { "kljuc": "zdravstveno_stanje", "oznaka": "Bez simptoma koji sprečavaju rad sa hranom", "tip": "checkbox", "odstupanjeAko": false }
+    ]
+  },
+  {
+    "kod": "P9",
+    "naziv": "Kontrola otpada",
+    "uloge": ["operater", "bzr", "izvodjac"],
+    "polja": [
+      { "kljuc": "kante_zatvorene", "oznaka": "Kante za otpad zatvorene i čiste", "tip": "checkbox", "odstupanjeAko": false },
+      { "kljuc": "izneseno", "oznaka": "Otpad iznesen iz skladišta", "tip": "checkbox", "odstupanjeAko": false }
+    ]
+  },
+  {
+    "kod": "P10",
+    "naziv": "Kontrola pribora i opreme",
+    "uloge": ["operater", "bzr", "izvodjac"],
+    "polja": [
+      { "kljuc": "pribor_ispravan", "oznaka": "Pribor i alati ispravni i čisti (palete, kolica, nož...)", "tip": "checkbox", "odstupanjeAko": false },
+      { "kljuc": "termometar_ispravan", "oznaka": "Termometar/vaga ispravni", "tip": "checkbox", "odstupanjeAko": false }
+    ]
+  }
+]

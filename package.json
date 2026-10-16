@@ -1,0 +1,62 @@
+{
+  "name": "pilot-distributeri-cg",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "tsx server/index.ts",
+    "start": "NODE_ENV=production tsx server/index.ts",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 5000",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.server.json",
+    "migriraj": "tsx db/migriraj.ts",
+    "seed:demo": "tsx db/migriraj.ts --demo",
+    "prvi-korisnik": "tsx alati/prvi-korisnik.ts",
+    "uvoz-start": "tsx alati/uvoz-start.ts",
+    "dnevni-pregled": "tsx alati/dnevni-pregled.ts",
+    "test": "node testovi/izolovano.mjs --lokalno",
+    "test:ci": "node testovi/izolovano.mjs --sve",
+    "test:e2e": "node testovi/pokreni.mjs",
+    "test:ekrani": "node testovi/izolovano.mjs --lokalno --ekrani",
+    "bekap": "tsx alati/bekap.ts",
+    "demo-lozinke": "tsx alati/demo-lozinke.ts",
+    "iskljuci-2fa": "tsx alati/iskljuci-2fa.ts",
+    "zakazi-bekap": "powershell -NoProfile -ExecutionPolicy Bypass -File alati/zakazi-bekap.ps1",
+    "demo:lokalno": "node testovi/demo-lokalno.mjs"
+  },
+  "dependencies": {
+    "@tesseract.js-data/srp_latn": "^1.0.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.2",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.11.6",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "dotenv": "^17.0.0",
+    "express": "^5.2.1",
+    "lucide-react": "^1.47.0",
+    "nodemailer": "^10.1.0",
+    "pdfjs-dist": "^6.3.289",
+    "pg": "^8.13.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.1.1",
+    "sharp": "^0.35.5",
+    "tesseract.js": "^7.0.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "web-push": "^3.6.7",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/web-push": "^3.6.4",
+    "playwright-core": "^1.63.0"
+  }
+}

@@ -1,0 +1,1230 @@
+<title>PILOT upitnik za početak</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Raspored: lijevo koraci sa stanjem (na telefonu traka iznad), desno jedan korak; dno — traka „sačuvano“ i slanje.
+   Boje i slova kao u aplikaciji PILOT (DM Sans, Space Grotesk, plava i teget), da distributer prepozna isti alat. */
+:root {
+  --bg: #f2f5f9;
+  --surface: #ffffff;
+  --surface-2: #f6f8fb;
+  --ink: #182431;
+  --muted: #5d6c7a;
+  --line: #dfe6ee;
+  --accent: #2459da;
+  --accent-ink: #ffffff;
+  --accent-soft: #e8efff;
+  --navy: #173452;
+  --ok: #18815e;
+  --ok-soft: #e3f4ec;
+  --warn: #a8641a;
+  --warn-soft: #fcf0de;
+  --bad: #bd3c45;
+  --bad-soft: #fbe9ea;
+  --cold: #2f7bbd;
+  --frozen: #5a55c4;
+  --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1722; --surface: #172230; --surface-2: #1c2a3a; --ink: #e6edf5; --muted: #9fb0c1; --line: #2a3a4d;
+    --accent: #6f9bff; --accent-ink: #0d1626; --accent-soft: #1f2f4d; --navy: #c7d7ee;
+    --ok: #4fc595; --ok-soft: #173a2f; --warn: #e3a356; --warn-soft: #3a2c18; --bad: #f07f86; --bad-soft: #3d1f24;
+    --cold: #6cb3ea; --frozen: #a5a1f2; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1722; --surface: #172230; --surface-2: #1c2a3a; --ink: #e6edf5; --muted: #9fb0c1; --line: #2a3a4d;
+  --accent: #6f9bff; --accent-ink: #0d1626; --accent-soft: #1f2f4d; --navy: #c7d7ee;
+  --ok: #4fc595; --ok-soft: #173a2f; --warn: #e3a356; --warn-soft: #3a2c18; --bad: #f07f86; --bad-soft: #3d1f24;
+  --cold: #6cb3ea; --frozen: #a5a1f2; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; padding-inline: 16px; padding-block: 0 96px; }
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; text-wrap: balance; margin: 0; color: var(--navy); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.vrh { max-width: 1180px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding-block: 18px 14px; }
+.znak { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 19px; flex: none; }
+.vrh-tekst { min-width: 0; flex: 1 1 260px; }
+.vrh-tekst h1 { font-size: 21px; }
+.vrh-tekst p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.napredak { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.napredak-traka { width: 140px; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.napredak-traka span { display: block; height: 100%; background: var(--ok); border-radius: 99px; transition: width .25s; }
+
+.okvir { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: start; }
+.koraci { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: grid; gap: 2px; }
+.korak-dugme { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 9px; cursor: pointer; color: var(--ink); }
+.korak-dugme:hover { background: var(--surface); }
+.korak-dugme[aria-current="step"] { background: var(--surface); box-shadow: 0 1px 0 var(--line), 0 0 0 1px var(--line); }
+.korak-dugme .br { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.korak-dugme[data-stanje="spremno"] .br { background: var(--ok); border-color: var(--ok); color: var(--accent-ink); }
+.korak-dugme[data-stanje="fali"] .br { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.korak-dugme .ime { font-size: 14px; font-weight: 500; min-width: 0; }
+.korak-dugme .stanje { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.korak-dugme[data-stanje="fali"] .stanje { color: var(--warn); }
+.korak-dugme[data-stanje="spremno"] .stanje { color: var(--ok); }
+
+.strana { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px 26px 22px; min-width: 0; }
+.strana-glava { display: grid; gap: 6px; margin-bottom: 18px; }
+.strana-glava .oznaka { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.strana-glava h2 { font-size: 23px; }
+.strana-glava p { margin: 0; color: var(--muted); max-width: 68ch; }
+.zasto { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); color: var(--ink); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; margin: 4px 0 0; max-width: 78ch; }
+.zasto b { color: var(--navy); }
+
+.grupa { display: grid; gap: 12px; margin-top: 18px; }
+.grupa > h3 { font-size: 15px; }
+.polja { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 14px; }
+.polje { display: grid; gap: 4px; min-width: 0; }
+.polje > span { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.polje > span em { font-style: normal; color: var(--bad); margin-left: 2px; }
+.polje input, .polje select, .polje textarea { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 10px; min-height: 38px; }
+.polje textarea { min-height: 70px; resize: vertical; }
+.polje input:disabled, .polje select:disabled { background: var(--surface-2); color: var(--muted); }
+.polje [aria-invalid="true"] { border-color: var(--bad); background: var(--bad-soft); }
+.polje small { font-size: 12px; color: var(--bad); }
+.polje small.savjet { color: var(--muted); }
+.kvacica { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; min-height: 38px; }
+.kvacica input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--accent); }
+.dani { display: flex; flex-wrap: wrap; gap: 6px; }
+.dani label { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+.dani input { accent-color: var(--accent); margin: 0; }
+.dani label:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
+
+.lista { display: grid; gap: 10px; margin-top: 14px; }
+.lista-alati { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.brojac { font-size: 13px; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.dugme { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 8px 13px; font-weight: 600; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 38px; }
+.dugme:hover { border-color: var(--accent); }
+.dugme.glavno { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.dugme.tiho { border-color: transparent; background: transparent; color: var(--muted); font-weight: 500; padding-inline: 8px; }
+.dugme.tiho:hover { color: var(--bad); }
+.dugme.opasno { color: var(--bad); }
+.red { border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px 12px; display: grid; gap: 8px; background: var(--surface); }
+.red.primjer { background: var(--surface-2); border-style: dashed; color: var(--muted); }
+.red-glava { display: flex; align-items: center; gap: 8px; }
+.rb { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 26px; }
+.red-glava .naziv-reda { font-weight: 600; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.red-polja { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 10px; }
+.red-polja .siroko { grid-column: span 2; }
+.red-greske { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 12.5px; }
+.red-greske li { color: var(--bad); }
+.red-greske li.upozorenje { color: var(--warn); }
+.prazna-lista { font-size: 13.5px; color: var(--muted); margin: 0; }
+.rezim-oznaka { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+.rezim-oznaka.rashladjeno { background: color-mix(in srgb, var(--cold) 16%, transparent); color: var(--cold); }
+.rezim-oznaka.smrznuto { background: color-mix(in srgb, var(--frozen) 16%, transparent); color: var(--frozen); }
+
+.lijepljenje { border: 1px dashed var(--accent); border-radius: 11px; padding: 12px; display: grid; gap: 8px; background: var(--accent-soft); }
+.lijepljenje p { margin: 0; font-size: 13.5px; }
+.lijepljenje code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; background: var(--surface); border-radius: 5px; padding: 1px 5px; }
+.lijepljenje textarea { width: 100%; min-height: 110px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; background: var(--surface); }
+.lijepljenje .ishod { font-size: 13px; color: var(--muted); }
+
+.dalje { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+.pregled-fali { display: grid; gap: 10px; margin-top: 8px; }
+.pregled-grupa { border: 1px solid var(--line); border-radius: 11px; padding: 10px 14px; }
+.pregled-grupa h3 { font-size: 15px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.pregled-grupa ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+.pregled-grupa li.upozorenje { color: var(--warn); }
+.pregled-grupa li.greska { color: var(--bad); }
+.sve-spremno { background: var(--ok-soft); color: var(--ok); border-radius: 11px; padding: 12px 14px; font-weight: 600; }
+.slanje { display: grid; gap: 10px; margin-top: 18px; padding: 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.slanje-dugmad { display: flex; flex-wrap: wrap; gap: 8px; }
+.slanje p { margin: 0; font-size: 13.5px; color: var(--muted); max-width: 72ch; }
+.kopija { width: 100%; min-height: 120px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); }
+.potvrda { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: var(--warn-soft); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; }
+.poruka { font-size: 13.5px; border-radius: 9px; padding: 8px 12px; }
+.poruka.ok { background: var(--ok-soft); color: var(--ok); }
+.poruka.greska { background: var(--bad-soft); color: var(--bad); }
+
+.sazetak { display: grid; gap: 14px; margin-top: 20px; }
+.sazetak h3 { font-size: 15px; margin-bottom: 6px; }
+.tabela-omot { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.sazetak table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+.sazetak th, .sazetak td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.sazetak th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--surface-2); white-space: nowrap; }
+.sazetak tr:last-child td { border-bottom: 0; }
+
+.traka { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.traka-u { max-width: 1180px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.traka .stanje-cuvanja { font-size: 13px; color: var(--muted); flex: 1 1 240px; min-width: 0; }
+.traka .stanje-cuvanja.upozori { color: var(--warn); }
+
+@media (max-width: 860px) {
+  .okvir { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .koraci { position: static; display: flex; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
+  .korak-dugme { grid-template-columns: 24px auto; padding: 7px 10px; white-space: nowrap; border: 1px solid var(--line); background: var(--surface); width: auto; flex: none; }
+  .traka .duze { display: none; }
+  .korak-dugme .stanje { display: none; }
+  .strana { padding: 18px 14px; }
+  .red-polja .siroko { grid-column: auto; }
+  .napredak-traka { width: 100px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media print {
+  body { background: #fff; color: #000; padding: 0; }
+  .vrh, .okvir, .traka { display: none !important; }
+  #stampa { display: block !important; }
+  #stampa h1 { font-size: 18pt; }
+  #stampa table { font-size: 9pt; }
+}
+#stampa { display: none; }
+</style>
+
+<header class="vrh">
+  <div class="znak" aria-hidden="true">P</div>
+  <div class="vrh-tekst">
+    <h1 id="naslov-firme">Upitnik za početak</h1>
+    <p>Podaci za uvođenje aplikacije PILOT — sledljivost, temperature i dobra higijenska praksa. Popunjava se jednom, sa pauzama koliko treba.</p>
+  </div>
+  <div class="napredak" aria-live="polite">
+    <div class="napredak-traka"><span id="napredak-traka" style="width:0%"></span></div>
+    <span id="napredak-tekst">0 od 9 koraka spremno</span>
+  </div>
+</header>
+
+<div class="okvir">
+  <nav class="koraci" id="koraci" aria-label="Koraci upitnika"></nav>
+  <main class="strana" id="strana" aria-live="off"></main>
+</div>
+
+<div class="traka">
+  <div class="traka-u">
+    <span class="stanje-cuvanja" id="stanje-cuvanja">Podaci se čuvaju samo na ovom uređaju dok ne sačuvate fajl za konsultanta.</span>
+    <button class="dugme" type="button" data-idi="pregled">Pregled i slanje</button>
+  </div>
+</div>
+
+<div id="stampa"></div>
+
+<input type="file" id="ucitaj-fajl" accept=".json,application/json" hidden>
+
+<script>
+(() => {
+  "use strict";
+
+  // ─── Podaci ─────────────────────────────────────────────────────────────────────────────────
+  const KLJUC = "pilot-upitnik-start-v1";
+  const FORMAT = "pilot-upitnik-start";
+  // Isti režimi i pretpostavljene granice kao u aplikaciji (GRANICA_REZIMA) — konsultant ih potvrđuje.
+  const REZIMI = {
+    rashladjeno: { naziv: "Rashlađeno", min: 0, max: 4 },
+    smrznuto: { naziv: "Smrznuto", min: -25, max: -18 },
+    sobna: { naziv: "Sobna temperatura (suvo)", min: null, max: null },
+    drugo: { naziv: "Drugi režim — upišite od–do", min: null, max: null },
+  };
+  const POD_REZIMOM = (r) => r === "rashladjeno" || r === "smrznuto" || r === "drugo";
+  const DANI = [["pon", "pon"], ["uto", "uto"], ["sri", "sri"], ["cet", "čet"], ["pet", "pet"], ["sub", "sub"], ["ned", "ned"]];
+  const NALOZI = { "": "Bez naloga", magacioner: "Magacioner", vozac: "Vozač", odgovorno: "Odgovorno lice", direktor: "Direktor" };
+  const JEDINICE = ["kom", "kg", "l", "pak", "kutija", "gajba"];
+  const TIPOVI_VOZILA = ["kombi", "kamion", "putničko", "drugo"];
+
+  const prazno = () => ({
+    firma: {
+      naziv: "", pib: "", adresa: "", grad: "", registracija: "",
+      roba: { rashladjeno: false, smrznuto: false, sobna: false }, drugaRoba: "",
+      odgovorno: { ime: "", telefon: "", email: "" },
+      direktor: { ime: "", telefon: "", email: "" },
+      direktorJeOdgovorno: false,
+    },
+    rad: { dani: { pon: true, uto: true, sri: true, cet: true, pet: true, sub: false, ned: false }, prijema: "", isporuka: "", napomena: "" },
+    magacini: [], komore: [],
+    nemaVozila: false, vozila: [],
+    zaposleni: [], dobavljaci: [], kupci: [], artikli: [],
+    nemaTermometra: false, termometri: [],
+  });
+
+  // Liste: kolone redom (isti red važi i za lijepljenje iz Excela).
+  const LISTE = {
+    magacini: {
+      jedan: "magacin", vise: "magacina", dodaj: "Dodaj magacin",
+      kolone: [
+        { k: "naziv", l: "Naziv magacina", obavezno: true, ph: "npr. Glavni magacin", siroko: true },
+        { k: "adresa", l: "Adresa", ph: "npr. Cetinjski put bb, Podgorica", siroko: true },
+      ],
+      primjer: { naziv: "Glavni magacin", adresa: "Cetinjski put bb, Podgorica" },
+    },
+    komore: {
+      jedan: "komora", vise: "komora", dodaj: "Dodaj komoru",
+      kolone: [
+        { k: "naziv", l: "Komora, frižider ili zona", obavezno: true, ph: "npr. Komora 1 — mliječni", siroko: true },
+        { k: "magacin", l: "U magacinu", tip: "magacin", obavezno: true },
+        { k: "rezim", l: "Režim", tip: "rezim", obavezno: true },
+        { k: "min", l: "Od °C", tip: "broj", granica: true },
+        { k: "max", l: "Do °C", tip: "broj", granica: true },
+      ],
+      novi: () => ({ naziv: "", magacin: S.magacini.length === 1 ? S.magacini[0].naziv : "", rezim: "rashladjeno", min: "0", max: "4" }),
+      primjer: { naziv: "Komora 1 — mliječni", magacin: "Glavni magacin", rezim: "rashladjeno", min: "0", max: "4" },
+    },
+    vozila: {
+      jedan: "vozilo", vise: "vozila", dodaj: "Dodaj vozilo",
+      kolone: [
+        { k: "oznaka", l: "Registarska oznaka", obavezno: true, ph: "npr. PG AB-123" },
+        { k: "tip", l: "Vrsta", tip: "izbor", opcije: TIPOVI_VOZILA },
+        { k: "rashladno", l: "Rashladno vozilo", tip: "kvacica" },
+        { k: "min", l: "Od °C", tip: "broj", granica: true },
+        { k: "max", l: "Do °C", tip: "broj", granica: true },
+      ],
+      novi: () => ({ oznaka: "", tip: "kombi", rashladno: true, min: "0", max: "4" }),
+      primjer: { oznaka: "PG AB-123", tip: "kombi", rashladno: true, min: "0", max: "4" },
+    },
+    zaposleni: {
+      jedan: "zaposleni", vise: "zaposlenih", dodaj: "Dodaj zaposlenog",
+      kolone: [
+        { k: "ime", l: "Ime i prezime", obavezno: true, ph: "npr. Marko Vuković", siroko: true },
+        { k: "radnoMjesto", l: "Radno mjesto", ph: "npr. magacioner" },
+        { k: "rukujeHranom", l: "Rukuje hranom", tip: "kvacica" },
+        { k: "knjizicaBroj", l: "Broj sanitarne knjižice", ph: "broj sa knjižice" },
+        { k: "knjizicaRok", l: "Knjižica važi do", tip: "datum" },
+        { k: "nalog", l: "Nalog u aplikaciji", tip: "izbor", opcije: Object.keys(NALOZI), nazivi: NALOZI },
+        { k: "magacin", l: "Radi u magacinu", tip: "magacin" },
+      ],
+      novi: () => ({ ime: "", radnoMjesto: "", rukujeHranom: true, knjizicaBroj: "", knjizicaRok: "", nalog: "", magacin: S.magacini.length === 1 ? S.magacini[0].naziv : "" }),
+      primjer: { ime: "Marko Vuković", radnoMjesto: "magacioner", rukujeHranom: true, knjizicaBroj: "SK-48213", knjizicaRok: "2027-03-31", nalog: "magacioner", magacin: "Glavni magacin" },
+    },
+    dobavljaci: {
+      jedan: "dobavljač", vise: "dobavljača", dodaj: "Dodaj dobavljača",
+      kolone: [
+        { k: "naziv", l: "Naziv dobavljača", obavezno: true, ph: "npr. Mljekara d.o.o.", siroko: true },
+        { k: "pib", l: "PIB", ph: "8 cifara", mod: "numeric" },
+        { k: "telefon", l: "Telefon", tip: "tel" },
+        { k: "mjesto", l: "Mjesto", ph: "npr. Nikšić" },
+        { k: "roba", l: "Koju robu donosi", ph: "npr. mlijeko, jogurt, sir", siroko: true },
+      ],
+      primjer: { naziv: "Mljekara d.o.o.", pib: "02123456", telefon: "040 123 456", mjesto: "Nikšić", roba: "mlijeko, jogurt, sir" },
+    },
+    kupci: {
+      jedan: "kupac", vise: "kupaca", dodaj: "Dodaj kupca",
+      kolone: [
+        { k: "naziv", l: "Naziv kupca", obavezno: true, ph: "npr. Market Centar", siroko: true },
+        { k: "telefon", l: "Telefon", tip: "tel", obavezno: true },
+        { k: "pib", l: "PIB", ph: "samo cifre", mod: "numeric" },
+        { k: "adresa", l: "Adresa (sjedište)", siroko: true },
+        { k: "adresaIsporuke", l: "Adresa isporuke, ako je druga", siroko: true },
+        { k: "kontakt", l: "Kontakt osoba" },
+      ],
+      primjer: { naziv: "Market Centar", telefon: "067 123 456", pib: "03012345", adresa: "Bulevar Svetog Petra Cetinjskog 1, Podgorica", adresaIsporuke: "", kontakt: "Jelena" },
+    },
+    artikli: {
+      jedan: "artikal", vise: "artikala", dodaj: "Dodaj artikal",
+      kolone: [
+        { k: "naziv", l: "Naziv artikla (sa pakovanjem)", obavezno: true, ph: "npr. Mlijeko 2,8% 1 l", siroko: true },
+        { k: "jedinica", l: "Jedinica", tip: "izbor", opcije: JEDINICE, obavezno: true },
+        { k: "rezim", l: "Režim", tip: "rezim", obavezno: true },
+        { k: "min", l: "Od °C", tip: "broj", granica: true },
+        { k: "max", l: "Do °C", tip: "broj", granica: true },
+        { k: "rok", l: "Ima rok trajanja", tip: "kvacica" },
+        { k: "dobavljac", l: "Dobavljač", tip: "dobavljac" },
+        { k: "sifra", l: "Šifra kod dobavljača", ph: "sa otpremnice" },
+      ],
+      novi: () => ({ naziv: "", jedinica: "kom", rezim: "rashladjeno", min: "0", max: "4", rok: true, dobavljac: "", sifra: "" }),
+      primjer: { naziv: "Mlijeko 2,8% 1 l", jedinica: "kom", rezim: "rashladjeno", min: "0", max: "4", rok: true, dobavljac: "Mljekara d.o.o.", sifra: "1001" },
+    },
+    termometri: {
+      jedan: "termometar", vise: "termometara", dodaj: "Dodaj termometar",
+      kolone: [
+        { k: "naziv", l: "Termometar", obavezno: true, ph: "npr. ubodni digitalni", siroko: true },
+        { k: "oznaka", l: "Serijski ili inventarski broj" },
+        { k: "gdje", l: "Gdje se koristi", ph: "npr. prijem robe" },
+        { k: "kalibracijaBroj", l: "Broj sertifikata kalibracije", ph: "ako postoji" },
+        { k: "kalibracijaDatum", l: "Datum kalibracije", tip: "datum" },
+      ],
+      primjer: { naziv: "Ubodni digitalni termometar", oznaka: "T-01", gdje: "prijem i isporuka", kalibracijaBroj: "", kalibracijaDatum: "" },
+    },
+  };
+  const noviRed = (lista) => (LISTE[lista].novi ? LISTE[lista].novi() : Object.fromEntries(LISTE[lista].kolone.map((c) => [c.k, c.tip === "kvacica" ? false : ""])));
+
+  const KORACI = [
+    { id: "firma", naziv: "Firma", kratko: "Firma" },
+    { id: "rad", naziv: "Ritam rada", kratko: "Rad" },
+    { id: "magacini", naziv: "Magacini i komore", kratko: "Magacini" },
+    { id: "vozila", naziv: "Vozila", kratko: "Vozila" },
+    { id: "zaposleni", naziv: "Zaposleni", kratko: "Zaposleni" },
+    { id: "dobavljaci", naziv: "Dobavljači", kratko: "Dobavljači" },
+    { id: "kupci", naziv: "Kupci", kratko: "Kupci" },
+    { id: "artikli", naziv: "Artikli", kratko: "Artikli" },
+    { id: "termometri", naziv: "Termometri", kratko: "Termometri" },
+    { id: "pregled", naziv: "Pregled i slanje", kratko: "Pregled" },
+  ];
+
+  let S = prazno();
+  let aktivni = "firma";
+  const posjeceni = new Set();
+
+  // ─── Pomoćno ────────────────────────────────────────────────────────────────────────────────
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const t = (v) => String(v ?? "").trim();
+  const cifre = (v) => t(v).replace(/[\s.\-/]/g, "");
+  const kljucNaziva = (v) => t(v).toLowerCase().replace(/\s+/g, " ");
+  const danas = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Podgorica" });
+  const datumCitljiv = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}.` : d || "—");
+  const broj = (v) => (t(v) === "" ? null : Number(String(v).replace(",", ".")));
+  const set = (put, vrijednost) => {
+    const dijelovi = put.split(".");
+    let o = S;
+    for (let i = 0; i < dijelovi.length - 1; i++) o = o[dijelovi[i]];
+    o[dijelovi[dijelovi.length - 1]] = vrijednost;
+  };
+  const get = (put) => put.split(".").reduce((o, k) => (o == null ? o : o[k]), S);
+  const slobodno = (c) => !["kvacica", "rezim", "izbor", "magacin", "dobavljac"].includes(c.tip) && !c.granica;
+  const redPrazan = (lista, r) => !r || LISTE[lista].kolone.filter(slobodno).every((c) => t(r[c.k]) === "");
+  const puniRedovi = (lista) => S[lista].map((r, i) => ({ r, i })).filter(({ r }) => !redPrazan(lista, r));
+
+  // ─── Provjera (ista pravila kao aplikacija) ─────────────────────────────────────────────────
+  function provjeri() {
+    const polja = new Map();
+    const redovi = new Map();
+    const odjeljci = {};
+    const dodajRed = (put, poruka, tip = "greska") => {
+      if (!redovi.has(put)) redovi.set(put, []);
+      redovi.get(put).push({ poruka, tip });
+    };
+    const obavezno = (put, poruka) => {
+      if (!t(get(put))) polja.set(put, poruka);
+    };
+
+    // 1. Firma
+    const f = S.firma;
+    const firmaPoruke = [];
+    obavezno("firma.naziv", "Upišite naziv firme.");
+    if (!t(f.pib)) polja.set("firma.pib", "Upišite PIB.");
+    else if (!/^\d{8,13}$/.test(cifre(f.pib))) polja.set("firma.pib", "PIB se piše samo ciframa (8 cifara).");
+    obavezno("firma.adresa", "Upišite adresu.");
+    obavezno("firma.grad", "Upišite grad.");
+    obavezno("firma.odgovorno.ime", "Ko vodi bezbjednost hrane u firmi?");
+    obavezno("firma.odgovorno.telefon", "Telefon odgovornog lica — za hitne slučajeve.");
+    if (!f.direktorJeOdgovorno) obavezno("firma.direktor.ime", "Upišite ime direktora.");
+    if (!f.roba.rashladjeno && !f.roba.smrznuto && !f.roba.sobna && !t(f.drugaRoba)) firmaPoruke.push({ poruka: "Označite koju robu distribuirate.", tip: "greska" });
+    const firmaPolja = ["firma.naziv", "firma.pib", "firma.adresa", "firma.grad", "firma.odgovorno.ime", "firma.odgovorno.telefon", "firma.direktor.ime"];
+    const firmaIma = firmaPolja.some((p) => t(get(p))) || f.roba.rashladjeno || f.roba.smrznuto || f.roba.sobna;
+    odjeljci.firma = { ima: firmaIma, poruke: [...firmaPolja.filter((p) => polja.has(p)).map((p) => ({ poruka: polja.get(p), tip: "greska" })), ...firmaPoruke] };
+
+    // 2. Ritam rada
+    const imaDan = Object.values(S.rad.dani).some(Boolean);
+    const radIma = posjeceni.has("rad") || !!t(S.rad.prijema) || !!t(S.rad.isporuka) || !!t(S.rad.napomena);
+    odjeljci.rad = { ima: radIma, poruke: imaDan ? [] : [{ poruka: "Označite radne dane.", tip: "greska" }] };
+
+    // Liste — zajednička pravila: obavezna polja, granica za robu pod režimom, dupli nazivi.
+    const provjeriListu = (lista, posebno) => {
+      const nazivi = new Map();
+      for (const { r, i } of puniRedovi(lista)) {
+        const put = `${lista}.${i}`;
+        for (const c of LISTE[lista].kolone) {
+          if (c.obavezno && !t(r[c.k])) polja.set(`${put}.${c.k}`, `Upišite: ${c.l.toLowerCase()}.`);
+        }
+        const kn = kljucNaziva(r[LISTE[lista].kolone[0].k]);
+        if (kn) {
+          if (nazivi.has(kn)) dodajRed(put, `Isto kao red ${nazivi.get(kn) + 1} — upišite jednom.`);
+          else nazivi.set(kn, i);
+        }
+        posebno?.(r, put, i);
+      }
+    };
+    const granica = (r, put, uslov) => {
+      if (!uslov) return;
+      const a = broj(r.min);
+      const b = broj(r.max);
+      if (a === null) polja.set(`${put}.min`, "Upišite od °C.");
+      if (b === null) polja.set(`${put}.max`, "Upišite do °C.");
+      if ((a !== null && Number.isNaN(a)) || (b !== null && Number.isNaN(b))) dodajRed(put, "Temperatura se piše brojem, npr. -18 ili 4.");
+      else if (a !== null && b !== null && a >= b) dodajRed(put, "Granica „od“ mora biti niža od „do“.");
+    };
+    const porukeListe = (lista, minimum, poruka) => {
+      const p = [];
+      for (const { i } of puniRedovi(lista)) {
+        for (const [put, porukaPolja] of polja) if (put.startsWith(`${lista}.${i}.`)) p.push({ poruka: `Red ${i + 1}: ${porukaPolja}`, tip: "greska" });
+        for (const x of redovi.get(`${lista}.${i}`) ?? []) p.push({ ...x, poruka: `Red ${i + 1}: ${x.poruka}` });
+      }
+      if (puniRedovi(lista).length < minimum) p.unshift({ poruka, tip: "greska" });
+      return p;
+    };
+
+    // 3. Magacini i komore
+    provjeriListu("magacini");
+    const imenaMagacina = new Set(puniRedovi("magacini").map(({ r }) => kljucNaziva(r.naziv)));
+    provjeriListu("komore", (r, put) => {
+      if (t(r.magacin) && !imenaMagacina.has(kljucNaziva(r.magacin))) dodajRed(put, "Izaberite magacin sa spiska iznad.");
+      granica(r, put, POD_REZIMOM(r.rezim));
+    });
+    const trebaKomore = f.roba.rashladjeno || f.roba.smrznuto;
+    const magaciniPoruke = [...porukeListe("magacini", 1, "Upišite bar jedan magacin."), ...porukeListe("komore", 0, "")];
+    if (trebaKomore && puniRedovi("komore").length === 0) magaciniPoruke.push({ poruka: "Distribuirate robu pod režimom — upišite komore, frižidere ili zamrzivače u kojima je čuvate.", tip: "greska" });
+    odjeljci.magacini = { ima: puniRedovi("magacini").length + puniRedovi("komore").length > 0, poruke: magaciniPoruke };
+
+    // 4. Vozila
+    provjeriListu("vozila", (r, put) => granica(r, put, !!r.rashladno));
+    const vozilaPoruke = S.nemaVozila ? [] : porukeListe("vozila", 1, "Upišite vozila — ili označite da nemate svoja.");
+    if (!S.nemaVozila && trebaKomore && puniRedovi("vozila").length && !puniRedovi("vozila").some(({ r }) => r.rashladno)) {
+      vozilaPoruke.push({ poruka: "Roba pod režimom ide samo rashladnim vozilom — označite koje je rashladno.", tip: "upozorenje" });
+    }
+    if (S.nemaVozila) vozilaPoruke.push({ poruka: "Nemate svoja vozila — javite konsultantu kako roba stiže do kupca (prevoznik ili kupac preuzima).", tip: "upozorenje" });
+    odjeljci.vozila = { ima: S.nemaVozila || puniRedovi("vozila").length > 0, poruke: vozilaPoruke };
+
+    // 5. Zaposleni — sanitarna knjižica: broj i rok, nikad nalaz pregleda.
+    const d = danas();
+    provjeriListu("zaposleni", (r, put) => {
+      if (r.rukujeHranom) {
+        if (!t(r.knjizicaBroj)) polja.set(`${put}.knjizicaBroj`, "Broj knjižice — za svakog ko rukuje hranom.");
+        if (!t(r.knjizicaRok)) polja.set(`${put}.knjizicaRok`, "Do kada važi knjižica?");
+        else if (r.knjizicaRok < d) dodajRed(put, `Knjižica je istekla ${datumCitljiv(r.knjizicaRok)} — obnoviti prije početka rada.`, "upozorenje");
+      }
+      if (t(r.magacin) && !imenaMagacina.has(kljucNaziva(r.magacin))) dodajRed(put, "Izaberite magacin sa spiska (korak 3).");
+    });
+    const zaposleniPoruke = porukeListe("zaposleni", 1, "Upišite zaposlene — bar one koji rade sa robom.");
+    if (puniRedovi("zaposleni").length && !puniRedovi("zaposleni").some(({ r }) => r.nalog === "odgovorno")) {
+      zaposleniPoruke.push({ poruka: "Ko je odgovorno lice? Kod te osobe izaberite nalog „Odgovorno lice“.", tip: "greska" });
+    }
+    odjeljci.zaposleni = { ima: puniRedovi("zaposleni").length > 0, poruke: zaposleniPoruke };
+
+    // 6. Dobavljači
+    const pibovi = new Map();
+    const pibProvjera = (lista, r, put, i) => {
+      if (!t(r.pib)) return;
+      if (!/^\d{8,13}$/.test(cifre(r.pib))) polja.set(`${put}.pib`, "PIB samo ciframa (8–13).");
+      else {
+        const k = `${lista}:${cifre(r.pib)}`;
+        if (pibovi.has(k)) dodajRed(put, `Isti PIB kao red ${pibovi.get(k) + 1}.`);
+        else pibovi.set(k, i);
+      }
+    };
+    provjeriListu("dobavljaci", (r, put, i) => pibProvjera("dobavljaci", r, put, i));
+    odjeljci.dobavljaci = { ima: puniRedovi("dobavljaci").length > 0, poruke: porukeListe("dobavljaci", 1, "Upišite dobavljače od kojih primate robu.") };
+
+    // 7. Kupci — telefon obavezan: povlačenje serije počinje telefonom (čl. 28).
+    provjeriListu("kupci", (r, put, i) => {
+      if (t(r.telefon) && cifre(r.telefon).replace(/^\+/, "").length < 6) polja.set(`${put}.telefon`, "Telefon nije potpun.");
+      if (!t(r.telefon)) polja.set(`${put}.telefon`, "Telefon je obavezan — kad se povlači serija, kupac se prvo zove.");
+      pibProvjera("kupci", r, put, i);
+    });
+    odjeljci.kupci = { ima: puniRedovi("kupci").length > 0, poruke: porukeListe("kupci", 1, "Upišite kupce kojima isporučujete.") };
+
+    // 8. Artikli
+    const imenaDobavljaca = new Set(puniRedovi("dobavljaci").map(({ r }) => kljucNaziva(r.naziv)));
+    provjeriListu("artikli", (r, put) => {
+      granica(r, put, POD_REZIMOM(r.rezim));
+      if (t(r.dobavljac) && !imenaDobavljaca.has(kljucNaziva(r.dobavljac))) dodajRed(put, "Dobavljača nema u koraku 6 — dodajte ga tamo ili izaberite sa spiska.", "upozorenje");
+    });
+    odjeljci.artikli = { ima: puniRedovi("artikli").length > 0, poruke: porukeListe("artikli", 1, "Upišite artikle — najbrže lijepljenjem iz Excela.") };
+
+    // 9. Termometri
+    provjeriListu("termometri");
+    const termometriPoruke = S.nemaTermometra ? [{ poruka: "Za početak treba bar jedan ubodni termometar — za prijem i isporuku robe pod režimom. Konsultant će preporučiti koji.", tip: "upozorenje" }] : porukeListe("termometri", 1, "Upišite termometre — ili označite da ih još nemate.");
+    odjeljci.termometri = { ima: S.nemaTermometra || puniRedovi("termometri").length > 0, poruke: termometriPoruke };
+
+    for (const o of Object.values(odjeljci)) {
+      o.stanje = !o.ima ? "prazno" : o.poruke.some((p) => p.tip === "greska") ? "fali" : "spremno";
+    }
+    return { polja, redovi, odjeljci };
+  }
+
+  // ─── Čuvanje ───────────────────────────────────────────────────────────────────────────────
+  let cuvanjeRadi = true;
+  function sacuvaj() {
+    const traka = document.getElementById("stanje-cuvanja");
+    try {
+      localStorage.setItem(KLJUC, JSON.stringify({ S, aktivni, posjeceni: [...posjeceni] }));
+      const vrijeme = new Date().toLocaleTimeString("sr-Latn-ME", { hour: "2-digit", minute: "2-digit" });
+      traka.innerHTML = `Sačuvano na ovom uređaju u ${vrijeme}.<span class="duze"> Konsultantu stiže tek kad sačuvate fajl i pošaljete ga.</span>`;
+      traka.classList.remove("upozori");
+    } catch {
+      cuvanjeRadi = false;
+      traka.textContent = "Ovaj pregledač ne pamti upisano — prije zatvaranja sačuvajte fajl za konsultanta (Pregled i slanje).";
+      traka.classList.add("upozori");
+    }
+  }
+  function ucitajSacuvano() {
+    try {
+      const sirovo = localStorage.getItem(KLJUC);
+      if (!sirovo) return;
+      const o = JSON.parse(sirovo);
+      if (o && o.S) {
+        S = spoji(o.S);
+        if (KORACI.some((k) => k.id === o.aktivni)) aktivni = o.aktivni;
+        for (const k of o.posjeceni ?? []) posjeceni.add(k);
+      }
+    } catch {
+      cuvanjeRadi = false;
+    }
+  }
+  // Fajl ili stari zapis možda nema sva polja — dopuni ih praznim, da forma ne pukne.
+  function spoji(ulaz) {
+    const osnova = prazno();
+    const out = { ...osnova, ...ulaz };
+    out.firma = { ...osnova.firma, ...(ulaz.firma ?? {}) };
+    out.firma.roba = { ...osnova.firma.roba, ...(ulaz.firma?.roba ?? {}) };
+    out.firma.odgovorno = { ...osnova.firma.odgovorno, ...(ulaz.firma?.odgovorno ?? {}) };
+    out.firma.direktor = { ...osnova.firma.direktor, ...(ulaz.firma?.direktor ?? {}) };
+    out.rad = { ...osnova.rad, ...(ulaz.rad ?? {}), dani: { ...osnova.rad.dani, ...(ulaz.rad?.dani ?? {}) } };
+    for (const lista of Object.keys(LISTE)) {
+      out[lista] = Array.isArray(ulaz[lista]) ? ulaz[lista].map((r) => ({ ...noviRed(lista), ...r })) : [];
+    }
+    return out;
+  }
+
+  // ─── Prikaz ─────────────────────────────────────────────────────────────────────────────────
+  const idPolja = (put) => `p-${put.replace(/\./g, "-")}`;
+
+  function polje(put, oznaka, o = {}) {
+    const v = get(put);
+    const id = idPolja(put);
+    const zvjezdica = o.obavezno ? "<em aria-hidden=\"true\">*</em>" : "";
+    let kontrola;
+    if (o.tip === "textarea") {
+      kontrola = `<textarea id="${id}" data-p="${put}" placeholder="${esc(o.ph ?? "")}">${esc(v)}</textarea>`;
+    } else {
+      const tip = o.tip === "tel" ? "tel" : o.tip === "email" ? "email" : o.tip === "broj" ? "text" : o.tip === "datum" ? "date" : "text";
+      const mod = o.tip === "broj" ? ' inputmode="decimal"' : o.mod ? ` inputmode="${o.mod}"` : "";
+      kontrola = `<input id="${id}" type="${tip}" data-p="${put}" value="${esc(v)}" placeholder="${esc(o.ph ?? "")}"${mod}${o.disabled ? " disabled" : ""} autocomplete="off">`;
+    }
+    return `<label class="polje${o.siroko ? " siroko" : ""}" for="${id}"><span>${esc(oznaka)}${zvjezdica}</span>${kontrola}<small data-greska="${put}" hidden></small>${o.savjet ? `<small class="savjet">${esc(o.savjet)}</small>` : ""}</label>`;
+  }
+  function kvacica(put, oznaka) {
+    const id = idPolja(put);
+    return `<label class="kvacica" for="${id}"><input id="${id}" type="checkbox" data-p="${put}"${get(put) ? " checked" : ""}> ${esc(oznaka)}</label>`;
+  }
+  function izbor(put, oznaka, opcije, o = {}) {
+    const id = idPolja(put);
+    const v = get(put) ?? "";
+    const lista = opcije.map(([k, n]) => `<option value="${esc(k)}"${String(k) === String(v) ? " selected" : ""}>${esc(n)}</option>`).join("");
+    const nepoznato = v && !opcije.some(([k]) => String(k) === String(v)) ? `<option value="${esc(v)}" selected>${esc(v)} (nije na spisku)</option>` : "";
+    return `<label class="polje${o.siroko ? " siroko" : ""}" for="${id}"><span>${esc(oznaka)}${o.obavezno ? "<em aria-hidden=\"true\">*</em>" : ""}</span><select id="${id}" data-p="${put}">${nepoznato}${lista}</select><small data-greska="${put}" hidden></small></label>`;
+  }
+
+  function poljeReda(lista, i, c) {
+    const put = `${lista}.${i}.${c.k}`;
+    const r = S[lista][i];
+    if (c.tip === "kvacica") return `<div class="polje">${kvacica(put, c.l)}</div>`;
+    if (c.tip === "rezim") return izbor(put, c.l, Object.entries(REZIMI).map(([k, v]) => [k, v.naziv]), { obavezno: c.obavezno });
+    if (c.tip === "izbor") return izbor(put, c.l, c.opcije.map((k) => [k, c.nazivi ? c.nazivi[k] : k]), { obavezno: c.obavezno });
+    if (c.tip === "magacin") return izbor(put, c.l, [["", "— izaberite —"], ...puniRedovi("magacini").map(({ r: m }) => [m.naziv, m.naziv])], { obavezno: c.obavezno });
+    if (c.tip === "dobavljac") return izbor(put, c.l, [["", "— izaberite —"], ...puniRedovi("dobavljaci").map(({ r: m }) => [m.naziv, m.naziv])]);
+    const bezGranice = c.granica && (lista === "vozila" ? !r.rashladno : !POD_REZIMOM(r.rezim));
+    return polje(put, c.l, { tip: c.tip, ph: c.ph, obavezno: c.obavezno || (c.granica && !bezGranice), siroko: c.siroko, mod: c.mod, disabled: bezGranice });
+  }
+
+  function naslovReda(lista, r) {
+    const prvi = t(r[LISTE[lista].kolone[0].k]);
+    const rezim = r.rezim && POD_REZIMOM(r.rezim) && r.rezim !== "drugo" ? ` <span class="rezim-oznaka ${r.rezim}">${esc(REZIMI[r.rezim].naziv)}</span>` : "";
+    return `${prvi ? esc(prvi) : `<span style="color:var(--muted)">Nov ${esc(LISTE[lista].jedan)}</span>`}${rezim}`;
+  }
+
+  function red(lista, i) {
+    const r = S[lista][i];
+    return `<div class="red" data-red="${lista}.${i}">
+      <div class="red-glava"><span class="rb">${i + 1}.</span><span class="naziv-reda" data-naslov="${lista}.${i}">${naslovReda(lista, r)}</span>
+        <button class="dugme tiho" type="button" data-akcija="ukloni" data-lista="${lista}" data-i="${i}" aria-label="Ukloni red ${i + 1}">Ukloni</button></div>
+      <div class="red-polja">${LISTE[lista].kolone.map((c) => poljeReda(lista, i, c)).join("")}</div>
+      <ul class="red-greske" data-greske="${lista}.${i}"></ul>
+    </div>`;
+  }
+
+  function primjerReda(lista) {
+    const cfg = LISTE[lista];
+    const p = cfg.primjer;
+    const opis = cfg.kolone
+      .map((c) => {
+        const v = p[c.k];
+        if (c.tip === "kvacica") return v ? c.l.toLowerCase() : "";
+        if (c.tip === "rezim") return REZIMI[v]?.naziv ?? "";
+        if (c.k === "min" || c.k === "max") return "";
+        if (c.tip === "izbor" && c.nazivi) return c.nazivi[v];
+        if (c.tip === "datum") return v ? `do ${datumCitljiv(v)}` : "";
+        return v;
+      })
+      .filter(Boolean);
+    const granicaTekst = POD_REZIMOM(p.rezim) || p.rashladno ? `${p.min} do ${p.max} °C` : "";
+    return `<div class="red primjer" aria-label="Primjer"><div class="red-glava"><span class="rb">npr.</span><span class="naziv-reda">${esc(opis.join(" · "))}${granicaTekst ? ` · ${esc(granicaTekst)}` : ""}</span></div></div>`;
+  }
+
+  function lista(ime) {
+    const cfg = LISTE[ime];
+    const n = puniRedovi(ime).length;
+    const redovi = S[ime].length ? S[ime].map((_, i) => red(ime, i)).join("") : primjerReda(ime) + `<p class="prazna-lista">Još nema upisanih — „${esc(cfg.dodaj)}“ ili „Zalijepi iz Excela“.</p>`;
+    const kolone = cfg.kolone.map((c) => c.l + (c.tip === "kvacica" ? " (da/ne)" : c.tip === "datum" ? " (dd.mm.gggg)" : c.tip === "rezim" ? " (rashlađeno/smrznuto/sobna)" : "")).join(" · ");
+    return `<div class="lista" data-lista="${ime}">
+      <div class="lista-alati">
+        <button class="dugme" type="button" data-akcija="dodaj" data-lista="${ime}">+ ${esc(cfg.dodaj)}</button>
+        <button class="dugme" type="button" data-akcija="lijepi" data-lista="${ime}" aria-expanded="false">Zalijepi iz Excela</button>
+        <span class="brojac">${n} ${n === 1 ? cfg.jedan : cfg.vise}</span>
+      </div>
+      <div class="lijepljenje" data-lijepljenje="${ime}" hidden>
+        <p>U Excelu označite redove i kopirajte (Ctrl+C), pa zalijepite ovdje (Ctrl+V). Kolone redom: <code>${esc(kolone)}</code>. Kolona koje nemate — ostavite prazne. Prvi red sa nazivima kolona se preskače sam.</p>
+        <textarea id="lijepi-${ime}" data-lijepi="${ime}" placeholder="Zalijepite ovdje…"></textarea>
+        <div class="lista-alati"><button class="dugme glavno" type="button" data-akcija="dodaj-zalijepljeno" data-lista="${ime}">Dodaj zalijepljene redove</button><span class="ishod" data-ishod="${ime}"></span></div>
+      </div>
+      <div class="redovi">${redovi}</div>
+    </div>`;
+  }
+
+  function zasto(tekst) {
+    return `<p class="zasto">${tekst}</p>`;
+  }
+
+  const STRANE = {
+    firma: () => `
+      ${zasto("<b>Zašto:</b> naziv, PIB i adresa idu na svaki papir koji aplikacija štampa — rješenje o imenovanju, HACCP plan, otpremnice i paket za inspekciju.")}
+      <div class="grupa"><h3>Podaci o firmi</h3><div class="polja">
+        ${polje("firma.naziv", "Naziv firme", { obavezno: true, ph: "npr. Distribucija Sever d.o.o." })}
+        ${polje("firma.pib", "PIB", { obavezno: true, ph: "8 cifara", mod: "numeric" })}
+        ${polje("firma.adresa", "Adresa", { obavezno: true, ph: "ulica i broj" })}
+        ${polje("firma.grad", "Grad", { obavezno: true, ph: "npr. Podgorica" })}
+        ${polje("firma.registracija", "Broj rješenja o registraciji objekta (UBH)", { ph: "ako ga imate pri ruci", savjet: "Uprava za bezbjednost hrane, veterinu i fitosanitarne poslove" })}
+      </div></div>
+      <div class="grupa"><h3>Koju robu distribuirate</h3><div class="polja">
+        ${kvacica("firma.roba.rashladjeno", "Rashlađenu (mliječni proizvodi, meso, salate…)")}
+        ${kvacica("firma.roba.smrznuto", "Smrznutu")}
+        ${kvacica("firma.roba.sobna", "Na sobnoj temperaturi (suva roba, piće…)")}
+        ${polje("firma.drugaRoba", "Nešto drugo", { ph: "npr. svježe voće i povrće" })}
+      </div><small data-greska="firma.roba" hidden></small></div>
+      <div class="grupa"><h3>Odgovorno lice za bezbjednost hrane</h3>
+        <p style="margin:0;color:var(--muted);font-size:13.5px;max-width:70ch">Osoba koja u firmi vodi računa o higijeni, temperaturama i zapisima. Ona prva dobija nalog u aplikaciji i potpisano rješenje o imenovanju.</p>
+        <div class="polja">
+        ${polje("firma.odgovorno.ime", "Ime i prezime", { obavezno: true })}
+        ${polje("firma.odgovorno.telefon", "Telefon", { obavezno: true, tip: "tel" })}
+        ${polje("firma.odgovorno.email", "E-pošta", { tip: "email" })}
+      </div></div>
+      <div class="grupa"><h3>Direktor</h3><div class="polja">
+        ${kvacica("firma.direktorJeOdgovorno", "Direktor je i odgovorno lice")}
+      </div>
+      ${S.firma.direktorJeOdgovorno ? "" : `<div class="polja">
+        ${polje("firma.direktor.ime", "Ime i prezime", { obavezno: true })}
+        ${polje("firma.direktor.telefon", "Telefon", { tip: "tel" })}
+        ${polje("firma.direktor.email", "E-pošta", { tip: "email" })}
+      </div>`}</div>`,
+
+    rad: () => `
+      ${zasto("<b>Zašto:</b> po ovome konsultant pravi plan — koliko često se mjere komore i popunjavaju obrasci. Nedjelja se ne broji kao radni dan, osim ako je označite.")}
+      <div class="grupa"><h3>Radni dani</h3><div class="dani">
+        ${DANI.map(([k, n]) => `<label for="${idPolja(`rad.dani.${k}`)}"><input id="${idPolja(`rad.dani.${k}`)}" type="checkbox" data-p="rad.dani.${k}"${S.rad.dani[k] ? " checked" : ""}> ${n}</label>`).join("")}
+      </div></div>
+      <div class="grupa"><h3>Koliko robe obrnete</h3><div class="polja">
+        ${polje("rad.prijema", "Prijema robe dnevno (otprilike)", { tip: "broj", ph: "npr. 4" })}
+        ${polje("rad.isporuka", "Isporuka kupcima dnevno (otprilike)", { tip: "broj", ph: "npr. 25" })}
+        ${polje("rad.napomena", "Napomena", { tip: "textarea", ph: "npr. utorkom i petkom veliki prijemi; subotom samo isporuke do 13 h", siroko: true })}
+      </div></div>`,
+
+    magacini: () => `
+      ${zasto("<b>Zašto:</b> svaka komora, frižider ili zamrzivač je mjesto gdje se temperatura mjeri i upisuje. Granica je pretpostavka — konsultant je potvrđuje.")}
+      <div class="grupa"><h3>Magacini</h3>${lista("magacini")}</div>
+      <div class="grupa"><h3>Komore, frižideri i zamrzivači</h3>${puniRedovi("magacini").length ? lista("komore") : '<p class="prazna-lista">Prvo upišite magacin, pa komore u njemu.</p>'}</div>`,
+
+    vozila: () => `
+      ${zasto("<b>Zašto:</b> roba pod temperaturnim režimom ide samo rashladnim vozilom, a vozač prije utovara provjerava vozilo i temperaturu (kontrola D1).")}
+      <div class="grupa"><div class="polja">${kvacica("nemaVozila", "Nemamo svoja vozila (prevoznik ili kupac preuzima)")}</div></div>
+      ${S.nemaVozila ? "" : `<div class="grupa"><h3>Vozila</h3>${lista("vozila")}</div>`}`,
+
+    zaposleni: () => `
+      ${zasto("<b>Zašto:</b> za svakoga ko rukuje hranom vodi se sanitarna knjižica (Zakon o zaštiti stanovništva od zaraznih bolesti, čl. 31). Upisuje se <b>samo broj i datum do kog važi</b>, nikad nalaz pregleda. Magacioneri i vozači dobijaju nalog za telefon.")}
+      <div class="grupa">
+        <div class="lista-alati"><button class="dugme" type="button" data-akcija="dodaj-vodstvo">+ Dodaj odgovorno lice i direktora iz koraka 1</button></div>
+        ${lista("zaposleni")}
+      </div>`,
+
+    dobavljaci: () => `
+      ${zasto("<b>Zašto:</b> svaki lot robe vodi se po dobavljaču — kad je serija sporna, zna se odakle je stigla (sledljivost, čl. 27 Zakona o bezbjednosti hrane). Po PIB-u aplikacija sama prepoznaje dobavljača sa otpremnice.")}
+      <div class="grupa">${lista("dobavljaci")}</div>`,
+
+    kupci: () => `
+      ${zasto("<b>Zašto:</b> kad treba povući seriju, prvo se zovu kupci koji su je dobili (čl. 28) — zato je <b>telefon obavezan</b>. Adresa isporuke ide na otpremnicu kad roba ne ide u sjedište.")}
+      <div class="grupa">${lista("kupci")}</div>`,
+
+    artikli: () => `
+      ${zasto("<b>Zašto:</b> po režimu i granici aplikacija ocjenjuje temperaturu pri prijemu i predaji. Naziv pišite sa pakovanjem („Mlijeko 2,8% 1 l“), da se ne zamijeni sa drugim pakovanjem. Najbrže: kopirajte spisak iz Excela ili programa za fakturisanje.")}
+      <div class="grupa">${lista("artikli")}</div>`,
+
+    termometri: () => `
+      ${zasto("<b>Zašto:</b> svako mjerenje pamti kojim je termometrom izmjereno, a termometar se povremeno provjerava ili kalibriše. Ako nemate sertifikat kalibracije — ostavite prazno.")}
+      <div class="grupa"><div class="polja">${kvacica("nemaTermometra", "Još nemamo termometar")}</div></div>
+      ${S.nemaTermometra ? "" : `<div class="grupa">${lista("termometri")}</div>`}`,
+
+    pregled: () => {
+      const { odjeljci } = provjeri();
+      const koraci = KORACI.filter((k) => k.id !== "pregled");
+      const fali = koraci.filter((k) => odjeljci[k.id].stanje !== "spremno" || odjeljci[k.id].poruke.length);
+      const spremnih = koraci.filter((k) => odjeljci[k.id].stanje === "spremno").length;
+      const grupe = fali
+        .map((k) => {
+          const o = odjeljci[k.id];
+          const poruke = o.stanje === "prazno" ? [{ poruka: "Još nije popunjeno.", tip: "greska" }] : o.poruke;
+          return `<div class="pregled-grupa"><h3><span>${KORACI.indexOf(k) + 1}. ${esc(k.naziv)}</span><button class="dugme" type="button" data-idi="${k.id}">Otvori</button></h3>
+            <ul>${poruke.slice(0, 8).map((p) => `<li class="${p.tip}">${esc(p.poruka)}</li>`).join("")}${poruke.length > 8 ? `<li>… i još ${poruke.length - 8}</li>` : ""}</ul></div>`;
+        })
+        .join("");
+      return `
+        ${spremnih === koraci.length && !fali.length ? '<p class="sve-spremno">Sve je popunjeno. Sačuvajte fajl i pošaljite ga konsultantu.</p>' : `<p style="margin:0">Spremno ${spremnih} od ${koraci.length} koraka. Fajl možete poslati i ovako — konsultant će dopuniti ono što fali, uz razgovor.</p>`}
+        <div class="pregled-fali">${grupe}</div>
+        <div class="slanje">
+          <h3>Slanje konsultantu</h3>
+          <p>„Sačuvaj fajl“ pravi jedan fajl sa svim upisanim. Pošaljite ga e-poštom ili porukom konsultantu. Kasnije ga možete ponovo otvoriti ovdje i nastaviti.</p>
+          <div class="slanje-dugmad">
+            <button class="dugme glavno" type="button" data-akcija="sacuvaj-fajl" id="dugme-fajl">Sačuvaj fajl za konsultanta</button>
+            <button class="dugme" type="button" data-akcija="kopiraj">Kopiraj podatke</button>
+            <button class="dugme" type="button" data-akcija="otvori-fajl">Otvori sačuvan fajl</button>
+            <button class="dugme" type="button" data-akcija="stampaj" id="dugme-stampa">Štampaj pregled</button>
+            <button class="dugme opasno" type="button" data-akcija="obrisi">Obriši sve upisano</button>
+          </div>
+          <div id="slanje-poruka"></div>
+        </div>
+        <div class="sazetak">${sazetak()}</div>`;
+    },
+  };
+
+  // Pregled svega upisanog — i za konsultanta kad otvori fajl, i za štampu.
+  function sazetak() {
+    const f = S.firma;
+    const tabela = (naslov, kolone, redovi) =>
+      redovi.length
+        ? `<div><h3>${esc(naslov)} <span style="color:var(--muted);font-weight:500">(${redovi.length})</span></h3><div class="tabela-omot"><table><thead><tr>${kolone.map((k) => `<th>${esc(k)}</th>`).join("")}</tr></thead><tbody>${redovi
+            .map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`)
+            .join("")}</tbody></table></div></div>`
+        : "";
+    const gr = (r) => (POD_REZIMOM(r.rezim) ? `${t(r.min)} do ${t(r.max)} °C` : "—");
+    const robe = [f.roba.rashladjeno && "rashlađena", f.roba.smrznuto && "smrznuta", f.roba.sobna && "sobna temperatura", t(f.drugaRoba)].filter(Boolean).join(", ");
+    const dani = DANI.filter(([k]) => S.rad.dani[k]).map(([, n]) => n).join(", ");
+    return [
+      tabela("Firma", ["Podatak", "Vrijednost"], [
+        ["Naziv", f.naziv], ["PIB", f.pib], ["Adresa", [f.adresa, f.grad].filter((x) => t(x)).join(", ")], ["Registracija objekta", f.registracija || "—"], ["Roba", robe || "—"],
+        ["Odgovorno lice", [f.odgovorno.ime, f.odgovorno.telefon, f.odgovorno.email].filter((x) => t(x)).join(" · ")],
+        ["Direktor", f.direktorJeOdgovorno ? "isto lice" : [f.direktor.ime, f.direktor.telefon, f.direktor.email].filter((x) => t(x)).join(" · ")],
+        ["Radni dani", dani || "—"], ["Prijema / isporuka dnevno", `${S.rad.prijema || "—"} / ${S.rad.isporuka || "—"}`], ["Napomena", S.rad.napomena || "—"],
+      ].filter(([, v]) => t(v))),
+      tabela("Magacini", ["Naziv", "Adresa"], puniRedovi("magacini").map(({ r }) => [r.naziv, r.adresa])),
+      tabela("Komore", ["Komora", "Magacin", "Režim", "Granica"], puniRedovi("komore").map(({ r }) => [r.naziv, r.magacin, REZIMI[r.rezim]?.naziv ?? r.rezim, gr(r)])),
+      S.nemaVozila ? `<p>Vozila: nemaju svoja vozila.</p>` : tabela("Vozila", ["Oznaka", "Vrsta", "Rashladno", "Granica"], puniRedovi("vozila").map(({ r }) => [r.oznaka, r.tip, r.rashladno ? "da" : "ne", r.rashladno ? `${t(r.min)} do ${t(r.max)} °C` : "—"])),
+      tabela("Zaposleni", ["Ime", "Radno mjesto", "Rukuje hranom", "Knjižica", "Važi do", "Nalog", "Magacin"], puniRedovi("zaposleni").map(({ r }) => [r.ime, r.radnoMjesto, r.rukujeHranom ? "da" : "ne", r.knjizicaBroj, datumCitljiv(r.knjizicaRok), NALOZI[r.nalog] ?? "", r.magacin])),
+      tabela("Dobavljači", ["Naziv", "PIB", "Telefon", "Mjesto", "Roba"], puniRedovi("dobavljaci").map(({ r }) => [r.naziv, r.pib, r.telefon, r.mjesto, r.roba])),
+      tabela("Kupci", ["Naziv", "Telefon", "PIB", "Adresa", "Adresa isporuke", "Kontakt"], puniRedovi("kupci").map(({ r }) => [r.naziv, r.telefon, r.pib, r.adresa, r.adresaIsporuke, r.kontakt])),
+      tabela("Artikli", ["Naziv", "Jed.", "Režim", "Granica", "Rok", "Dobavljač", "Šifra"], puniRedovi("artikli").map(({ r }) => [r.naziv, r.jedinica, REZIMI[r.rezim]?.naziv ?? r.rezim, gr(r), r.rok ? "da" : "ne", r.dobavljac, r.sifra])),
+      S.nemaTermometra ? `<p>Termometri: još nemaju.</p>` : tabela("Termometri", ["Termometar", "Oznaka", "Gdje", "Sertifikat", "Kalibrisan"], puniRedovi("termometri").map(({ r }) => [r.naziv, r.oznaka, r.gdje, r.kalibracijaBroj, datumCitljiv(r.kalibracijaDatum)])),
+    ].join("");
+  }
+
+  function iscrtajKorake(odjeljci) {
+    const nav = document.getElementById("koraci");
+    nav.innerHTML = KORACI.map((k, i) => {
+      const o = odjeljci[k.id];
+      const stanje = k.id === "pregled" ? "" : o.stanje;
+      const opis = k.id === "pregled" ? "" : stanje === "spremno" ? (o.poruke.length ? "napomena" : "spremno") : stanje === "fali" ? "fali" : "";
+      return `<button class="korak-dugme" type="button" data-idi="${k.id}" data-stanje="${stanje}"${k.id === aktivni ? ' aria-current="step"' : ""}>
+        <span class="br">${stanje === "spremno" ? "✓" : i + 1}</span><span class="ime">${esc(k.naziv)}</span><span class="stanje">${opis}</span></button>`;
+    }).join("");
+    const spremnih = KORACI.filter((k) => k.id !== "pregled" && odjeljci[k.id].stanje === "spremno").length;
+    document.getElementById("napredak-traka").style.width = `${Math.round((spremnih / 9) * 100)}%`;
+    document.getElementById("napredak-tekst").textContent = `${spremnih} od 9 koraka spremno`;
+    // Telefon: traka koraka se pomjeri vodoravno do trenutnog koraka — strana se ne pomjera (kucanje je ne smije vraćati gore).
+    const trenutni = nav.querySelector('[aria-current="step"]');
+    if (trenutni && nav.scrollWidth > nav.clientWidth) {
+      nav.scrollLeft += trenutni.getBoundingClientRect().left - nav.getBoundingClientRect().left - (nav.clientWidth - trenutni.offsetWidth) / 2;
+    }
+    document.getElementById("naslov-firme").textContent = t(S.firma.naziv) ? `Upitnik za početak · ${t(S.firma.naziv)}` : "Upitnik za početak";
+  }
+
+  function iscrtajStranu() {
+    const k = KORACI.find((x) => x.id === aktivni);
+    const i = KORACI.indexOf(k);
+    const strana = document.getElementById("strana");
+    const prethodni = KORACI[i - 1];
+    const sljedeci = KORACI[i + 1];
+    strana.innerHTML = `
+      <div class="strana-glava"><span class="oznaka">Korak ${i + 1} od ${KORACI.length}</span><h2>${esc(k.naziv)}</h2></div>
+      ${STRANE[aktivni]()}
+      <div class="dalje">
+        ${prethodni ? `<button class="dugme" type="button" data-idi="${prethodni.id}">← ${esc(prethodni.naziv)}</button>` : "<span></span>"}
+        ${sljedeci ? `<button class="dugme glavno" type="button" data-idi="${sljedeci.id}">${esc(sljedeci.naziv)} →</button>` : ""}
+      </div>`;
+    if (aktivni === "pregled") pripremiSlanje();
+    osvjezi();
+  }
+
+  // Greške uz polja i redove, stanje koraka — bez ponovnog crtanja forme (fokus ostaje gdje jeste).
+  function osvjezi() {
+    const rez = provjeri();
+    iscrtajKorake(rez.odjeljci);
+    const strana = document.getElementById("strana");
+    const prikaziPolja = posjeceni.has(aktivni);
+    strana.querySelectorAll("[data-p]").forEach((el) => {
+      const put = el.getAttribute("data-p");
+      const redPut = put.split(".").slice(0, 2).join(".");
+      const uListi = LISTE[put.split(".")[0]] && /^\w+\.\d+\./.test(put);
+      const vidi = uListi ? !redPrazan(put.split(".")[0], get(redPut)) && (prikaziPolja || rez.redovi.has(redPut) || dodirnuti.has(redPut)) : prikaziPolja;
+      const poruka = vidi ? rez.polja.get(put) : undefined;
+      if (el.type !== "checkbox") el.setAttribute("aria-invalid", poruka ? "true" : "false");
+      const mjesto = strana.querySelector(`[data-greska="${CSS.escape(put)}"]`);
+      if (mjesto) {
+        mjesto.hidden = !poruka;
+        mjesto.textContent = poruka ?? "";
+      }
+    });
+    strana.querySelectorAll("[data-greske]").forEach((ul) => {
+      const put = ul.getAttribute("data-greske");
+      const lista = rez.redovi.get(put) ?? [];
+      ul.innerHTML = lista.map((p) => `<li class="${p.tip === "upozorenje" ? "upozorenje" : ""}">${esc(p.poruka)}</li>`).join("");
+    });
+    strana.querySelectorAll("[data-naslov]").forEach((el) => {
+      const [ime, i] = el.getAttribute("data-naslov").split(".");
+      if (S[ime][i]) el.innerHTML = naslovReda(ime, S[ime][i]);
+    });
+    const firmaRoba = strana.querySelector('[data-greska="firma.roba"]');
+    if (firmaRoba) {
+      const p = prikaziPolja ? rez.odjeljci.firma.poruke.find((x) => x.poruka.startsWith("Označite koju robu")) : null;
+      firmaRoba.hidden = !p;
+      firmaRoba.textContent = p ? p.poruka : "";
+      firmaRoba.style.color = "var(--bad)";
+    }
+    strana.querySelectorAll(".brojac").forEach((el) => {
+      const ime = el.closest("[data-lista]").getAttribute("data-lista");
+      const n = puniRedovi(ime).length;
+      el.textContent = `${n} ${n === 1 ? LISTE[ime].jedan : LISTE[ime].vise}`;
+    });
+  }
+  const dodirnuti = new Set();
+
+  function idiNa(id) {
+    if (!KORACI.some((k) => k.id === id)) return;
+    posjeceni.add(aktivni);
+    aktivni = id;
+    iscrtajStranu();
+    sacuvaj();
+    document.getElementById("strana").scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+
+  // ─── Lijepljenje iz Excela ─────────────────────────────────────────────────────────────────
+  const REZIM_IZ_TEKSTA = (v) => {
+    const s = kljucNaziva(v).normalize("NFD").replace(/[̀-ͯ]/g, "");
+    if (!s) return null;
+    if (/smrz|zamrz|duboko|^-1[5-9]|^-2/.test(s)) return "smrznuto";
+    if (/rashl|hlad|frizid|^0|^2|^\+?4/.test(s)) return "rashladjeno";
+    if (/sob|suv|ambij/.test(s)) return "sobna";
+    return "drugo";
+  };
+  const DA = (v) => /^(da|d|x|1|yes|true|✓)$/i.test(t(v));
+  const DATUM_IZ_TEKSTA = (v) => {
+    const s = t(v);
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+    m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})\.?$/);
+    if (m) return `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    return s;
+  };
+
+  function procitajZalijepljeno(ime, tekst) {
+    const cfg = LISTE[ime];
+    const linije = tekst.replace(/\r/g, "").split("\n").filter((l) => l.trim());
+    const razdvajac = linije.some((l) => l.includes("\t")) ? "\t" : ";";
+    const redovi = [];
+    linije.forEach((linija, n) => {
+      const celije = linija.split(razdvajac).map((c) => c.trim().replace(/^"(.*)"$/, "$1"));
+      // Prvi red sa nazivima kolona („Naziv“, „Telefon“…) se preskače.
+      if (n === 0) {
+        const prva = (x) => kljucNaziva(x).split(/[\s(,.:]/)[0];
+        const pune = celije.filter((c) => c).length;
+        const kaoNaziv = cfg.kolone.filter((c, j) => celije[j] && prva(celije[j]) === prva(c.l)).length;
+        if (pune && kaoNaziv >= Math.max(1, Math.ceil(pune / 2))) return;
+      }
+      const r = noviRed(ime);
+      const roba = S.firma.roba;
+      const jedina = [roba.rashladjeno && "rashladjeno", roba.smrznuto && "smrznuto", roba.sobna && "sobna"].filter(Boolean);
+      if ("rezim" in r && jedina.length === 1) {
+        r.rezim = jedina[0];
+        r.min = REZIMI[jedina[0]].min === null ? "" : String(REZIMI[jedina[0]].min);
+        r.max = REZIMI[jedina[0]].max === null ? "" : String(REZIMI[jedina[0]].max);
+      }
+      cfg.kolone.forEach((c, j) => {
+        const v = celije[j];
+        if (v === undefined || v === "") return;
+        if (c.tip === "kvacica") r[c.k] = DA(v);
+        else if (c.tip === "rezim") {
+          const rez = REZIM_IZ_TEKSTA(v);
+          if (rez) {
+            r[c.k] = rez;
+            if (REZIMI[rez].min !== null) {
+              r.min = String(REZIMI[rez].min);
+              r.max = String(REZIMI[rez].max);
+            } else if (rez === "sobna") {
+              r.min = "";
+              r.max = "";
+            }
+          }
+        } else if (c.tip === "datum") r[c.k] = DATUM_IZ_TEKSTA(v);
+        else if (c.tip === "broj") r[c.k] = v.replace(",", ".");
+        else if (c.tip === "izbor") {
+          const nadjena = c.opcije.find((o) => kljucNaziva(o) === kljucNaziva(v) || kljucNaziva(c.nazivi?.[o] ?? "") === kljucNaziva(v));
+          r[c.k] = nadjena ?? (c.k === "jedinica" ? v.toLowerCase() : r[c.k]);
+        } else r[c.k] = v;
+      });
+      if (!redPrazan(ime, r)) redovi.push(r);
+    });
+    return redovi;
+  }
+
+  // ─── Fajl, kopija, štampa ──────────────────────────────────────────────────────────────────
+  // Na claude.ai stranica sama ne smije pokrenuti preuzimanje ni štampu — tamo ide preko dozvole
+  // „downloads“ (uz potvrdu korisnika), a štampa se ne nudi. Otvoren kao fajl na računaru — obično.
+  const uPregledacuClaude = !!(window.claude && typeof window.claude.use === "function");
+  let preuzimanja = null;
+  if (uPregledacuClaude) window.claude.use("downloads").then((d) => { preuzimanja = d; pripremiSlanje(); }).catch(() => undefined);
+
+  function zaSlanje() {
+    const izvoz = { format: FORMAT, verzija: 1, sacuvano: new Date().toISOString(), firma: S.firma, rad: S.rad, nemaVozila: S.nemaVozila, nemaTermometra: S.nemaTermometra };
+    for (const ime of Object.keys(LISTE)) izvoz[ime] = puniRedovi(ime).map(({ r }) => r);
+    return izvoz;
+  }
+  const imeFajla = () => {
+    const firma = kljucNaziva(S.firma.naziv).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "dj").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "firma";
+    return `pilot-start-${firma}-${danas()}.json`;
+  };
+
+  function poruka(tekst, tip = "ok") {
+    const el = document.getElementById("slanje-poruka");
+    if (el) el.innerHTML = tekst ? `<p class="poruka ${tip}" role="status">${esc(tekst)}</p>` : "";
+  }
+
+  function pripremiSlanje() {
+    const fajl = document.getElementById("dugme-fajl");
+    const stampa = document.getElementById("dugme-stampa");
+    if (stampa) stampa.hidden = uPregledacuClaude;
+    if (fajl) fajl.hidden = uPregledacuClaude && !preuzimanja;
+  }
+
+  async function sacuvajFajl() {
+    const sadrzaj = JSON.stringify(zaSlanje(), null, 2);
+    const ime = imeFajla();
+    if (uPregledacuClaude) {
+      if (!preuzimanja) return poruka("Ovdje se fajl ne može sačuvati — upotrijebite „Kopiraj podatke“ i zalijepite ih u poruku konsultantu.", "greska");
+      try {
+        await preuzimanja.save({ filename: ime, data: sadrzaj });
+        poruka(`Fajl „${ime}“ je sačuvan. Pošaljite ga konsultantu.`);
+      } catch (e) {
+        if (e?.code === "declined") poruka("Fajl nije sačuvan — potvrda je odbijena.", "greska");
+        else poruka("Fajl se ne može sačuvati ovdje — upotrijebite „Kopiraj podatke“.", "greska");
+      }
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([sadrzaj], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = ime;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    poruka(`Fajl „${ime}“ je u folderu za preuzimanja. Pošaljite ga konsultantu.`);
+  }
+
+  async function kopiraj() {
+    const sadrzaj = JSON.stringify(zaSlanje());
+    try {
+      await navigator.clipboard.writeText(sadrzaj);
+      poruka("Podaci su kopirani. Zalijepite ih (Ctrl+V) u e-poruku ili poruku konsultantu.");
+    } catch {
+      const el = document.getElementById("slanje-poruka");
+      el.innerHTML = `<p class="poruka greska">Kopiranje nije dozvoljeno ovdje — označite tekst ispod (Ctrl+A) i kopirajte ga sami.</p><textarea class="kopija" id="kopija" readonly>${esc(sadrzaj)}</textarea>`;
+      const ta = document.getElementById("kopija");
+      ta.focus();
+      ta.select();
+    }
+  }
+
+  function stampaj() {
+    document.getElementById("stampa").innerHTML = `<h1>Upitnik za početak — ${esc(S.firma.naziv || "firma")}</h1><p>Odštampano ${datumCitljiv(danas())}</p><div class="sazetak">${sazetak()}</div>`;
+    window.print();
+  }
+
+  function potvrdi(tekst, dugme, radnja) {
+    const el = document.getElementById("slanje-poruka");
+    el.innerHTML = `<div class="potvrda" role="alertdialog"><span>${esc(tekst)}</span><button class="dugme opasno" type="button" id="potvrdi-da">${esc(dugme)}</button><button class="dugme" type="button" id="potvrdi-ne">Odustani</button></div>`;
+    document.getElementById("potvrdi-da").onclick = radnja;
+    document.getElementById("potvrdi-ne").onclick = () => poruka("");
+    document.getElementById("potvrdi-ne").focus();
+  }
+
+  function ucitajFajl(fajl) {
+    const citac = new FileReader();
+    citac.onload = () => {
+      let o;
+      try {
+        o = JSON.parse(String(citac.result));
+      } catch {
+        return poruka("Ovo nije fajl upitnika — izaberite fajl koji je sačuvan dugmetom „Sačuvaj fajl za konsultanta“.", "greska");
+      }
+      if (!o || o.format !== FORMAT) return poruka("Ovo nije fajl upitnika PILOT.", "greska");
+      const ucitaj = () => {
+        S = spoji(o);
+        posjeceni.clear();
+        aktivni = "pregled";
+        iscrtajStranu();
+        sacuvaj();
+        poruka(`Otvoren fajl „${fajl.name}“ (${o.firma?.naziv || "bez naziva"}).`);
+      };
+      if (KORACI.some((k) => k.id !== "pregled" && provjeri().odjeljci[k.id].ima)) potvrdi("Otvaranjem fajla zamjenjuje se ono što je sada upisano na ovom uređaju.", "Otvori fajl", ucitaj);
+      else ucitaj();
+    };
+    citac.readAsText(fajl);
+  }
+
+  // ─── Događaji ──────────────────────────────────────────────────────────────────────────────
+  let tajmer = null;
+  const kasnije = () => {
+    clearTimeout(tajmer);
+    tajmer = setTimeout(() => {
+      osvjezi();
+      sacuvaj();
+    }, 150);
+  };
+
+  document.addEventListener("input", (e) => {
+    const el = e.target;
+    const put = el.getAttribute?.("data-p");
+    if (!put) return;
+    set(put, el.type === "checkbox" ? el.checked : el.value);
+    const redPut = put.split(".").slice(0, 2).join(".");
+    if (/^\w+\.\d+$/.test(redPut)) dodirnuti.add(redPut);
+    kasnije();
+  });
+
+  document.addEventListener("change", (e) => {
+    const el = e.target;
+    if (el.id === "ucitaj-fajl") {
+      if (el.files?.[0]) ucitajFajl(el.files[0]);
+      el.value = "";
+      return;
+    }
+    const put = el.getAttribute?.("data-p");
+    if (!put) return;
+    set(put, el.type === "checkbox" ? el.checked : el.value);
+    const dijelovi = put.split(".");
+    const kljuc = dijelovi[dijelovi.length - 1];
+    // Režim i „rashladno“ mijenjaju granicu: predlog iz aplikacije, pa red iznova.
+    if (dijelovi.length === 3 && LISTE[dijelovi[0]] && (kljuc === "rezim" || kljuc === "rashladno")) {
+      const r = S[dijelovi[0]][dijelovi[1]];
+      if (kljuc === "rezim") {
+        const p = REZIMI[r.rezim];
+        if (p.min !== null) {
+          r.min = String(p.min);
+          r.max = String(p.max);
+        } else if (r.rezim === "sobna") {
+          r.min = "";
+          r.max = "";
+        }
+      } else if (r.rashladno && !t(r.min) && !t(r.max)) {
+        r.min = "0";
+        r.max = "4";
+      }
+      const stari = document.querySelector(`[data-red="${dijelovi[0]}.${dijelovi[1]}"]`);
+      if (stari) {
+        stari.outerHTML = red(dijelovi[0], Number(dijelovi[1]));
+        document.getElementById(idPolja(put))?.focus();
+      }
+    }
+    // Kvačice koje otvaraju ili zatvaraju dio strane.
+    if (["nemaVozila", "nemaTermometra", "firma.direktorJeOdgovorno"].includes(put)) {
+      iscrtajStranu();
+      document.getElementById(idPolja(put))?.focus();
+    }
+    if (put.startsWith("magacini.") || put.startsWith("dobavljaci.")) {
+      // Spiskovi za izbor magacina/dobavljača se osvježe kad se ode na drugi korak.
+    }
+    kasnije();
+  });
+
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest?.("button");
+    if (!el) return;
+    const idi = el.getAttribute("data-idi");
+    if (idi) return idiNa(idi);
+    const akcija = el.getAttribute("data-akcija");
+    const ime = el.getAttribute("data-lista");
+    if (akcija === "dodaj") {
+      S[ime].push(noviRed(ime));
+      iscrtajStranu();
+      const i = S[ime].length - 1;
+      document.getElementById(idPolja(`${ime}.${i}.${LISTE[ime].kolone[0].k}`))?.focus();
+      sacuvaj();
+    } else if (akcija === "ukloni") {
+      S[ime].splice(Number(el.getAttribute("data-i")), 1);
+      dodirnuti.clear();
+      iscrtajStranu();
+      sacuvaj();
+    } else if (akcija === "lijepi") {
+      const panel = document.querySelector(`[data-lijepljenje="${ime}"]`);
+      panel.hidden = !panel.hidden;
+      el.setAttribute("aria-expanded", String(!panel.hidden));
+      if (!panel.hidden) document.getElementById(`lijepi-${ime}`).focus();
+    } else if (akcija === "dodaj-zalijepljeno") {
+      const ta = document.getElementById(`lijepi-${ime}`);
+      const novi = procitajZalijepljeno(ime, ta.value);
+      const ishod = document.querySelector(`[data-ishod="${ime}"]`);
+      if (!novi.length) {
+        ishod.textContent = "Nije prepoznat nijedan red — kopirajte ćelije iz Excela, kolone redom kao iznad.";
+        return;
+      }
+      // Prazni redovi (dodati, a nepopunjeni) ne ostaju ispred zalijepljenih.
+      S[ime] = [...S[ime].filter((r) => !redPrazan(ime, r)), ...novi];
+      novi.forEach((_, j) => dodirnuti.add(`${ime}.${S[ime].length - novi.length + j}`));
+      iscrtajStranu();
+      sacuvaj();
+      const poslije = document.querySelector(`[data-ishod="${ime}"]`);
+      if (poslije) poslije.textContent = "";
+      const brojac = document.querySelector(`[data-lista="${ime}"] .brojac`);
+      if (brojac) brojac.textContent = `${puniRedovi(ime).length} ${LISTE[ime].vise} — dodato ${novi.length}, provjerite ih ispod`;
+    } else if (akcija === "dodaj-vodstvo") {
+      const f = S.firma;
+      const imena = new Set(S.zaposleni.map((r) => kljucNaziva(r.ime)));
+      const dodaj = (ime2, nalog, rukuje, mjesto) => {
+        if (!t(ime2) || imena.has(kljucNaziva(ime2))) return 0;
+        S.zaposleni = S.zaposleni.filter((r) => !redPrazan("zaposleni", r));
+        S.zaposleni.push({ ...noviRed("zaposleni"), ime: t(ime2), radnoMjesto: mjesto, nalog, rukujeHranom: rukuje });
+        imena.add(kljucNaziva(ime2));
+        return 1;
+      };
+      const n = dodaj(f.odgovorno.ime, "odgovorno", true, "odgovorno lice za bezbjednost hrane") + (f.direktorJeOdgovorno ? 0 : dodaj(f.direktor.ime, "direktor", false, "direktor"));
+      iscrtajStranu();
+      sacuvaj();
+      if (!n) {
+        const alat = document.querySelector('[data-akcija="dodaj-vodstvo"]');
+        if (alat) alat.textContent = t(f.odgovorno.ime) ? "Već su na spisku" : "Prvo upišite odgovorno lice u koraku 1";
+      }
+    } else if (akcija === "sacuvaj-fajl") sacuvajFajl();
+    else if (akcija === "kopiraj") kopiraj();
+    else if (akcija === "otvori-fajl") document.getElementById("ucitaj-fajl").click();
+    else if (akcija === "stampaj") stampaj();
+    else if (akcija === "obrisi") {
+      potvrdi("Briše se sve upisano na ovom uređaju. Fajl koji ste već sačuvali ostaje.", "Obriši sve", () => {
+        S = prazno();
+        posjeceni.clear();
+        dodirnuti.clear();
+        aktivni = "firma";
+        iscrtajStranu();
+        sacuvaj();
+      });
+    }
+  });
+
+  // ─── Početak ───────────────────────────────────────────────────────────────────────────────
+  const start = (podaci) => {
+    ucitajSacuvano();
+    if (podaci && podaci.S) {
+      S = spoji(podaci.S);
+      if (podaci.aktivni) aktivni = podaci.aktivni;
+    }
+    const sidro = location.hash.replace("#", "");
+    if (KORACI.some((k) => k.id === sidro)) aktivni = sidro;
+    iscrtajStranu();
+    if (!cuvanjeRadi) sacuvaj();
+  };
+  try {
+    window.claude?.hot?.snapshot?.(() => ({ S, aktivni }));
+  } catch {
+    /* pregledač bez osvježavanja u mjestu */
+  }
+  if (window.claude?.hot?.ready) window.claude.hot.ready(start);
+  else start(window.claude?.hot?.data ?? {});
+})();
+</script>
