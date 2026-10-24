@@ -1,7 +1,7 @@
 // Testovi na SOPSTVENOJ bazi — ne na demo bazi koju koristi Render (nalaz A5, faza 4).
 //
 // npm test                  — privremena baza na ovom računaru: PostgreSQL iz C:/Program Files/PostgreSQL
-//                             (ili PG_BIN=), sopstveni klaster u .testbaza/ na portu 54329, bez lozinke,
+//                             (ili PG_BIN=), sopstveni klaster u .testbaza/ na portu 54339, bez lozinke,
 //                             samo za localhost. Vaši postojeći PostgreSQL servisi se ne diraju.
 // npm test -- povlacenje    — samo testovi čiji naziv fajla sadrži "povlacenje"
 // npm run test:ci           — isto, ali baza je TEST_DATABASE_URL (GitHub Actions daje praznu bazu)
@@ -9,7 +9,7 @@
 //                             server u produkcijskom režimu (service worker, paket po stranama), Chrome
 //                             bez prozora u veličini telefona (testovi/ekrani/). `--sve` = API pa ekrani.
 //
-// Svaki put: čista baza → sve migracije + demo podaci → server na portu 5055 (samo /api) →
+// Svaki put: čista baza → sve migracije + demo podaci → server na portu 5065 (samo /api) →
 // svi testovi → server i baza se gase. Izlazni kod 1 ako išta padne.
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -22,8 +22,9 @@ const lokalno = process.argv.includes("--lokalno");
 const samoEkrani = process.argv.includes("--ekrani");
 const iEkrani = samoEkrani || process.argv.includes("--sve");
 const filter = process.argv.slice(2).find((a) => !a.startsWith("--"));
-const PORT_APP = 5055;
-const PORT_BAZE = 54329;
+// Drugi portovi nego u PILOT Distributeri (5055 / 54329 / 54327) — testovi oba projekta smiju raditi u isto vrijeme.
+const PORT_APP = 5065;
+const PORT_BAZE = 54339;
 const FOLDER_BAZE = path.join(korijen, ".testbaza");
 const TSX = ["--import", "tsx"]; // jedan proces (ne tsx CLI koji pravi dijete) — gasi se čisto
 
@@ -136,8 +137,8 @@ try {
 
   if (!samoEkrani) {
     korak(`test server na portu ${PORT_APP}`);
-    // SMTP = lažni server testa `stanje` (127.0.0.1:54327, samo dok taj test traje) — pravi mejl nikad ne ide.
-    const posta = { SMTP_HOST: "127.0.0.1", SMTP_PORT: "54327", SMTP_KORISNIK: "proba@pilot.test", SMTP_LOZINKA: "proba", SMTP_POSILJALAC: "PILOT proba <proba@pilot.test>" };
+    // SMTP = lažni server testa `stanje` (127.0.0.1:54337, samo dok taj test traje) — pravi mejl nikad ne ide.
+    const posta = { SMTP_HOST: "127.0.0.1", SMTP_PORT: "54337", SMTP_KORISNIK: "proba@pilot.test", SMTP_LOZINKA: "proba", SMTP_POSILJALAC: "PILOT proba <proba@pilot.test>" };
     server = nodeProces([...TSX, "server/index.ts"], { DATABASE_URL: baza.url, PORT: String(PORT_APP), SAMO_API: "1", NODE_ENV: "development", ...posta }, ["ignore", "ignore", "inherit"]);
     await sacekajServer(server);
 

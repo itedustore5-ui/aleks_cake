@@ -210,7 +210,7 @@ export function ObaveznaDvaKoraka() {
       <div className="auth-card">
         <div className="auth-brand">
           <div className="brand-mark"><span>P</span></div>
-          <div className="brand-copy"><strong>PILOT</strong><span>DISTRIBUTERI CG</span></div>
+          <div className="brand-copy"><strong>PILOT</strong><span>POSLASTIČARNICA</span></div>
         </div>
         <div className="auth-heading">
           <div className="auth-lock"><ShieldAlert size={19} /></div>

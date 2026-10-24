@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   FolderCheck,
   TrendingUp,
+  Cake,
 } from "lucide-react";
 import { useAuth, NAZIV_ULOGE, type Uloga } from "../lib/auth";
 import { api } from "../lib/api";
@@ -37,6 +38,7 @@ type StavkaMenija = { putanja: string; naziv: string; ikonica: ReactNode; uloge:
 const STAVKE: StavkaMenija[] = [
   { putanja: "/tabla", naziv: "Kontrolni centar", ikonica: <LayoutDashboard size={18} />, uloge: ["bzr", "izvodjac", "uprava"] },
   { putanja: "/moja", naziv: "Moja strana", ikonica: <Smartphone size={18} />, uloge: ["bzr", "izvodjac", "uprava", "operater", "vozac"] },
+  { putanja: "/porudzbine", naziv: "Porudžbine", ikonica: <Cake size={18} />, uloge: ["operater", "bzr", "izvodjac"] },
   { putanja: "/prijem", naziv: "Prijem robe", ikonica: <ArrowDownToLine size={18} />, uloge: ["operater", "bzr", "izvodjac"] },
   { putanja: "/zalihe", naziv: "Zalihe", ikonica: <Boxes size={18} />, uloge: ["operater", "bzr", "izvodjac"] },
   { putanja: "/haccp", naziv: "HACCP / DHP", ikonica: <Gauge size={18} />, uloge: ["operater", "bzr", "izvodjac"] },
@@ -139,7 +141,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   if (!korisnik) return null;
   const stavke = STAVKE.filter((s) => s.uloge.includes(korisnik.uloga));
-  const naslov = NASLOVI[lokacija.pathname] ?? "PILOT Distributeri CG";
+  const naslov = NASLOVI[lokacija.pathname] ?? "PILOT Poslastičarnica";
 
   return (
     <div className="app-shell">
@@ -150,7 +152,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
           <div className="brand-copy">
             <strong>PILOT</strong>
-            <span>DISTRIBUTERI CG</span>
+            <span>POSLASTIČARNICA</span>
           </div>
         </div>
         <nav className="main-nav">

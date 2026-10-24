@@ -36,7 +36,12 @@ povlacenjeRuter.get(
       [request.params.id],
     );
     if (!povlacenje.rows[0]) throw new ApiGreska(404, "POVLACENJE_NE_POSTOJI", "Povlačenje nije pronađeno.");
-    const kontakti = await upit(`select * from povlacenje_kontakt where povlacenje_id = $1 order by kupac_naziv`, [request.params.id]);
+    // Kontakt iz torte (poslastičarnica) nosi broj porudžbine — da se pri pozivu zna o kojoj je torti riječ.
+    const kontakti = await upit(
+      `select pk.*, po.broj as porudzbina_broj, po.opis as porudzbina_opis from povlacenje_kontakt pk
+       left join porudzbina po on po.id = pk.porudzbina_id where pk.povlacenje_id = $1 order by pk.kupac_naziv`,
+      [request.params.id],
+    );
     response.json({ ...povlacenje.rows[0], kontakti: kontakti.rows });
   }),
 );

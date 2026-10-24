@@ -1,10 +1,11 @@
 // Aplikacija na LOKALNOJ probnoj bazi sa demo podacima — da se ekrani proklikaju bez diranja žive
 // (Render/Supabase) baze. Talas 5: dosad su faza 3 i talas 3 provjereni samo kroz API.
 //
-//   npm run demo:lokalno            → http://localhost:5059 (prijava demo nalozima, npr. ana.b / Podgorica-2026!)
+//   npm run demo:lokalno            → http://localhost:5069 (prijava demo nalozima, npr. ana.b / Podgorica-2026!)
 //   PORT=5070 npm run demo:lokalno
 //
-// Isti klaster kao npm test (.testbaza/, port 54329), ali posebna baza „pilot_lokalno“ — svaki put čista.
+// Isti klaster kao npm test (.testbaza/, port 54339), ali posebna baza „pilot_lokalno“ — svaki put čista.
+// Portovi su drugačiji nego u PILOT Distributeri (5059 / 54329) — oba demoa smiju raditi u isto vrijeme.
 // Ne pokretati istovremeno sa npm test (test gasi klaster na kraju). Ctrl+C gasi i server i bazu.
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -13,8 +14,8 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 const korijen = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PORT_APP = Number(process.env.PORT) || 5059;
-const PORT_BAZE = 54329;
+const PORT_APP = Number(process.env.PORT) || 5069;
+const PORT_BAZE = 54339;
 const FOLDER_BAZE = path.join(korijen, ".testbaza");
 const URL = `postgres://postgres@localhost:${PORT_BAZE}/pilot_lokalno`;
 

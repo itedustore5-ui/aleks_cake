@@ -28,6 +28,7 @@ const Inspekcija = lazy(() => import("./pages/Inspekcija").then((m) => ({ defaul
 const Audit = lazy(() => import("./pages/Audit").then((m) => ({ default: m.Audit })));
 const ProvjeraZnanja = lazy(() => import("./pages/ProvjeraZnanja").then((m) => ({ default: m.ProvjeraZnanja })));
 const Admin = lazy(() => import("./pages/Admin").then((m) => ({ default: m.Admin })));
+const Porudzbine = lazy(() => import("./pages/Porudzbine").then((m) => ({ default: m.Porudzbine })));
 import { PromijeniLozinku } from "./pages/PromijeniLozinku";
 import { ObaveznaDvaKoraka } from "./components/DvaKoraka";
 
@@ -72,6 +73,7 @@ function Rute() {
       <Route path="/poruke" element={<Zasticeno uloge={["operater", "vozac", "bzr", "izvodjac", "uprava"]}><Poruke /></Zasticeno>} />
       <Route path="/ljudi" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Ljudi /></Zasticeno>} />
       <Route path="/sifarnici" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Sifarnici /></Zasticeno>} />
+      <Route path="/porudzbine" element={<Zasticeno uloge={["operater", "bzr", "izvodjac"]}><Porudzbine /></Zasticeno>} />
       <Route path="/prijem" element={<Zasticeno uloge={["operater", "bzr", "izvodjac"]}><Prijem /></Zasticeno>} />
       <Route path="/zalihe" element={<Zasticeno uloge={["operater", "bzr", "izvodjac"]}><Zalihe /></Zasticeno>} />
       <Route path="/haccp" element={<Zasticeno uloge={["operater", "bzr", "izvodjac"]}><Haccp /></Zasticeno>} />

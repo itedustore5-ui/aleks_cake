@@ -56,7 +56,8 @@ ncRuter.get(
 const rucnaSchema = z.object({
   ozbiljnost: z.enum(["NIZAK", "SREDNJI", "VISOK"]).default("SREDNJI"),
   opis: z.string().trim().min(3, "Opišite šta se desilo."),
-  izvorTip: z.enum(["rucno", "isporuka"]).default("rucno"),
+  // „porudzbina“ — reklamacija ili problem na torti (dopuna 39).
+  izvorTip: z.enum(["rucno", "isporuka", "porudzbina"]).default("rucno"),
   izvorId: z.string().uuid().optional(),
 });
 

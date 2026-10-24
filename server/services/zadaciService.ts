@@ -8,7 +8,8 @@ import { logKreiranje, logIzmjenaReda, stanjeReda } from "./auditService.js";
 // db/22_integritet_cg.sql, proširen u 24_haccp_sistem_cg.sql (nalaz B2) — nov izvor se dodaje na OBA mjesta, inače upis pada u bazi.
 // Ranije je izvor bio slobodan tekst: greška u kucanju je prolazila, a veza je pokazivala u prazno.
 export const IZVORI_ZADATKA = ["neusaglasenost", "povlacenje", "rucno", "verifikacija_sistema"] as const;
-export const IZVORI_OBAVJESTENJA = ["neusaglasenost", "povlacenje", "lot", "prijem", "isporuka", "zadatak", "poruka", "bekap_log", "mjerni_uredjaj", "verifikacija_sistema"] as const;
+// „porudzbina“ — poslastičarnica, dopuna 39 (i CHECK tamo).
+export const IZVORI_OBAVJESTENJA = ["neusaglasenost", "povlacenje", "lot", "prijem", "isporuka", "zadatak", "poruka", "bekap_log", "mjerni_uredjaj", "verifikacija_sistema", "porudzbina"] as const;
 export type IzvorZadatka = (typeof IZVORI_ZADATKA)[number];
 export type IzvorObavjestenja = (typeof IZVORI_OBAVJESTENJA)[number];
 

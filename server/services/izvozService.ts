@@ -9,6 +9,8 @@ export const IZVORI_IZVOZA = [
   { kod: "lotovi", naziv: "Lotovi", izvor: "lot" },
   { kod: "isporuke", naziv: "Isporuke", izvor: "v_izvoz_isporuke" },
   { kod: "isporuke_stavke", naziv: "Stavke isporuka", izvor: "isporuka_stavka" },
+  // Poslastičarnica (dopuna 39): torta → kupac sa telefonom, potvrđeni alergeni, serije sastojaka, predaja.
+  { kod: "porudzbine", naziv: "Porudžbine torti", izvor: "v_izvoz_porudzbine" },
   // Nalaz R-20: bez ovih izvora inspektor nije dobijao D1, provjere mjera, termometre, verifikaciju
   // sistema ni dnevnik kretanja zaliha — sve je bilo u bazi, ali ne i u izvozu.
   { kod: "kontrole_vozila", naziv: "Kontrole vozila (D1)", izvor: "v_izvoz_kontrole_vozila" },

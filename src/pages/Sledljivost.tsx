@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "react-router-dom";
-import { Search, Truck, PackageCheck, User, Warehouse, Printer, AlertTriangle } from "lucide-react";
+import { Search, Truck, PackageCheck, User, Warehouse, Printer, AlertTriangle, Cake } from "lucide-react";
 import { api, ApiGreska } from "../lib/api";
 import { PageHeader, Modal, ZakonskaOznaka } from "../components/Zajednicko";
 import { StatusBadge } from "../components/StatusBadge";
@@ -23,7 +23,10 @@ type Red = {
 };
 
 type PovlacenjeRed = { id: string; broj: string; artikal_naziv: string; broj_lota: string; status: string; pokrenuto_at: string; broj_kontakata: string; broj_kontaktiranih: string };
-type Kontakt = { id: string; kupac_naziv: string; kupac_telefon: string; kolicina: string | null; kontaktiran: boolean; napomena: string | null };
+type Kontakt = { id: string; kupac_naziv: string; kupac_telefon: string; kolicina: string | null; kontaktiran: boolean; napomena: string | null; porudzbina_broj?: string | null; porudzbina_opis?: string | null };
+/** Torta u kojoj je bila serija (poslastičarnica, dopuna 39). */
+type TortaSerije = { lot_id: string; porudzbina_id: string; porudzbina_broj: string; kupac_ime: string; kupac_telefon: string; dan: string; status: string; opis: string };
+type TortaPretraga = { id: string; broj: string; kupac_ime: string; kupac_telefon: string; status: string; opis: string; dan: string };
 type PovlacenjeDetalj = PovlacenjeRed & { razlog: string; kontakti: Kontakt[] };
 
 export function Sledljivost() {
@@ -44,13 +47,24 @@ export function Sledljivost() {
     if (vidiPovlacenja) ucitajPovlacenja();
   }, []);
 
+  // Torte po seriji lota (lot → torte → kupci) i torte nađene po kupcu, telefonu ili broju porudžbine.
+  const [torteLota, setTorteLota] = useState<Record<string, TortaSerije[]>>({});
+  const [torte, setTorte] = useState<TortaPretraga[]>([]);
+
   const pretrazi = async (e: FormEvent) => {
     e.preventDefault();
     if (tekst.trim().length < 2) return;
-    const r = await api<Red[]>(`/sledljivost/pretraga?q=${encodeURIComponent(tekst.trim())}`);
+    const q = encodeURIComponent(tekst.trim());
+    const [r, t] = await Promise.all([api<Red[]>(`/sledljivost/pretraga?q=${q}`), api<TortaPretraga[]>(`/porudzbine/pretraga?q=${q}`).catch(() => [])]);
     setRezultati(r);
+    setTorte(t);
     setPretrazeno(true);
+    const lotovi = Array.from(new Set(r.map((x) => x.lot_id))).slice(0, 20);
+    const po = await Promise.all(lotovi.map((id) => api<TortaSerije[]>(`/sledljivost/lot/${id}/porudzbine`).catch(() => [] as TortaSerije[])));
+    setTorteLota(Object.fromEntries(lotovi.map((id, i) => [id, po[i]])));
   };
+  // Ista serija se u rezultatima ponavlja po isporuci — torte se pokazuju samo uz prvi red lota.
+  const prviRedLota = new Set(rezultati.map((r, i) => (rezultati.findIndex((x) => x.lot_id === r.lot_id) === i ? i : -1)));
 
   const otvoriPovlacenje = async (id: string) => {
     const detalj = await api<PovlacenjeDetalj>(`/povlacenja/${id}`);
@@ -84,10 +98,27 @@ export function Sledljivost() {
           </form>
         </div>
 
-        {pretrazeno && rezultati.length === 0 && <p style={{ fontSize: 12, color: "#9aa5ae" }}>Nema rezultata za "{tekst}".</p>}
+        {pretrazeno && rezultati.length === 0 && torte.length === 0 && <p style={{ fontSize: 12, color: "#9aa5ae" }}>Nema rezultata za "{tekst}".</p>}
       </div>
 
-      {rezultati.map((r) => (
+      {torte.length > 0 && (
+        <div className="panel" style={{ marginBottom: 14, padding: 16 }}>
+          <strong style={{ fontSize: 12 }}>Torte (porudžbine) — {torte.length}</strong>
+          <ul className="sastojci-lista">
+            {torte.map((t) => (
+              <li key={t.id}>
+                <div>
+                  <strong>{t.broj}</strong> · {t.kupac_ime} · <a href={`tel:${t.kupac_telefon.replace(/[^+\d]/g, "")}`}>{t.kupac_telefon}</a>
+                  <span className="muted-text"> · {t.dan.split("-").reverse().join(".")}. · {t.opis}</span>
+                </div>
+                <StatusBadge status={t.status} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {rezultati.map((r, i) => (
         <div key={`${r.lot_id}-${r.isporuka_broj ?? ""}`} className="panel" style={{ marginBottom: 14 }}>
           <div className="trace-chain">
             <div className="trace-chain-head" style={{ justifyContent: "space-between" }}>
@@ -119,6 +150,22 @@ export function Sledljivost() {
                 </>
               )}
             </div>
+            {prviRedLota.has(i) && (torteLota[r.lot_id]?.length ?? 0) > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <strong style={{ fontSize: 11 }}><Cake size={13} style={{ verticalAlign: "-2px" }} /> Torte sa ovom serijom (cijela serija, svi prijemi)</strong>
+                <ul className="sastojci-lista">
+                  {torteLota[r.lot_id].map((t) => (
+                    <li key={t.porudzbina_id}>
+                      <div>
+                        <strong>{t.porudzbina_broj}</strong> · {t.kupac_ime} · {t.kupac_telefon}
+                        <span className="muted-text"> · {t.dan.split("-").reverse().join(".")}. · {t.opis}</span>
+                      </div>
+                      <StatusBadge status={t.status} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -296,7 +343,7 @@ function PovlacenjeDetaljModal({ povlacenje, samoCitanje, onClose, onOsvjezi }: 
             <tr>
               <th>Kupac</th>
               <th>Telefon <ZakonskaOznaka clan="28" /></th>
-              <th>Količina</th>
+              <th>Količina / torta</th>
               <th>Kontaktiran</th>
               <th className="no-print"></th>
             </tr>
@@ -306,7 +353,7 @@ function PovlacenjeDetaljModal({ povlacenje, samoCitanje, onClose, onOsvjezi }: 
               <tr key={k.id}>
                 <td>{k.kupac_naziv}</td>
                 <td>{k.kupac_telefon}</td>
-                <td className="muted-text">{k.kolicina ?? "—"}</td>
+                <td className="muted-text">{k.porudzbina_broj ? `${k.porudzbina_broj} — ${k.porudzbina_opis ?? ""}` : (k.kolicina ?? "—")}</td>
                 <td>{k.kontaktiran ? <StatusBadge status="VAZI" tekst="Da" /> : <StatusBadge status="OTVORENA" tekst="Ne" />}</td>
                 <td className="no-print">
                   {!k.kontaktiran && !samoCitanje && <button className="small-action" onClick={() => oznaciKontaktiran(k.id)}>Označi zvano</button>}

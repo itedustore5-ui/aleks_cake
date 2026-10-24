@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { api, ApiGreska } from "../lib/api";
 import { PageHeader, Modal, ZakonskaOznaka } from "../components/Zajednicko";
 import { StatusBadge } from "../components/StatusBadge";
+import { IzborAlergena, AlergeniOznaka } from "../components/Alergeni";
 import type { Skladiste } from "../lib/skladista";
 
 type Kupac = { id: string; naziv: string; pib: string | null; adresa: string | null; adresa_isporuke: string | null; telefon: string; email: string | null; aktivan: boolean };
@@ -19,6 +20,10 @@ type Artikal = {
   rok_trajanja_dana: number | null;
   granica_potvrdio: boolean;
   rok_obavezan: boolean;
+  /** Alergeni sastojka (dopuna 38) — porudžbina torte iz njih predlaže alergene. */
+  alergeni: string[];
+  /** Neko je pogledao deklaraciju i sačuvao (i kad alergena nema). */
+  alergeni_upisani: boolean;
 };
 
 const TABOVI = [
@@ -154,6 +159,7 @@ export function Sifarnici() {
                   <th>Temp. opseg</th>
                   <th>Rok trajanja</th>
                   <th>Granica potvrđena</th>
+                  <th>Alergeni</th>
                   <th></th>
                 </tr>
               </thead>
@@ -165,10 +171,11 @@ export function Sifarnici() {
                     <td className="muted-text">{a.temp_kontrolisano ? `${a.temp_min ?? "?"}–${a.temp_max ?? "?"}°C` : "—"}</td>
                     <td className="muted-text">{a.rok_trajanja_dana ? `${a.rok_trajanja_dana} dana` : "—"}</td>
                     <td>{a.granica_potvrdio ? "Da" : "Ne — pretpostavka"}</td>
+                    <td>{a.alergeni_upisani ? <AlergeniOznaka sifre={a.alergeni} prazno="nema alergena" /> : <span className="alergeni-nisu">nisu upisani</span>}</td>
                     <td><button className="small-action" onClick={() => setModalIzmjenaArtikal(a)}>Izmijeni</button></td>
                   </tr>
                 ))}
-                {artikli.length === 0 && <tr><td colSpan={6} className="muted-text" style={{ padding: 20 }}>Nema unijetih artikala.</td></tr>}
+                {artikli.length === 0 && <tr><td colSpan={7} className="muted-text" style={{ padding: 20 }}>Nema unijetih artikala.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -313,10 +320,14 @@ function ArtikalModal({ artikal, onClose, onSacuvano }: { artikal?: Artikal; onC
   const [rokTrajanjaDana, setRokTrajanjaDana] = useState(artikal?.rok_trajanja_dana?.toString() ?? "");
   const [granicaPotvrdio, setGranicaPotvrdio] = useState(artikal?.granica_potvrdio ?? false);
   const [rokObavezan, setRokObavezan] = useState(artikal?.rok_obavezan ?? true);
+  const [alergeni, setAlergeni] = useState<string[]>(artikal?.alergeni ?? []);
+  // Prazan spisak sam ne kaže „nema alergena“ — to se potvrđuje kvačicom (pogledano na deklaraciji).
+  const [bezAlergena, setBezAlergena] = useState(!!artikal?.alergeni_upisani && (artikal?.alergeni.length ?? 0) === 0);
   const [greska, setGreska] = useState("");
 
   const posalji = async () => {
     try {
+      const upisuje = alergeni.length > 0 || bezAlergena;
       const telo = {
         naziv,
         jedinicaMjere,
@@ -326,6 +337,8 @@ function ArtikalModal({ artikal, onClose, onSacuvano }: { artikal?: Artikal; onC
         rokTrajanjaDana: rokTrajanjaDana !== "" ? Number(rokTrajanjaDana) : undefined,
         granicaPotvrdio,
         rokObavezan,
+        // Bez kvačica i bez „nema alergena“ — alergeni ostaju „nisu upisani“ (porudžbina tada upozorava).
+        alergeni: upisuje ? alergeni : undefined,
       };
       if (izmjena) await api(`/artikli/${artikal!.id}`, { method: "PATCH", telo });
       else await api("/artikli", { telo });
@@ -375,6 +388,20 @@ function ArtikalModal({ artikal, onClose, onSacuvano }: { artikal?: Artikal; onC
             </label>
           </>
         )}
+        <div style={{ gridColumn: "1 / -1" }}>
+          <div className="alergeni-naslov">
+            Alergeni sastojka <span className="muted-text">— sa deklaracije; porudžbina torte ih predlaže sama</span>
+          </div>
+          <IzborAlergena izabrani={alergeni} onChange={(s) => { setAlergeni(s); if (s.length > 0) setBezAlergena(false); }} />
+          {alergeni.length === 0 && (
+            <label className="potvrda-red" style={{ marginTop: 8 }}>
+              <input type="checkbox" checked={bezAlergena} onChange={(e) => setBezAlergena(e.target.checked)} /> Provjereno — sastojak nema nijedan od 14 alergena
+            </label>
+          )}
+          {izmjena && !artikal!.alergeni_upisani && alergeni.length === 0 && !bezAlergena && (
+            <small className="muted-text" style={{ display: "block", marginTop: 6 }}>Alergeni još nisu upisani — označite ih, ili potvrdite da ih nema.</small>
+          )}
+        </div>
       </div>
     </Modal>
   );

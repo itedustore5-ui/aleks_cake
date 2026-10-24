@@ -1,11 +1,14 @@
-# PILOT DISTRIBUTERI CG
+# PILOT POSLASTIČARNICA
 
-Aplikacija za dobru higijensku praksu i HACCP kod distributera hrane u Crnoj Gori — prijem robe,
-LOT i sledljivost, zalihe, HACCP kontrole, neusaglašenosti i korektivne mjere, isporuka kupcu,
-vozila, ljudi (sanitarne knjižice, plan obuke), izvoz podataka i štampani prilozi.
+Aplikacija za dobru higijensku praksu i HACCP u poslastičarnicama i ateljeima torti u Crnoj Gori —
+prijem sastojaka, porudžbine torti sa alergenima i sastojcima po seriji, frižideri i vitrina, kremovi i
+hlađenje, neusaglašenosti i korektivne mjere, ljudi (sanitarne knjižice, plan obuke), izvoz i prilozi.
 
-Ne prodaje se softver — prodaje se odgovor na pitanje *„serija je sporna, kojim kupcima je
-otišla?"* i dokaz da zapisi nastaju svakog dana, ne noć prije inspekcije. Pravni okvir i sve
+Napravljena kao kopija PILOT Distributeri (commit `b61b6d5`, 12.10.2026) — ostatak ovog README-a još
+opisuje naslijeđeni kod distributera dok se moduli ne preprave; stanje je u [CLAUDE.md](CLAUDE.md).
+
+Ne prodaje se softver — prodaje se odgovor na pitanje *„serija je sporna, u kojim je tortama i kome su
+otišle?"* i dokaz da zapisi nastaju svakog dana, ne noć prije inspekcije. Pravni okvir i sve
 poslovne odluke ove aplikacije su detaljno obrazložene u [CLAUDE.md](CLAUDE.md) — pročitajte ga
 prije bilo koje izmjene koda.
 
@@ -160,7 +163,7 @@ Demo baza (za prodajne sastanke) se pravi na isti način, ali sa `npm run seed:d
 | `npm run demo-lozinke` | Nove lozinke za pet demo naloga — SAMO na demo bazi (provjeri fiksne ID-jeve); upiše ih u `.env` (`DEMO_LOZINKA_*`, za `test:e2e`) i ispiše jednom. |
 | `npm run iskljuci-2fa -- --korisnik ime` | Isključuje potvrdu u dva koraka nalogu koji je izgubio telefon i rezervne kodove; prekida njegove prijave, upisuje se u audit. |
 | `npm run zakazi-bekap` | Upisuje `npm run bekap` u Windows Task Scheduler (svaki dan u 13:00, i čim se računar upali ako je tada bio ugašen). `-Vrijeme 09:30`, `-Ukloni`. |
-| `npm run demo:lokalno` | Aplikacija na LOKALNOJ probnoj bazi sa demo podacima (http://localhost:5059) — da se ekrani proklikaju bez diranja žive baze. |
+| `npm run demo:lokalno` | Aplikacija na LOKALNOJ probnoj bazi sa demo podacima (http://localhost:5069) — da se ekrani proklikaju bez diranja žive baze. |
 | `node alati/napravi-licencu.ts "Naziv klijenta"` | Administrativni licencni ključ za ugovor (aplikacija ga ne provjerava — to je papirni trag, ne tehnička brava). |
 | `npm run bekap` | `pg_dump` svake baze iz `alati/klijenti.txt` (ili, bez tog fajla, baze iz `DATABASE_URL`) u `bekap/<klijent>/`. Samo šema `public`, bez podataka sesija prijave. Svaki fajl se odmah provjeri (`pg_restore --list`); stariji od 90 dana se brišu; ishod u `bekap/POSLJEDNJI-BEKAP.txt`; izlazni kod `1` ako ijedan klijent padne. Traži PostgreSQL alate iste ili novije verzije od servera (uzima najnoviji iz `C:\Program Files\PostgreSQL`, ili `PG_DUMP=` / `PG_RESTORE=`). |
 
@@ -773,8 +776,8 @@ mjerenje, obrazac i prijem, i vozača bez signala. Lozinka se ne kuca u pregleda
 
 **`npm test`** ne dira ni demo bazu na Renderu ni vaše PostgreSQL servise: iz PostgreSQL-a
 instaliranog na računaru (`C:/Program Files/PostgreSQL`, ili `PG_BIN=`) pravi svoj klaster u
-`.testbaza/` (port 54329, bez lozinke, samo localhost), svaki put čistu bazu, na nju sve migracije
-i demo podatke, pokrene server na portu 5055 (samo `/api`), pusti sve testove i sve ugasi. Jedan
+`.testbaza/` (port 54339, bez lozinke, samo localhost), svaki put čistu bazu, na nju sve migracije
+i demo podatke, pokrene server na portu 5065 (samo `/api`), pusti sve testove i sve ugasi. Jedan
 test: `npm test -- povlacenje`. Isto radi **GitHub Actions na svaki push** na `main`
 (`.github/workflows/testovi.yml`, `npm run test:ci`) — ishod je kvačica ili krstić pored commita.
 

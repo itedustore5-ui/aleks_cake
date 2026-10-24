@@ -27,7 +27,7 @@
         "run",
         "demo:lokalno"
       ],
-      "port": 5059
+      "port": 5069
     }
   ]
 }

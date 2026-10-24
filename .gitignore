@@ -18,6 +18,8 @@ otpremnice-test/
 # Prodajni materijal i ugovori — zaseban privatni repozitorijum (CLAUDE.md: Šta NE ide u ovaj repozitorijum)
 prezentacija/
 dokumenti/
+# Plan za Aleks Cake Atelier — cijene, ponuda i poruke klijentkinji (kopija iz dokumenata, ne ide u git)
+PLAN.md
 
 # Popunjeni upitnici klijenata (lični podaci zaposlenih) — nikad u git
 upitnik-start/*.json

@@ -13,20 +13,23 @@ const MORA = {
     "/bekap/poslednji", "/firma", "/sledljivost/pretraga?q=MLJ", "/zdravlje", "/aktivnost", "/pitanja-firme",
     "/provjera-znanja/rezultati",
     "/haccp-plan", "/plan-monitoringa", "/monitoring/danas", "/monitoring/pregled", "/mjerni-uredjaji", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/tabla/detalj/rokovi", "/auth/2fa",
-    "/van-mreze/odbijeno", "/inspekcija?od=2026-09-01&do=2026-09-30"],
+    "/van-mreze/odbijeno", "/inspekcija?od=2026-09-01&do=2026-09-30",
+    "/alergeni", "/porudzbine", "/porudzbine/sastojci", "/porudzbine/pretraga?q=PRD"],
   direktor: ["/tabla", "/tabla/direktor", "/aktivnost", "/tabla/detalj/neusaglasenosti", "/povlacenja", "/lotovi", "/poruke", "/poruke/primaoci", "/zadaci", "/obavjestenja", "/skladista", "/sledljivost/pretraga?q=MLJ", "/zdravlje",
     "/haccp-plan", "/plan-monitoringa", "/monitoring/danas", "/monitoring/pregled", "/mjerni-uredjaji", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/provjera-znanja/moj-termin", "/inspekcija?od=2026-09-01&do=2026-09-30"],
   marko: ["/prijem", "/zaliha", "/lotovi", "/zapisi", "/mjerenja", "/isporuke", "/neusaglasenosti", "/zadaci", "/obavjestenja", "/skladista", "/lica/ja", "/poruke", "/poruke/primaoci",
-    "/kupci", "/dobavljaci", "/artikli", "/vozaci", "/zdravlje", "/monitoring/danas", "/mjerni-uredjaji"],
+    "/kupci", "/dobavljaci", "/artikli", "/vozaci", "/zdravlje", "/monitoring/danas", "/mjerni-uredjaji",
+    "/alergeni", "/porudzbine", "/porudzbine/sastojci"],
   petar: ["/isporuke", "/vozila", "/kontrole-vozila", "/neusaglasenosti", "/zadaci", "/obavjestenja", "/vozaci", "/skladista", "/kupci", "/zaliha", "/lica/ja", "/zdravlje", "/monitoring/danas", "/provjera-znanja/moj-termin", "/poruke", "/poruke/primaoci", "/termometri"],
-  konsultant: ["/tabla", "/inspekcija", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/stanje-poslovanja?vrsta=sedmica", "/audit", "/pitanja", "/nalozi", "/povlacenja", "/zdravlje", "/greske", "/auth/2fa", "/van-mreze/odbijeno"],
+  konsultant: ["/tabla", "/inspekcija", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/izvoz/porudzbine/pregled", "/porudzbine", "/stanje-poslovanja?vrsta=sedmica", "/audit", "/pitanja", "/nalozi", "/povlacenja", "/zdravlje", "/greske", "/auth/2fa", "/van-mreze/odbijeno"],
 };
 
 const NE_SMIJE = {
-  direktor: ["/stanje-poslovanja", "/van-mreze/odbijeno", "/pitanja-firme", "/izvoz/prijemi/pregled", "/izvoz/izvori", "/audit", "/nalozi", "/pitanja", "/kontrole-vozila", "/lica", "/prijem", "/zapisi", "/plan-obuke"],
-  marko: ["/stanje-poslovanja", "/tabla/direktor", "/greske", "/aktivnost", "/tabla", "/tabla/detalj/neusaglasenosti", "/lica", "/plan-obuke", "/pravila-kontrole", "/pitanja-firme", "/provjera-znanja/rezultati", "/kontrole-vozila", "/izvoz/izvori", "/nalozi", "/audit", "/povlacenja", "/sledljivost/pretraga?q=MLJ", "/pitanja",
+  direktor: ["/porudzbine", "/porudzbine/sastojci", "/stanje-poslovanja", "/van-mreze/odbijeno", "/pitanja-firme", "/izvoz/prijemi/pregled", "/izvoz/izvori", "/audit", "/nalozi", "/pitanja", "/kontrole-vozila", "/lica", "/prijem", "/zapisi", "/plan-obuke"],
+  marko: ["/porudzbine/pretraga?q=PRD", "/stanje-poslovanja", "/tabla/direktor", "/greske", "/aktivnost", "/tabla", "/tabla/detalj/neusaglasenosti", "/lica", "/plan-obuke", "/pravila-kontrole", "/pitanja-firme", "/provjera-znanja/rezultati", "/kontrole-vozila", "/izvoz/izvori", "/nalozi", "/audit", "/povlacenja", "/sledljivost/pretraga?q=MLJ", "/pitanja",
     "/haccp-plan", "/plan-monitoringa", "/monitoring/pregled", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/van-mreze/odbijeno", "/inspekcija", "/inspekcija/paket.zip"],
-  petar: ["/izvoz/izvori", "/nalozi", "/audit", "/povlacenja", "/pitanja", "/sledljivost/pretraga?q=MLJ", "/tabla", "/lica", "/prijem", "/zapisi", "/mjerenja", "/dobavljaci", "/artikli", "/lotovi", "/kontrolne-tacke", "/mjerni-uredjaji", "/haccp-plan", "/plan-monitoringa", "/inspekcija", "/inspekcija/paket.zip"],
+  petar: ["/izvoz/izvori", "/nalozi", "/audit", "/povlacenja", "/pitanja", "/sledljivost/pretraga?q=MLJ", "/tabla", "/lica", "/prijem", "/zapisi", "/mjerenja", "/dobavljaci", "/artikli", "/lotovi", "/kontrolne-tacke", "/mjerni-uredjaji", "/haccp-plan", "/plan-monitoringa", "/inspekcija", "/inspekcija/paket.zip",
+    "/porudzbine", "/porudzbine/sastojci", "/porudzbine/pretraga?q=PRD"],
   ana: ["/pitanja", "/greske", "/tabla/direktor", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/stanje-poslovanja"], // izvještaji i stanje poslovanja su konsultantovi (11.10.2026) // banka pitanja je samo konsultantova (#14); dnevnik grešaka takođe (#80)
 };
 

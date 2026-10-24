@@ -56,6 +56,10 @@ const TON_PO_STATUSU: Record<string, Ton> = {
   ISPRAVAN: "success",
   USAGLASENO: "success",
   POTREBNE_IZMJENE: "warning",
+  // poslastičarnica: porudžbina torte (dopuna 39)
+  PRIMLJENA: "info",
+  U_IZRADI: "warning",
+  PREDATA: "success",
 };
 
 export const NAZIVI: Record<string, string> = {
@@ -112,6 +116,9 @@ export const NAZIVI: Record<string, string> = {
   ISPRAVAN: "Ispravan",
   USAGLASENO: "Usaglašeno",
   POTREBNE_IZMJENE: "Potrebne izmjene",
+  PRIMLJENA: "Primljena",
+  U_IZRADI: "U izradi",
+  PREDATA: "Predata",
 };
 
 export function StatusBadge({ status, tekst }: { status: string; tekst?: string }) {

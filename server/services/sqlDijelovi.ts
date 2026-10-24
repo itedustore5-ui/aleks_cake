@@ -14,6 +14,7 @@ export const IZVOR_OZNAKA = `
     when 'zapis' then (select 'Obrazac ' || z.obrazac_kod || ' · ' || to_char(z.datum, 'DD.MM.YYYY.') from zapis z where z.id = nc.izvor_id)
     when 'mjerni_uredjaj' then (select 'Mjerni uređaj ' || u.naziv || coalesce(' (' || u.oznaka || ')', '') from mjerni_uredjaj u where u.id = nc.izvor_id)
     when 'prijem' then (select 'Prijem ' || coalesce(p.broj_dokumenta || ' · ', '') || d.naziv from prijem p join dobavljac d on d.id = p.dobavljac_id where p.id = nc.izvor_id)
+    when 'porudzbina' then (select 'Porudžbina ' || p.broj || ' · ' || p.kupac_ime from porudzbina p where p.id = nc.izvor_id)
     else 'Prijava sa terena'
   end`;
 

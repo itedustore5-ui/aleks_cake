@@ -57,7 +57,7 @@ export function Prijava() {
           </div>
           <div className="brand-copy">
             <strong>PILOT</strong>
-            <span>DISTRIBUTERI CG</span>
+            <span>POSLASTIČARNICA</span>
           </div>
         </div>
         <div className="auth-heading">

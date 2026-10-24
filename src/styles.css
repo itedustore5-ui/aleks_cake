@@ -646,3 +646,53 @@ h2 { font-family: "Space Grotesk"; font-size: 15px; letter-spacing: -.02em; colo
   .dir-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dir-kpi-k strong { font-size: 24px; }
 }
+
+/* Alergeni (PILOT Poslastičarnica): 14 kvačica iz Priloga II; oni iz sastojka porudžbine su zaključani (P1). */
+.alergeni-izbor { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.form-grid label.alergen-kvacica, label.alergen-kvacica { flex-direction: row; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid #dfe7ed; border-radius: 7px; font-size: 11px; font-weight: 500; color: #3d4d59; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.form-grid label.alergen-kvacica input, label.alergen-kvacica input { width: auto; height: auto; margin: 0; flex: none; }
+label.alergen-kvacica.izabran { border-color: #e59b33; background: #fff8ec; color: #8a5a12; font-weight: 600; }
+label.alergen-kvacica.iz-sastojka { cursor: default; border-style: dashed; }
+.alergeni-oznaka { display: inline-block; padding: 3px 7px; border-radius: 5px; background: #fff5e4; color: #9a6418; font-size: 10px; font-weight: 600; line-height: 1.35; }
+.alergeni-nisu { display: inline-block; padding: 3px 7px; border-radius: 5px; background: #fff0f0; color: #b8434a; font-size: 10px; font-weight: 600; }
+@media (max-width: 480px) { .alergeni-izbor { grid-template-columns: 1fr 1fr; } }
+
+/* Porudžbine torti — kartice na telefonu, prozor sa sastojcima, alergenima i predajom. */
+.alergeni-naslov { font-size: 11px; font-weight: 600; color: #3d4d59; margin-bottom: 8px; }
+.porudzbine-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.porudzbina-kartica { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px; border: 1px solid #e3e9ee; border-left: 4px solid #3d72f5; border-radius: 10px; background: #fff; cursor: pointer; font: inherit; color: inherit; min-width: 0; }
+.porudzbina-kartica:hover { border-color: #c9d6e2; box-shadow: 0 4px 14px #102b450d; }
+.porudzbina-kartica.status-u_izradi { border-left-color: #e59b33; }
+.porudzbina-kartica.status-predata { border-left-color: #20a477; opacity: .85; }
+.porudzbina-kartica.status-otkazana { border-left-color: #b8c2ca; opacity: .7; }
+.porudzbina-vrh { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.porudzbina-vrijeme { font-size: 13px; color: #1f3346; }
+.porudzbina-kupac { font-size: 12px; font-weight: 600; color: #2b3d4c; overflow-wrap: anywhere; }
+.porudzbina-opis { font-size: 11px; color: #586874; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.porudzbina-oznake { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 10px; }
+.oznaka-nacin { display: inline-flex; align-items: center; gap: 4px; color: #586874; overflow-wrap: anywhere; }
+.porudzbina-broj { font-size: 9px; }
+.porudzbina-detalj { padding: 4px 20px 16px; }
+.porudzbina-detalj section { padding: 14px 0; border-bottom: 1px solid #edf1f3; }
+.porudzbina-detalj section:last-child { border-bottom: 0; }
+.porudzbina-detalj h3 { font-size: 13px; margin: 0 0 6px; color: #1f3346; display: flex; align-items: center; gap: 6px; }
+.porudzbina-detalj p { font-size: 11px; margin: 6px 0; line-height: 1.45; }
+.porudzbina-opis-veliki { font-size: 13px !important; color: #2b3d4c; overflow-wrap: anywhere; }
+.sekcija-objasnjenje { font-size: 10px !important; }
+.info-traka { padding: 10px 12px; margin: 12px 0 0; border-radius: 8px; background: #edf3ff; color: #2c55b3; font-size: 11px; font-weight: 600; }
+.dugmad-red { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sastojci-lista { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sastojci-lista li { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 9px 10px; border: 1px solid #edf1f3; border-radius: 8px; font-size: 11px; overflow-wrap: anywhere; }
+.sastojci-lista li.zadrzan { border-color: #f1c4c6; background: #fff7f7; }
+.sastojak-alergeni { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.form-grid.dodaj-sastojak { padding: 8px 0 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; }
+@media (max-width: 480px) { .form-grid.dodaj-sastojak { grid-template-columns: 1fr; } }
+.potvrdjeno-red { color: #19956a; font-weight: 600; }
+.upozorenje-tekst { display: flex; gap: 6px; align-items: flex-start; color: #9a6418; font-weight: 600; }
+label.potvrda-izvan { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; color: #3d4d59; }
+label.potvrda-izvan input { width: auto; height: auto; margin: 0; }
+.sastav-tekst { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 11px; background: #fbfcfd; border: 1px solid #edf1f3; border-radius: 8px; padding: 10px 12px; margin: 6px 0 8px; color: #3d4d59; }
+.podforma { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px; border: 1px solid #edf1f3; border-radius: 8px; background: #fbfcfd; }
+.podforma-polje { display: flex; flex-direction: column; gap: 5px; font-size: 10px; font-weight: 600; color: #6c7c88; }
+.podforma-polje input, .podforma-polje select, .podforma-polje textarea { border: 1px solid #dfe7ed; border-radius: 6px; padding: 8px 9px; font: inherit; font-size: 11px; color: #3d4d59; background: #fff; }
+.podforma .secondary-button { align-self: flex-start; }

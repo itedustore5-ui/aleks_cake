@@ -10,18 +10,83 @@ opisivala je staru aplikaciju — `zapisi.js`, `promet.html`, `veza.js` — koje
 
 ---
 
-## Šta je ovo
+## Šta je ovo — PILOT Poslastičarnica (od 16.10.2026)
 
-Aplikacija za **dobru higijensku praksu i HACCP kod distributera hrane u Crnoj Gori.**
-Vlasnica je konsultantkinja iz Srbije koja uslugu prodaje crnogorskim firmama:
-tri paketa (odluka vlasnice 28.09.2026) — **Pod ključ / Standard / Start**: uspostavljanje
-2.400 / 1.490 / 990 € + „vođenje i usklađenost“ 290 / 179 / 119 € mjesečno; cijena po veličini firme
-(magacini, vozila, zaposleni), **nikad po korisniku**. Iznosi stoje u `prezentacija/podaci.cjs`, a
-pozicioniranje, garancija „Svaki dan“, osnivački klijenti i prodajni tok u `dokumenti/strategija_prodaje.md`
-(oboje van gita).
+Aplikacija za **dobru higijensku praksu i HACCP u poslastičarnicama i ateljeima torti u Crnoj Gori**
+(ugostiteljstvo — za njega postoji zvanični Vodič UBH, Prilozi 1–14). Prvi klijent: Aleks Cake Atelier,
+Novi Bar. Vlasnica je ista konsultantkinja kao kod PILOT Distributeri; paket se plaća po objektu,
+**nikad po korisniku** (iznosi su u `PLAN.md`, van gita).
 
-**Šta se stvarno prodaje:** ne softver, nego odgovor na pitanje *„serija je sporna, kojim
-kupcima je otišla?"* i dokaz da zapisi nastaju svakog dana, a ne noć prije inspekcije.
+**Šta se stvarno prodaje:** odgovor na pitanje *„serija jaja (pavlake, maskarponea) je sporna — u kojim
+je tortama i kome su otišle?"*, i dokaz da zapisi (frižideri, vitrina, kremovi, hlađenje) nastaju svakog
+dana, a ne noć prije inspekcije.
+
+### Odakle je ovaj kod
+
+Napravljen kao **kopija PILOT Distributeri** (`C:\masaze\distributeri_mn`, commit **`b61b6d5`**, 12.10.2026),
+ne od nule — prijava, sesije, 2FA, RLS, dopune baze, rad bez interneta, push, inspekcijski paket i testovi su
+već provjereni. Prvi commit ovog repozitorijuma (`3bfd6cb`) je ta kopija bez izmjena; na njoj je `npm test`
+prošao 673/673. **Sopstveni folder i sopstveni git repozitorijum** — bez zajedničke istorije i bez `remote`-a
+prema distributerima; deploy je odvojen (svoj GitHub repozitorijum, svoj Render servis, svoja Supabase baza
+po klijentu — pravilo ispod važi i ovdje).
+
+- **Plan izrade je `PLAN.md`** (u korijenu, u `.gitignore` — ima cijene i poruke klijentkinji). Dio 8 je
+  uputstvo: šta se zadržava, uklanja, mijenja i dodaje, nove invarijante P1–P4, testovi, procjena.
+- **Ostatak ovog fajla opisuje NASLIJEĐENI kod distributera** dok se modul ne prepravi; kad se prepravi,
+  mijenja se i njegov opis ovdje. Vozila (D1), isporuke, direktor (`uprava`) i vozač (`vozac`) se uklanjaju iz
+  **koda** — tabele i vrijednosti enuma ostaju u bazi (PLAN.md 8.1, 8.3).
+- **Dopune `db/01…37` se ne brišu i ne mijenjaju** (nova baza ih prođe za sekunde, a brisanje lomi
+  `schema_migracije`). Nove tabele idu od `38_…`.
+
+**Zajednički fajlovi — ispravka u jednom projektu se ručno prenosi u drugi** (naročito bezbjednost):
+`server/auth.ts`, `lozinke.ts`, `dvaFaktora.ts`, `db.ts`, `migracije.ts`, `provjeraRuta.ts`, `greske.ts`,
+`validacija.ts`, `vrijeme.ts`, `vanMreze.ts`, `zip.ts`, `index.ts` (zaglavlja, CSP); servisi `auditService`,
+`brojeviService`, `dvaFaktoraService`, `greskeLogService`, `kljucService`, `pushService`; `src/lib/*`,
+`public/sw.js`, `vite.offline.ts`, `vite.config.ts`; `testovi/izolovano.mjs`, `pokreni.mjs`, `ekrani/telefon.mjs`;
+`alati/bekap.ts`, `prvi-korisnik.ts`, `iskljuci-2fa.ts`, `dnevni-pregled.ts`. Šta se tamo promijenilo od kopije:
+`git -C C:\masaze\distributeri_mn diff b61b6d5 -- <fajl>`.
+
+**Namjerno drugačije nego kod distributera — ne prenositi nazad:** naziv aplikacije; ime zakazanog bekapa
+(`PILOT Poslasticarnica - dnevni bekap` — isto ime bi `-Force` prepisao njihov zadatak na istom računaru);
+portovi testova (server 5065, baza 54339, lažna pošta 54337) i lokalnog demoa (5069) — da oba projekta
+smiju raditi u isto vrijeme.
+
+### Faza 1 — stanje (PLAN.md 8.8)
+
+| Stavka | Stanje |
+|---|---|
+| Kopija sa `b61b6d5`, nov repozitorijum, osnovni testovi 673/673 | ✓ 16.10.2026 |
+| Naziv aplikacije, portovi testova, ime zakazanog bekapa | ✓ 18.10.2026 |
+| Alergeni (14, Prilog II Uredbe EU 1169/2011) na artiklu — dopuna 38, Šifarnici | ✓ 18.10.2026 |
+| Porudžbina torte — kupac sa telefonom, alergeni potvrđeni prije predaje (P1), lotovi ključnih sastojaka (P2), predaja sa temperaturom kod dostave (P3), otkaz, reklamacija — dopuna 39, `/porudzbine`, test `porudzbine` | ✓ 18.10.2026 |
+| Sledljivost i povlačenje preko porudžbina (serija → torte → kupci; povlačenje zove kupce predatih torti, „Ne predajte tortu“ za one u izradi); izvoz `porudzbine` | ✓ 18.10.2026 |
+| „Sastav i alergeni“ za štampu (sada samo tekst za poruku kupcu) i etiketa roka (faza 2) | — |
+| Uklanjanje vozila, isporuka, direktora i vozača iz koda | — |
+| Uloge i meni („Vlasnica“, „Zaposleni“), „Pregled ateljea“ | — |
+| Lot pri prijemu nije obavezan, trag jeste (P4) | — |
+| Obrazac „broj sa granicom“ (krem, hlađenje, vitrina — P3), QR naljepnice | — |
+| Nov demo `13_demo_atelje`, testovi za atelje | — |
+
+### Pravila poslastičarnice (P1–P5) — uz invarijante distributera ispod
+
+- **P1. Alergeni porudžbine se potvrđuju prije predaje** (`porudzbinaService.potvrdiAlergene`, `predajPorudzbinu`;
+  CHECK `chk_porudzbina_predata` u bazi). Predlog = unija alergena artikala iz lotova torte. Alergen iz sastojka se
+  **ne može izostaviti** (`ALERGEN_IZ_SASTOJKA`) — ako sastojak nije u torti, skida se njegov lot; dodati se smije
+  (orasi u dekoraciji). Prazan spisak samo uz izričito „nema nijednog“ (`ALERGENI_PRAZNO`). Nov lot sa alergenom koga
+  nema u potvrđenom spisku **poništava potvrdu**. Sastojak bez `alergeni_upisani` (niko nije pogledao deklaraciju) —
+  upozorenje na ekranu, ne blokada (potvrđuje čovjek).
+- **P2. Torta se veže za serije sastojaka** (`porudzbina_lot`; faza 1 — lotovi ključnih sastojaka). U tortu ide samo
+  PRIHVAĆEN lot sa važećim rokom; poslije predaje se veze ne mijenjaju. Bez toga nema odgovora „kome je otišla“.
+- **P3. Granica temperature pri predaji je opšte pravilo KKT 3 iz HACCP plana** (`pravilo_kontrole`, `artikal_id is
+  null`), nikad u kodu. Dostava bez temperature se ne prima (`TEMPERATURA_OBAVEZNA`); bez pravila — temperatura se
+  zapiše uz porudžbinu, ali se ne ocjenjuje (`bezGranice`). Mjerenje ide POSLIJE predaje (FAIL → neusaglašenost,
+  predaja ostaje); takva neusaglašenost ne traži ponovno mjerenje (torta je kod kupca — `stoFaliZaZatvaranje`).
+- **P4. Lot pri prijemu nije obavezan, ali trag jeste** — dobavljač + datum + račun/otpremnica. *(još nije urađeno —
+  do tada važi #3: prijem bez lota se odbija)*
+- **P5. Porudžbine vide svi u ateljeu** (zaposleni, odgovorno lice, konsultant) — tortu pravi više ljudi, pa ovdje
+  NE važi #26 („samo svoje“). Teren vidi od juče naprijed (`ogranicenjeDatuma` po danu preuzimanja) i sve još otvorene.
+  Predaja u trenutku predaje odbija zadržan sastojak (`SASTOJAK_ZADRZAN`, kao #48); povlačenje zove kupce PREDATIH
+  torti serije (`povlacenje_kontakt.porudzbina_id`), a onima u izradi šalje „Ne predajte tortu“ (`javiPorudzbineSaLotom`).
 
 ---
 
@@ -216,7 +281,8 @@ PostgreSQL   tabele + pogledi (v_*) · migracije db/NN_*.sql, stanje u schema_mi
 | Neusaglašenosti | `/neusaglasenosti` | `neusaglasenosti.ts` | `ncService` | `neusaglasenost`, `korektivna_mjera`, `verifikacija` |
 | Vozila — D1 | `/vozila` | `vozila.ts` | `vozilaService` (ocjena temperature po granici vozila, `D1_DANAS`) | `vozilo` (režim od–do), `kontrola_vozila` (+ granica i ocjena temperature) |
 | Isporuka — KKT 3 | `/isporuka`; otpremnica za štampu `/isporuka/:id/otpremnica` (`OtpremnicaStampa.tsx`) | `isporuka.ts` | `isporukaService` (rezervacija, otkaz, `otpremnicaZaStampu`) + `lotBlokadaService` („Ne predajte lot“, manjak rezervacije), `kljucService` | `isporuka` (+ otkaz), `isporuka_stavka`, `kljuc_zahtjeva`, `v_zaliha_dostupna` (+ rezervisano, slobodno) |
-| Sledljivost, povlačenje | `/sledljivost` | `sledljivost.ts`, `povlacenje.ts` | `sledljivostService`, `povlacenjeService` | `povlacenje`, `povlacenje_kontakt`, `v_sledljivost_*` |
+| Sledljivost, povlačenje | `/sledljivost` (+ torte serije i pretraga torti) | `sledljivost.ts`, `povlacenje.ts` | `sledljivostService`, `povlacenjeService` | `povlacenje`, `povlacenje_kontakt` (+ `porudzbina_id`), `v_sledljivost_*` |
+| **Porudžbine torti** (poslastičarnica, P1–P5) | `/porudzbine` — kartice „Za izradu / Danas / Sutra / Sve“, prozor: sastojci po seriji, alergeni, sastav za kupca, predaja, otkaz, reklamacija | `porudzbine.ts` (+ `/alergeni` u `sifarnici.ts`) | `porudzbinaService`, `lotBlokadaService.javiPorudzbineSaLotom`; spisak alergena `server/alergeni.ts` | `porudzbina`, `porudzbina_lot`, `artikal.alergeni`, `v_sledljivost_porudzbine`, `v_izvoz_porudzbine` |
 | Zadaci, obavještenja, poruke (šalju SVI — #67; na `/poruke` primljene i poslate zajedno, po vremenu — `/poruke/primljene`) | `/moja`, `/tabla`, `/poruke` | `zadaci.ts`, `poruke.ts` | `zadaciService`, `porukeService` | `zadatak`, `obavjestenje`, `poruka` |
 | Obavještenja na telefon (push) | `/moja` → „Obavještenja na telefon"; `public/sw.js`, `public/manifest.webmanifest` | `push.ts` | `pushService` | `push_pretplata`, `web_push_kljuc`, `obavjestenje.push_poslato_at` |
 | Kontrolni centar, aktivnost | `/tabla` (direktor: `DirektorPregled.tsx`, `/tabla/direktor` — #95) | `tabla.ts` | `tablaService` (+ `monitoringService`, `haccpPlanService` za kartice „Danas fali po planu", „HACCP rokovi"); direktor — `stanjeService.pregledDirektora` | čita sve (aktivnost = unija domenskih tabela) |
@@ -298,6 +364,8 @@ provjerava server** (`requireUloga` po ruti) — meni samo sakriva.
 | `26_talas1_cg` | CHECK zaliha ≥ 0 i količine stavke isporuke (`NOT VALID`, pa provjera starih redova — ako ne prođe, samo `notice`, a pravilo važi za nove upise); `kljuc_zahtjeva` (R-10) |
 | `27_talas2_cg` | `mjerenje_temperature.mjerni_uredjaj_id` (R-23); `kontrola_vozila` + `granica_min/max`, `temperatura_ok` (R-05); jedinstven `zapis.ispravlja_id` (R-07, u `do`-bloku — grananje na staroj bazi daje `notice`); pogledi za izvoz `v_izvoz_kontrole_vozila`, `v_izvoz_provjere_nc`, `v_izvoz_termometri`, `v_izvoz_verifikacija_sistema`, `v_izvoz_kretanja_zalihe` (R-20) |
 | `28_talas3_otkaz_cg` | samo `isporuka_status_t` + `OTKAZANA` — nova vrijednost enuma u svom fajlu (ne smije se koristiti u istoj transakciji) |
+| `38_alergeni_cg` | **poslastičarnica:** `artikal.alergeni` (14 šifara, CHECK — isti spisak kao `server/alergeni.ts`), `artikal.alergeni_upisani` |
+| `39_porudzbina_cg` | **poslastičarnica:** `porudzbina` (statusi tekst + CHECK, P1 u CHECK-u), `porudzbina_lot`, `povlacenje_kontakt.porudzbina_id`, izvor `porudzbina` u CHECK-ovima neusaglašenosti i obavještenja (#36), `v_sledljivost_porudzbine`, `v_izvoz_porudzbine` (alergeni nazivima), RLS |
 | `37_stanje_poslovanja_cg` | `firma.izvjestaj_primaoci` (kome ide „Stanje poslovanja“), `izvjestaj_poslat` (ko je, kad i kome poslao koji period; RLS) — #93 |
 | `36_kontrolne_tacke_cg` | KKT 1–3 za bazu koja već ima firmu, a nema tačke (na novoj ih pravi `prvi-korisnik`, na demo `13_demo_cg`) + pravila za artikle sa granicom bez pravila (#91) |
 | `35_bekap_preuzimanje_cg` | `bekap_log.podaci` može biti prazno + `velicina_bajtova`; stare kopije podataka obrisane (bekap se više ne čuva u bazi, #68) |
@@ -321,7 +389,7 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `npm run demo-lozinke` | nove lozinke pet demo naloga, SAMO na demo bazi; upiše ih u `.env` (`DEMO_LOZINKA_*`) za `test:e2e` |
 | `npm run iskljuci-2fa -- --korisnik ime` | isključi 2FA nalogu bez telefona i rezervnih kodova (#81); prekida prijave, audit |
 | `npm run zakazi-bekap` | `npm run bekap` u Windows Task Scheduler — svaki dan 13:00 (`-Vrijeme`, `-Ukloni`); pokreće vlasnica |
-| `npm run demo:lokalno` | aplikacija na LOKALNOJ probnoj bazi sa demo podacima (http://localhost:5059, isti klaster kao `npm test`, baza `pilot_lokalno`) — za klik kroz ekrane bez žive baze |
+| `npm run demo:lokalno` | aplikacija na LOKALNOJ probnoj bazi sa demo podacima (http://localhost:5069, isti klaster kao `npm test`, baza `pilot_lokalno`) — za klik kroz ekrane bez žive baze |
 | `npm run bekap` (`alati/bekap.ts`) | `pg_dump` svake baze iz `klijenti.txt` (ili `DATABASE_URL`) u `bekap/<klijent>/`, samo šema `public`, **bez podataka sesija** (živi tokeni). Svaki fajl se odmah provjeri (`pg_restore --list`), stariji od 90 dana se brišu, ishod u `bekap/POSLJEDNJI-BEKAP.txt`, izlazni kod 1 ako ijedan klijent padne. `bekap/` je u `.gitignore`. Treba mu `pg_dump` ≥ verzije servera (traži najnoviji u `C:/Program Files/PostgreSQL`, ili `PG_DUMP=`). |
 
 `alati/klijenti.txt` ima lozinke baza — u `.gitignore` je i ostaje.
@@ -330,7 +398,7 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 
 | Komanda | Baza | Kad |
 |---|---|---|
-| **`npm test`** | SOPSTVENA, svaki put čista: klaster u `.testbaza/` (port 54329, bez lozinke, samo localhost) iz PostgreSQL-a instaliranog na računaru; server na 5055 sa `SAMO_API=1` | **uvijek prvo ovo** — Render-ova demo baza se ne dira |
+| **`npm test`** | SOPSTVENA, svaki put čista: klaster u `.testbaza/` (port 54339, bez lozinke, samo localhost) iz PostgreSQL-a instaliranog na računaru; server na 5065 sa `SAMO_API=1` | **uvijek prvo ovo** — Render-ova demo baza se ne dira |
 | `npm run test:ekrani` | kao `npm test`, pa `vite build` i server KAO NA RENDERU (produkcija, service worker); Chrome bez prozora u veličini telefona (375 × 812) | posle izmjene ekrana — `testovi/ekrani/*.ekran.mjs` |
 | `npm run test:ci` | `TEST_DATABASE_URL` (mora biti localhost) — API testovi pa ekrani (`--sve`) | GitHub Actions (`.github/workflows/testovi.yml`) na svaki push na `main` |
 | `npm run test:e2e` | demo baza iz `.env`, server koji već radi | samo kad treba provjeriti baš demo bazu |

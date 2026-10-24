@@ -10,10 +10,16 @@ import { vrijemeVanMreze } from "../vanMreze.js";
  * obavještenje odgovornom licu — ranije ručna prijava nije javljala nikome, pa je magacioner
  * prijavio problem u prazno. Visoku ozbiljnost vidi i uprava. */
 export async function kreirajRucnuNeusaglasenost(
-  ulaz: { ozbiljnost?: string; opis: string; izvorTip?: "rucno" | "isporuka"; izvorId?: string },
+  ulaz: { ozbiljnost?: string; opis: string; izvorTip?: "rucno" | "isporuka" | "porudzbina"; izvorId?: string },
   korisnikId: string,
 ) {
   let izvorOpis = "";
+  if (ulaz.izvorTip === "porudzbina") {
+    if (!ulaz.izvorId) throw new ApiGreska(400, "PORUDZBINA_OBAVEZNA", "Izaberite porudžbinu na koju se problem odnosi.");
+    const p = await upit<{ broj: string; kupac_ime: string }>(`select broj, kupac_ime from porudzbina where id = $1`, [ulaz.izvorId]);
+    if (!p.rows[0]) throw new ApiGreska(404, "PORUDZBINA_NE_POSTOJI", "Porudžbina nije pronađena.");
+    izvorOpis = ` (porudžbina ${p.rows[0].broj}, ${p.rows[0].kupac_ime})`;
+  }
   if (ulaz.izvorTip === "isporuka") {
     if (!ulaz.izvorId) throw new ApiGreska(400, "ISPORUKA_OBAVEZNA", "Izaberite isporuku na koju se odstupanje odnosi.");
     const isp = await upit<{ broj: string; kupac: string }>(
@@ -156,6 +162,9 @@ async function stoFaliZaZatvaranje(klijent: PoolClient, nc: { izvor_tip: string;
     ).rows[0];
     if (!m) return null;
     if (m.sifra === "KKT3" && m.vozilo_id) return vozilo(m.vozilo_id);
+    // Temperatura torte pri predaji (porudžbina, dopuna 39): torta je već kod kupca — nema šta ponovo izmjeriti;
+    // dokaz je korektivna mjera (prevoz, rashladna kutija), ne novo mjerenje.
+    if ((await klijent.query(`select 1 from porudzbina where mjerenje_id = $1`, [nc.izvor_id])).rows[0]) return null;
     if (m.lot_id) {
       const lot = (
         await klijent.query<{ broj_lota: string; status: string; zaliha: string; izmjereno: boolean }>(

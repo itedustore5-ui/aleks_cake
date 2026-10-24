@@ -1,12 +1,12 @@
 // „Stanje poslovanja“ (11.10.2026): konsultantov izvještaj direktoru — period (dan … godina), pokazatelji i
-// semafor, primaoci, i slanje mejlom. Mejl ide na LAŽNI SMTP server ovog testa (port 54327, samo lokalno);
+// semafor, primaoci, i slanje mejlom. Mejl ide na LAŽNI SMTP server ovog testa (port 54337, samo lokalno);
 // pravi mejl se nikad ne šalje — ako server ima drugo SMTP podešavanje, slanje se preskače.
 import net from "node:net";
 import { pool, prijava, preuzmi, NALOZI, danasCG } from "./pomoc.mjs";
 
 export const naziv = "Stanje poslovanja: periodi, pokazatelji, primaoci, slanje mejlom (lažni SMTP)";
 
-const PORT_POSTE = 54327;
+const PORT_POSTE = 54337;
 
 /** Najmanji SMTP server: prima EHLO, AUTH (PLAIN/LOGIN), MAIL, RCPT, DATA. `odbijRcpt` → 550 na primaoca. */
 function laznaPosta() {

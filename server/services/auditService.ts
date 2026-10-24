@@ -44,6 +44,7 @@ export const logIzmjena = (klijent: PoolClient | typeof pool, ulaz: Omit<Zabilje
 const TABELE_AUDITA = [
   "artikal", "dobavljac", "kupac", "skladiste", "vozilo", "lice", "korisnik", "firma", "zadatak", "plan_obuke",
   "plan_monitoringa", "kontrolna_tacka", "mjerni_uredjaj", "pitanje", "sesija_znanja", "isporuka", "lot", "prijem_stavka",
+  "porudzbina",
 ] as const;
 export type TabelaAudita = (typeof TABELE_AUDITA)[number];
 // Ne ulazi u audit: tehnička polja i ono što se ne smije ni čuvati van svoje tabele.

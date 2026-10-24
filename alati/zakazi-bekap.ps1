@@ -12,7 +12,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ime = "PILOT Distributeri - dnevni bekap"
+# Svoje ime, ne ime iz PILOT Distributeri: -Force ispod bi inace PREPISAO njihov zadatak na istom racunaru.
+$ime = "PILOT Poslasticarnica - dnevni bekap"
 $projekat = Split-Path -Parent $PSScriptRoot
 
 if ($Ukloni) {

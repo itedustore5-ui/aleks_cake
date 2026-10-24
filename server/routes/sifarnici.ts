@@ -6,8 +6,14 @@ import { requireUloga, type AuthZahtjev, sviPrijavljeni } from "../auth.js";
 import { tijelo, str } from "../validacija.js";
 import { logKreiranje, logIzmjenaReda, stanjeReda } from "../services/auditService.js";
 import { uskladiPravilaArtikla } from "../services/pravilaService.js";
+import { ALERGENI, SIFRE_ALERGENA, urediAlergene } from "../alergeni.js";
 
 export const sifarniciRuter = Router();
+
+// Spisak 14 alergena (Prilog II) — ekran ga čita odavde, da postoji jedan spisak (server/alergeni.ts).
+sifarniciRuter.get("/alergeni", sviPrijavljeni(), (_request, response) => {
+  response.json(ALERGENI);
+});
 // PIB je jedinstven (R-28) — otpremnica prepoznaje dobavljača po PIB-u, a dva ista PIB-a znače dupli unos.
 const JEDINSTVEN_PIB = (e: unknown, ko: string) => {
   if ((e as { code?: string }).code === "23505") throw new ApiGreska(409, "PIB_POSTOJI", `${ko} sa tim PIB-om već postoji — izaberite ga sa spiska.`);
@@ -125,6 +131,9 @@ const artikalSchema = z.object({
   granicaPotvrdio: z.boolean().default(false),
   // Rok trajanja se upisuje pri prijemu (R-17); isključuje se samo za izuzetke.
   rokObavezan: z.boolean().default(true),
+  // Alergeni sastojka (dopuna 38). Poslat spisak — i prazan — znači „pogledano na deklaraciji“ (alergeni_upisani);
+  // izostavljen znači „nije upisano“. Porudžbina torte iz ovoga predlaže alergene.
+  alergeni: z.array(z.enum(SIFRE_ALERGENA)).optional(),
 });
 
 sifarniciRuter.get("/artikli", requireUloga("operater", "bzr", "izvodjac"), asyncRuta(async (_request, response) => {
@@ -138,9 +147,10 @@ sifarniciRuter.post(
     const ulaz = tijelo(artikalSchema, request.body);
     const rezultat = await transakcija(async (klijent) => {
       const rezultat = await klijent.query<{ id: string }>(
-        `insert into artikal (sifra, naziv, jedinica_mjere, zahtijeva_lot, temp_kontrolisano, temp_min, temp_max, rok_trajanja_dana, granica_potvrdio, rok_obavezan)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
-        [ulaz.sifra ?? null, ulaz.naziv, ulaz.jedinicaMjere, ulaz.zahtijevaLot, ulaz.tempKontrolisano, ulaz.tempMin ?? null, ulaz.tempMax ?? null, ulaz.rokTrajanjaDana ?? null, ulaz.granicaPotvrdio, ulaz.rokObavezan],
+        `insert into artikal (sifra, naziv, jedinica_mjere, zahtijeva_lot, temp_kontrolisano, temp_min, temp_max, rok_trajanja_dana, granica_potvrdio, rok_obavezan, alergeni, alergeni_upisani)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) returning id`,
+        [ulaz.sifra ?? null, ulaz.naziv, ulaz.jedinicaMjere, ulaz.zahtijevaLot, ulaz.tempKontrolisano, ulaz.tempMin ?? null, ulaz.tempMax ?? null, ulaz.rokTrajanjaDana ?? null, ulaz.granicaPotvrdio, ulaz.rokObavezan,
+          urediAlergene(ulaz.alergeni ?? []), ulaz.alergeni !== undefined],
       );
       await logKreiranje(klijent, { korisnikId: request.korisnik!.id, entitetTip: "artikal", entitetId: rezultat.rows[0].id, noveVrijednosti: ulaz });
       // Granica sa artikla postaje pravilo za prijem i predaju — ocjenjuje se samo po pravilu.
@@ -165,7 +175,9 @@ sifarniciRuter.patch(
            naziv = coalesce($1, naziv), jedinica_mjere = coalesce($2, jedinica_mjere),
            zahtijeva_lot = coalesce($3, zahtijeva_lot), temp_kontrolisano = coalesce($4, temp_kontrolisano),
            temp_min = coalesce($5, temp_min), temp_max = coalesce($6, temp_max), rok_trajanja_dana = coalesce($7, rok_trajanja_dana),
-           granica_potvrdio = coalesce($8, granica_potvrdio), rok_obavezan = coalesce($10, rok_obavezan), updated_at = now()
+           granica_potvrdio = coalesce($8, granica_potvrdio), rok_obavezan = coalesce($10, rok_obavezan),
+           alergeni = coalesce($11::varchar(20)[], alergeni), alergeni_upisani = alergeni_upisani or $11::varchar(20)[] is not null,
+           updated_at = now()
          where id = $9`,
         [
           ulaz.naziv ?? null,
@@ -178,6 +190,7 @@ sifarniciRuter.patch(
           ulaz.granicaPotvrdio ?? null,
           id,
           ulaz.rokObavezan ?? null,
+          ulaz.alergeni === undefined ? null : urediAlergene(ulaz.alergeni),
         ],
       );
       await logIzmjenaReda(klijent, { korisnikId: request.korisnik!.id, entitetTip: "artikal", entitetId: id, prije, poslije: await stanjeReda(klijent, "artikal", id) });

@@ -32,6 +32,7 @@ import { greskeRuter } from "./routes/greske.js";
 import { vanMrezeRuter } from "./routes/vanMreze.js";
 import { inspekcijaRuter } from "./routes/inspekcija.js";
 import { stanjeRuter } from "./routes/stanje.js";
+import { porudzbineRuter } from "./routes/porudzbine.js";
 import { migracijeNaCekanju, primijeniMigracije } from "./migracije.js";
 import { opisGreske, pokreniCiscenjeGresaka, zapisiGresku } from "./services/greskeLogService.js";
 import { pokreniSlanjePush } from "./services/pushService.js";
@@ -139,6 +140,7 @@ app.use("/api", greskeRuter);
 app.use("/api", vanMrezeRuter);
 app.use("/api", inspekcijaRuter);
 app.use("/api", stanjeRuter);
+app.use("/api", porudzbineRuter);
 
 app.use("/api", (_request: Request, response: Response, _next: NextFunction) => {
   response.status(404).json({ error: { code: "RUTA_NE_POSTOJI", message: "Traženi API resurs ne postoji." } });
@@ -205,7 +207,7 @@ const start = async () => {
   }
 
   const server = app.listen(port, "0.0.0.0", () => {
-    console.log(`PILOT DISTRIBUTERI CG sluša na 0.0.0.0:${port} (${isProduction ? "produkcija" : "razvoj"}, izdanje ${IZDANJE})`);
+    console.log(`PILOT POSLASTIČARNICA sluša na 0.0.0.0:${port} (${isProduction ? "produkcija" : "razvoj"}, izdanje ${IZDANJE})`);
   });
   pokreniSedmicniBekap();
   pokreniSlanjePush().catch((e) => console.error("Push obavještenja nisu pokrenuta:", e));

@@ -185,7 +185,7 @@ self.addEventListener("push", (event) => {
     p = { naslov: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(p.naslov || "PILOT Distributeri CG", {
+    self.registration.showNotification(p.naslov || "PILOT Poslastičarnica", {
       body: p.tekst || "",
       icon: "/ikona-192.png",
       tag: p.id || undefined,
