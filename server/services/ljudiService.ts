@@ -56,6 +56,14 @@ async function otvoriNalogU(klijent: PoolClient, ulaz: NoviNalog, izvrsilac: Izv
       [korisnickoIme, await hashLozinke(privremenaLozinka), ulaz.uloga, ulaz.liceId ?? null],
     );
     await logKreiranje(klijent, { korisnikId: izvrsilac.id, entitetTip: "korisnik", entitetId: r.rows[0].id, noveVrijednosti: { uloga: ulaz.uloga, liceId: ulaz.liceId ?? null } });
+    // Prva vlasnica (odgovorno lice) koju otvori konsultant: ime ide i u firmu — rješenje o imenovanju i HACCP plan
+    // ga čitaju odatle. Samo kad je polje prazno; drugačije ime se mijenja u Podešavanju.
+    if (ulaz.uloga === "bzr" && ulaz.liceId) {
+      await klijent.query(
+        `update firma set odgovorno_lice_ime = (select ime from lice where id = $1), updated_at = now() where coalesce(btrim(odgovorno_lice_ime), '') = ''`,
+        [ulaz.liceId],
+      );
+    }
     return { id: r.rows[0].id, korisnickoIme, privremenaLozinka };
   } catch (e) {
     if ((e as { code?: string }).code === JEDINSTVEN) throw new ApiGreska(409, "KORISNICKO_IME_ZAUZETO", `Korisničko ime "${korisnickoIme}" je zauzeto.`);

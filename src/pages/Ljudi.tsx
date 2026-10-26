@@ -345,7 +345,7 @@ function NoviLiceModal({ mozeNalog, onClose, onCreated }: { mozeNalog: boolean; 
           <div style={{ gridColumn: "1 / -1", border: "1px solid var(--linija, #dfe6ec)", borderRadius: 8, padding: 12 }}>
             <label style={{ flexDirection: "row", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input type="checkbox" checked={saNalogom} onChange={(e) => setSaNalogom(e.target.checked)} style={{ width: "auto", height: "auto" }} />
-              <span style={{ fontSize: 12 }}><b>Otvori i nalog za prijavu</b> — za zaposlene koji upisuju u aplikaciji</span>
+              <span style={{ fontSize: 12 }}><b>Otvori i nalog za prijavu</b> — za vlasnicu i zaposlene koji upisuju u aplikaciji</span>
             </label>
             {saNalogom && <NalogPolja polja={nalog} />}
           </div>
@@ -502,7 +502,7 @@ function NoviNalogModal({ lica, pocetnoLice, onClose, onCreated }: { lica: Lice[
   if (pristup) return <PristupModal pristup={pristup} onClose={onClose} />;
 
   return (
-    <Modal naslov="Novi nalog za prijavu" podnaslov="Zaposleni — nalog se veže za lice sa spiska" onClose={onClose} greska={greska} footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={posalji} disabled={!nalog.ispravno}>Kreiraj</button></>}>
+    <Modal naslov="Novi nalog za prijavu" podnaslov="Nalog se veže za lice sa spiska" onClose={onClose} greska={greska} footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={posalji} disabled={!nalog.ispravno}>Kreiraj</button></>}>
       <div className="form-grid">
         <label style={{ gridColumn: "1 / -1" }}>
           Zaposleni
@@ -571,14 +571,18 @@ function predloziKorisnickoIme(ime: string) {
 
 type Pristup = { ime: string | null; sifra: string | null; korisnickoIme: string; privremenaLozinka: string };
 
-/** Ateljeu treba jedna uloga za zaposlene — „Zaposleni“ (`operater`); radno mjesto nije uloga (invarijanta #27). */
+/** Uloge u ateljeu: „Zaposleni“ (`operater`) otvara vlasnica; konsultant otvara i „Vlasnicu“ (`bzr`, odgovorno lice) —
+ * isto pravilo kao smijeDodijelitiUlogu na serveru. Radno mjesto nije uloga (invarijanta #27). */
 function useNalogPolja(ime: string) {
+  const { korisnik } = useAuth();
+  const mozeVlasnicu = korisnik?.uloga === "izvodjac";
   const [korisnickoImeRucno, setKorisnickoIme] = useState<string | null>(null);
   const [lozinka, setLozinka] = useState(predloziLozinku);
+  const [ulogaRucno, setUloga] = useState<"operater" | "bzr" | null>(null);
   const korisnickoIme = korisnickoImeRucno ?? predloziKorisnickoIme(ime);
-  const uloga = "operater";
+  const uloga = mozeVlasnicu ? ulogaRucno ?? "operater" : "operater";
   return {
-    korisnickoIme, setKorisnickoIme, uloga, lozinka, setLozinka,
+    korisnickoIme, setKorisnickoIme, uloga, setUloga, mozeVlasnicu, lozinka, setLozinka,
     ispravno: korisnickoIme.length >= 3 && lozinka.length >= MIN_LOZINKA,
   };
 }
@@ -588,7 +592,14 @@ function NalogPolja({ polja }: { polja: ReturnType<typeof useNalogPolja> }) {
     <div className="form-grid" style={{ marginTop: 10 }}>
       <label>
         Uloga
-        <input value="Zaposleni" readOnly />
+        {polja.mozeVlasnicu ? (
+          <select value={polja.uloga} onChange={(e) => polja.setUloga(e.target.value as "operater" | "bzr")}>
+            <option value="operater">Zaposleni</option>
+            <option value="bzr">Vlasnica — odgovorno lice</option>
+          </select>
+        ) : (
+          <input value="Zaposleni" readOnly />
+        )}
       </label>
       <label>
         Korisničko ime

@@ -106,6 +106,17 @@ export async function pokreni({ provjeri }) {
       /Godišnji plan obuke/.test(izabrana ?? "") && zaKoga.some((o) => o.startsWith("Svi koji rukuju hranom")),
       `${izabrana} · ${zaKoga.slice(0, 3).join(" | ")}`,
     );
+
+    // ── Ljudi: konsultant otvara i nalog vlasnice (odgovorno lice) — prvi nalog posle `prvi-korisnik --konsultant` ──
+    await otvori(t, "/ljudi");
+    // Strana pamti karticu iz koraka iznad (Plan obuke) — prelazi se na spisak zaposlenih.
+    await t.strana.getByRole("button", { name: "Svi zaposleni" }).click();
+    await t.strana.getByRole("button", { name: "Novo lice" }).click();
+    const novo = prozor(t.strana, "Novo lice");
+    await novo.getByText("Otvori i nalog za prijavu").click();
+    const uloge = await novo.getByLabel("Uloga").locator("option").allTextContents();
+    provjeri("Ljudi: konsultant u formi naloga bira i ulogu „Vlasnica — odgovorno lice“", uloge.includes("Zaposleni") && uloge.includes("Vlasnica — odgovorno lice"), uloge.join(" | "));
+    await novo.getByRole("button", { name: "Otkaži" }).click();
     provjeri("Bez greške u konzoli", t.greske.length === 0, t.greske.join(" | "));
   } finally {
     await t.zatvori();

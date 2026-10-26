@@ -53,6 +53,19 @@ export async function pokreni({ provjeri }) {
     const bzrNalog = await ana("/lica", { telo: { ime: "E2E F2 Drugi BZR", nalog: { korisnickoIme: `${ime}.b`, uloga: "bzr" } } });
     provjeri("Odgovorno lice ne otvara nalog sebi ravnom (403, invarijanta #13)", bzrNalog.status === 403);
     provjeri("…i ni tada ne ostaje lice bez naloga", (await pool.query(`select count(*)::int as n from lice`)).rows[0].n === poslijeBroj);
+    // Konsultant otvara vlasnicu (posle `prvi-korisnik --firma … --konsultant …` to je prvi nalog u ateljeu).
+    const konsultant = await prijava(NALOZI.konsultant);
+    const firmaPrije = (await pool.query(`select odgovorno_lice_ime from firma`)).rows[0]?.odgovorno_lice_ime;
+    const vlasnica = await konsultant("/lica", { telo: { ime: "E2E F2 Vlasnica Nova", radnoMjesto: "vlasnica", nalog: { korisnickoIme: `${ime}.v`, uloga: "bzr", lozinka: "Lovcen-2026-v" } } });
+    trag.lica.push(vlasnica.tijelo?.id);
+    const vRed = (await pool.query(`select id, uloga::text as uloga, mora_promijeniti_lozinku from korisnik where korisnicko_ime = $1`, [`${ime}.v`])).rows[0];
+    trag.korisnici.push(vRed?.id);
+    const firmaPoslije = (await pool.query(`select odgovorno_lice_ime from firma`)).rows[0]?.odgovorno_lice_ime;
+    provjeri(
+      "Konsultant otvara nalog vlasnice (odgovorno lice), privremena lozinka; upisano ime odgovornog lica u firmi se ne prepisuje",
+      vlasnica.status === 201 && vRed?.uloga === "bzr" && vRed.mora_promijeniti_lozinku === true && firmaPoslije === firmaPrije,
+      `${vlasnica.status} ${vlasnica.tijelo?.error?.message ?? ""} ${JSON.stringify(vRed)} ${firmaPrije} → ${firmaPoslije}`,
+    );
 
     // Nova lozinka za zaboravljenu
     const reset = await ana(`/nalozi/${nalogRed.id}/lozinka`, { method: "PATCH", telo: { lozinka: "Lovcen-4411x" } });
