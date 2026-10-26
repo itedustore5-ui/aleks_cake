@@ -28,6 +28,8 @@ export type ArtikalPrijema = {
   temp_max?: string | number | null;
   granica_potvrdio?: boolean;
   rok_obavezan?: boolean;
+  /** Broj serije obavezan pri prijemu (jaja); ostalo — kad ga ima, inače trag je račun/otpremnica (P4). */
+  zahtijeva_lot?: boolean;
 };
 
 type PoOtpremnici = { sifra?: string | null; naziv?: string | null; kolicina?: number | null; lot?: string | null; rok?: string | null; jm?: string | null };
@@ -414,12 +416,16 @@ export function NoviPrijemModal({
         if (r.novi.naziv.trim().length < 2) f.push({ id: `p-${r.kljuc}-novi`, tekst: `${n}naziv novog artikla` });
         if (!r.novi.rezim) f.push({ id: `p-${r.kljuc}-rezim`, tekst: `${n}čuvanje (rashlađeno / smrznuto / bez režima)` });
       }
-      if (!r.brojLota.trim()) f.push({ id: `p-${r.kljuc}-lot`, tekst: `${n}broj lota` });
+      // P4: bez broja serije trag je račun/otpremnica; serija je obavezna samo artiklu koji je traži (jaja).
+      if (!r.brojLota.trim()) {
+        if (r.artikalId && r.artikalId !== NOVI && artikal(r.artikalId)?.zahtijeva_lot) f.push({ id: `p-${r.kljuc}-lot`, tekst: `${n}broj serije (obavezan za ovaj artikal)` });
+        else if (!brojDokumenta.trim() && !f.some((x) => x.id === "p-dokument")) f.push({ id: "p-dokument", tekst: "broj računa ili otpremnice (roba bez broja serije)" });
+      }
       const rokObavezan = r.artikalId === NOVI || artikal(r.artikalId)?.rok_obavezan !== false;
       if (rokObavezan && !r.rokTrajanja) f.push({ id: `p-${r.kljuc}-rok`, tekst: `${n}rok trajanja` });
       if (!(uBroj(r.kolicina) > 0)) f.push({ id: `p-${r.kljuc}-kolicina`, tekst: `${n}količina` });
-      if (r.brojLota.trim() && redovi.filter((x) => serija(x) === serija(r)).length > 1 && redovi.findIndex((x) => serija(x) === serija(r)) === i) {
-        f.push({ id: `p-${r.kljuc}-lot`, tekst: `${n}ista serija je upisana dvaput — spojite je u jednu stavku` });
+      if (r.artikalId && redovi.filter((x) => serija(x) === serija(r)).length > 1 && redovi.findIndex((x) => serija(x) === serija(r)) === i) {
+        f.push({ id: `p-${r.kljuc}-lot`, tekst: r.brojLota.trim() ? `${n}ista serija je upisana dvaput — spojite je u jednu stavku` : `${n}isti artikal bez serije je upisan dvaput — spojite ga u jednu stavku` });
       }
       if (poStavci && granicaReda(r) && !Number.isFinite(temperaturaReda(r) ?? NaN)) f.push({ id: `p-${r.kljuc}-temp`, tekst: `${n}temperatura` });
     });
@@ -432,7 +438,7 @@ export function NoviPrijemModal({
     if (prijedlog && prijedlog.stavke.length > 0 && !uporedjeno) f.push({ id: "p-uporedjeno", tekst: "kvačica „uporedio/la sam sa robom“" });
     return f;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dobavljacId, noviDobavljac, datum, redovi, grupe, temperatureGrupa, poStavci, prijedlog, uporedjeno, artikli]);
+  }, [dobavljacId, noviDobavljac, datum, brojDokumenta, redovi, grupe, temperatureGrupa, poStavci, prijedlog, uporedjeno, artikli]);
   const nedostaje = (id: string) => pokusano && fali.some((f) => f.id === id);
   const crveno = (id: string) => (nedostaje(id) ? { borderColor: "#d64545", boxShadow: "0 0 0 2px #d6454522" } : undefined);
 
@@ -657,8 +663,8 @@ export function NoviPrijemModal({
                 </>
               )}
               <label>
-                Broj otpremnice
-                <input value={brojDokumenta} onChange={(e) => setBrojDokumenta(e.target.value)} placeholder="sa dokumenta dobavljača" />
+                Broj računa / otpremnice
+                <input id="p-dokument" value={brojDokumenta} style={crveno("p-dokument")} onChange={(e) => setBrojDokumenta(e.target.value)} placeholder="sa dokumenta dobavljača" />
               </label>
               <label>
                 Datum prijema
@@ -750,8 +756,16 @@ export function NoviPrijemModal({
                       </>
                     )}
                     <label>
-                      <span>Broj lota <ZakonskaOznaka clan="27" /></span>
-                      <input id={`p-${r.kljuc}-lot`} value={r.brojLota} style={crveno(`p-${r.kljuc}-lot`) ?? zuto("lot")} onChange={(e) => azuriraj(r.kljuc, { brojLota: e.target.value }, "lot")} placeholder="sa etikete" autoCapitalize="characters" />
+                      <span>
+                        Broj serije (lot) <ZakonskaOznaka clan="27" />
+                        {!(a?.zahtijeva_lot && r.artikalId !== NOVI) && <small className="muted-text"> (ako ga ima)</small>}
+                      </span>
+                      <input id={`p-${r.kljuc}-lot`} value={r.brojLota} style={crveno(`p-${r.kljuc}-lot`) ?? zuto("lot")} onChange={(e) => azuriraj(r.kljuc, { brojLota: e.target.value }, "lot")} placeholder={a?.zahtijeva_lot && r.artikalId !== NOVI ? "obavezan — sa etikete" : "sa etikete"} autoCapitalize="characters" />
+                      {!r.brojLota.trim() && r.artikalId && !(a?.zahtijeva_lot && r.artikalId !== NOVI) && (
+                        <small className="muted-text" style={{ fontWeight: 400 }}>
+                          Bez serije — trag je {brojDokumenta.trim() ? `račun/otpremnica ${brojDokumenta.trim()}` : "broj računa ili otpremnice (upišite ga gore)"}
+                        </small>
+                      )}
                       {r.po?.lot && r.brojLota.trim() && r.brojLota.trim().toUpperCase() !== r.po.lot.toUpperCase() && (
                         <small className="danas-fali" style={{ fontWeight: 400 }}>na otpremnici piše {r.po.lot}</small>
                       )}

@@ -320,6 +320,7 @@ function ArtikalModal({ artikal, onClose, onSacuvano }: { artikal?: Artikal; onC
   const [rokTrajanjaDana, setRokTrajanjaDana] = useState(artikal?.rok_trajanja_dana?.toString() ?? "");
   const [granicaPotvrdio, setGranicaPotvrdio] = useState(artikal?.granica_potvrdio ?? false);
   const [rokObavezan, setRokObavezan] = useState(artikal?.rok_obavezan ?? true);
+  const [zahtijevaLot, setZahtijevaLot] = useState(artikal?.zahtijeva_lot ?? false);
   const [alergeni, setAlergeni] = useState<string[]>(artikal?.alergeni ?? []);
   // Prazan spisak sam ne kaže „nema alergena“ — to se potvrđuje kvačicom (pogledano na deklaraciji).
   const [bezAlergena, setBezAlergena] = useState(!!artikal?.alergeni_upisani && (artikal?.alergeni.length ?? 0) === 0);
@@ -337,6 +338,7 @@ function ArtikalModal({ artikal, onClose, onSacuvano }: { artikal?: Artikal; onC
         rokTrajanjaDana: rokTrajanjaDana !== "" ? Number(rokTrajanjaDana) : undefined,
         granicaPotvrdio,
         rokObavezan,
+        zahtijevaLot,
         // Bez kvačica i bez „nema alergena“ — alergeni ostaju „nisu upisani“ (porudžbina tada upozorava).
         alergeni: upisuje ? alergeni : undefined,
       };
@@ -366,6 +368,13 @@ function ArtikalModal({ artikal, onClose, onSacuvano }: { artikal?: Artikal; onC
           <select value={rokObavezan ? "da" : "ne"} onChange={(e) => setRokObavezan(e.target.value === "da")}>
             <option value="da">Obavezan (sa etikete ili otpremnice)</option>
             <option value="ne">Nije obavezan — izuzetak</option>
+          </select>
+        </label>
+        <label>
+          Broj serije (lot) pri prijemu
+          <select value={zahtijevaLot ? "da" : "ne"} onChange={(e) => setZahtijevaLot(e.target.value === "da")}>
+            <option value="ne">Kad ga ima — inače trag je račun/otpremnica</option>
+            <option value="da">Obavezan (npr. jaja — oznaka sa jajeta ili kutije)</option>
           </select>
         </label>
         <label>

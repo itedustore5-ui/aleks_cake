@@ -79,7 +79,8 @@ const noviArtikalSchema = z.object({
 const stavkaSchema = z.object({
   artikalId: z.string().uuid().optional(),
   noviArtikal: noviArtikalSchema.optional(),
-  brojLota: z.string().min(1, "Broj lota je obavezan — bez njega nema sledljivosti."),
+  // P4: broj serije kad ga ima; bez njega trag je račun/otpremnica (prijemService — LOT_OBAVEZAN, TRAG_OBAVEZAN).
+  brojLota: z.string().max(100).optional(),
   proizvodniDatum: z.string().optional(),
   rokTrajanja: z.string().optional(),
   primljenaKolicina: z.number().positive(),
@@ -106,7 +107,7 @@ const noviPrijemSchema = z.object({
   dobavljacId: z.string().uuid().optional(),
   noviDobavljac: noviDobavljacSchema.optional(),
   skladisteId: z.string().uuid().optional(),
-  brojDokumenta: z.string().optional(),
+  brojDokumenta: z.string().max(60, "Broj računa ili otpremnice — najviše 60 znakova.").optional(),
   datumPrijema: z.string(),
   napomena: z.string().optional(),
   dokumentId: z.string().uuid().optional(),

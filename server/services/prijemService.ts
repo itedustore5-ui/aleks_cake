@@ -24,7 +24,8 @@ export type StavkaUlaz = {
   /** Artikal sa spiska — ili `noviArtikal`, kad ga nema u Šifarnicima (tačno jedno od dva). */
   artikalId?: string;
   noviArtikal?: NoviArtikalUlaz;
-  brojLota: string;
+  /** Broj serije sa etikete — kad ga nema, trag je račun/otpremnica (P4). */
+  brojLota?: string;
   proizvodniDatum?: string | null;
   rokTrajanja?: string | null;
   primljenaKolicina: number;
@@ -82,7 +83,7 @@ async function upisiNoviArtikal(klijent: PoolClient, novi: NoviArtikalUlaz, kori
   const granica = novi.rezim === "bez" ? null : GRANICA_REZIMA[novi.rezim];
   const r = await klijent.query<{ id: string }>(
     `insert into artikal (naziv, jedinica_mjere, zahtijeva_lot, temp_kontrolisano, temp_min, temp_max, granica_potvrdio, rok_obavezan)
-     values ($1, $2, true, $3, $4, $5, false, true) returning id`,
+     values ($1, $2, false, $3, $4, $5, false, true) returning id`,
     [naziv, novi.jedinicaMjere.trim() || "kom", !!granica, granica?.min ?? null, granica?.max ?? null],
   );
   const id = r.rows[0].id;
@@ -114,34 +115,60 @@ async function upisiNovogDobavljaca(klijent: PoolClient, novi: { naziv: string; 
   return { id: r.rows[0].id, naziv, pib };
 }
 
+/** Oznaka lota bez broja serije (P4): trag je dokument dobavljača i dan prijema — „bez serije · R-118 · 26.10.2026.“ */
+export const oznakaBezSerije = (dokument: string, datum: string) => {
+  const [g, m, d] = datum.slice(0, 10).split("-");
+  return `bez serije · ${dokument.trim()} · ${d}.${m}.${g}.`;
+};
+
 export async function kreirajPrijem(ulaz: NoviPrijemUlaz, korisnikId: string, kljuc?: string) {
   if (ulaz.stavke.length === 0) {
     throw new ApiGreska(400, "PRIJEM_BEZ_STAVKI", "Prijem mora imati najmanje jednu stavku.");
   }
-  for (const stavka of ulaz.stavke) {
-    if (!stavka.brojLota || stavka.brojLota.trim() === "") {
-      throw new ApiGreska(400, "LOT_OBAVEZAN", "Broj lota je obavezan za svaku stavku — bez njega nema sledljivosti.");
-    }
-  }
-  // Ista serija se u jednom prijemu upisuje jednom, sa ukupnom količinom (R-17) — dva lota iste
-  // serije u istom prijemu su dva reda za istu robu na polici.
-  const vidjene = new Set<string>();
   for (const s of ulaz.stavke) {
     if (!s.artikalId === !s.noviArtikal) throw new ApiGreska(400, "NEVALIDAN_UNOS", "Za svaku stavku izaberite artikal sa spiska ili upišite novi.");
-    const kljucSerije = `${s.artikalId ?? `novi:${s.noviArtikal!.naziv.trim().toLowerCase()}`}|${s.brojLota.trim().toUpperCase()}`;
+  }
+  const idjevi = ulaz.stavke.map((s) => s.artikalId).filter((id): id is string => !!id);
+  // P4 (atelje): broj serije se upisuje kad ga ima. Kad ga nema (pijaca, pekara, market), trag je dobavljač +
+  // račun/otpremnica + datum — lot dobija oznaku „bez serije · <dokument> · <datum>“ (`lot.bez_broja`) i po njoj se
+  // traži, veže za tortu i povlači. Artikal kome je serija obavezna (`zahtijeva_lot` — jaja) bez nje se ne prima.
+  const saSerijom = await upit<{ id: string; naziv: string }>(`select id, naziv from artikal where zahtijeva_lot and id = any($1)`, [idjevi]);
+  const dokument = ulaz.brojDokumenta?.trim() ?? "";
+  const stavkeUlaz = ulaz.stavke.map((s) => {
+    const broj = s.brojLota?.trim() ?? "";
+    if (broj) return { ...s, brojLota: broj, bezBroja: false };
+    const obavezna = saSerijom.rows.find((r) => r.id === s.artikalId);
+    if (obavezna) {
+      throw new ApiGreska(400, "LOT_OBAVEZAN", `Za „${obavezna.naziv}“ je broj serije obavezan — prepišite ga sa etikete (kod jaja: oznaka sa jajeta ili kutije).`);
+    }
+    if (!dokument) {
+      throw new ApiGreska(400, "TRAG_OBAVEZAN", "Roba bez broja serije: upišite broj računa ili otpremnice — po njemu se nalazi kad zatreba povlačenje.");
+    }
+    return { ...s, brojLota: oznakaBezSerije(dokument, ulaz.datumPrijema), bezBroja: true };
+  });
+  // Ista serija se u jednom prijemu upisuje jednom, sa ukupnom količinom (R-17) — dva lota iste
+  // serije u istom prijemu su dva reda za istu robu na polici. Isto važi za isti artikal bez serije.
+  const vidjene = new Set<string>();
+  for (const s of stavkeUlaz) {
+    const kljucSerije = `${s.artikalId ?? `novi:${s.noviArtikal!.naziv.trim().toLowerCase()}`}|${s.brojLota.toUpperCase()}`;
     if (vidjene.has(kljucSerije)) {
-      throw new ApiGreska(400, "SERIJA_DVAPUT", `Serija ${s.brojLota.trim()} istog artikla je upisana dvaput — upišite je jednom, sa ukupnom količinom.`);
+      throw new ApiGreska(
+        400,
+        "SERIJA_DVAPUT",
+        s.bezBroja
+          ? "Isti artikal bez broja serije je upisan dvaput — upišite ga jednom, sa ukupnom količinom."
+          : `Serija ${s.brojLota} istog artikla je upisana dvaput — upišite je jednom, sa ukupnom količinom.`,
+      );
     }
     vidjene.add(kljucSerije);
   }
   // Rok trajanja se upisuje pri prijemu (R-17) — bez njega nema FEFO-a ni blokade istekle robe.
   // Konsultant ga isključuje po artiklu, za rijetke izuzetke.
-  const idjevi = ulaz.stavke.map((s) => s.artikalId).filter((id): id is string => !!id);
   const saRokom = await upit<{ id: string; naziv: string }>(`select id, naziv from artikal where rok_obavezan and id = any($1)`, [idjevi]);
-  for (const s of ulaz.stavke) {
+  for (const s of stavkeUlaz) {
     const naziv = s.noviArtikal ? s.noviArtikal.naziv.trim() : saRokom.rows.find((r) => r.id === s.artikalId)?.naziv;
     if (naziv && !s.rokTrajanja) {
-      throw new ApiGreska(400, "ROK_OBAVEZAN", `Upišite rok trajanja za „${naziv}“ (lot ${s.brojLota.trim()}) — sa etikete ili otpremnice.`);
+      throw new ApiGreska(400, "ROK_OBAVEZAN", `Upišite rok trajanja za „${naziv}“ (${s.bezBroja ? s.brojLota : `lot ${s.brojLota}`}) — sa etikete ili otpremnice.`);
     }
   }
 
@@ -181,7 +208,7 @@ export async function kreirajPrijem(ulaz: NoviPrijemUlaz, korisnikId: string, kl
       const k = s.noviArtikal.naziv.trim().toLowerCase();
       if (!noviArtikli.has(k)) noviArtikli.set(k, await upisiNoviArtikal(klijent, s.noviArtikal, korisnikId));
     }
-    const stavke = ulaz.stavke.map((s) => ({ ...s, artikalId: s.artikalId ?? noviArtikli.get(s.noviArtikal!.naziv.trim().toLowerCase())!.id }));
+    const stavke = stavkeUlaz.map((s) => ({ ...s, artikalId: s.artikalId ?? noviArtikli.get(s.noviArtikal!.naziv.trim().toLowerCase())!.id }));
     const prijem = await klijent.query<{ id: string }>(
       `insert into prijem (dobavljac_id, broj_dokumenta, datum_prijema, status, primio_korisnik_id, napomena, skladiste_id)
        values ($1, $2, $3, 'CEKA_ODLUKU', $4, $5, $6) returning id`,
@@ -232,9 +259,9 @@ export async function kreirajPrijem(ulaz: NoviPrijemUlaz, korisnikId: string, kl
 
     for (const stavka of stavke) {
       const lot = await klijent.query<{ id: string }>(
-        `insert into lot (artikal_id, dobavljac_id, prijem_id, broj_lota, proizvodni_datum, rok_trajanja, status, primljena_kolicina)
-         values ($1, $2, $3, $4, $5, $6, 'PRIMLJEN', $7) returning id`,
-        [stavka.artikalId, dobavljacId, prijemId, stavka.brojLota.trim(), stavka.proizvodniDatum ?? null, stavka.rokTrajanja ?? null, stavka.primljenaKolicina],
+        `insert into lot (artikal_id, dobavljac_id, prijem_id, broj_lota, proizvodni_datum, rok_trajanja, status, primljena_kolicina, bez_broja)
+         values ($1, $2, $3, $4, $5, $6, 'PRIMLJEN', $7, $8) returning id`,
+        [stavka.artikalId, dobavljacId, prijemId, stavka.brojLota, stavka.proizvodniDatum ?? null, stavka.rokTrajanja ?? null, stavka.primljenaKolicina, stavka.bezBroja],
       );
       const lotId = lot.rows[0].id;
 
@@ -275,14 +302,14 @@ export async function kreirajPrijem(ulaz: NoviPrijemUlaz, korisnikId: string, kl
     // provjerava etiketu. Ne zaustavlja prijem (roba je stigla), ali ostaje trag (R-17).
     const upozorenja: string[] = [];
     for (const s of stavke) {
-      if (!s.rokTrajanja) continue;
+      if (!s.rokTrajanja || s.bezBroja) continue;
       const drugi = await klijent.query<{ rok: string }>(
         `select distinct to_char(rok_trajanja, 'DD.MM.YYYY.') as rok from lot
          where artikal_id = $1 and dobavljac_id = $2 and upper(btrim(broj_lota)) = upper(btrim($3)) and prijem_id <> $4
            and rok_trajanja is not null and rok_trajanja <> $5::date`,
         [s.artikalId, dobavljacId, s.brojLota, prijemId, s.rokTrajanja],
       );
-      if (drugi.rows.length > 0) upozorenja.push(`Serija ${s.brojLota.trim()} je ranije primljena sa rokom ${drugi.rows.map((r) => r.rok).join(", ")} — provjerite etiketu.`);
+      if (drugi.rows.length > 0) upozorenja.push(`Serija ${s.brojLota} je ranije primljena sa rokom ${drugi.rows.map((r) => r.rok).join(", ")} — provjerite etiketu.`);
     }
     if (upozorenja.length > 0) {
       await obavijestiUlogu(klijent, "bzr", {
@@ -296,11 +323,11 @@ export async function kreirajPrijem(ulaz: NoviPrijemUlaz, korisnikId: string, kl
 
     // Roba sa isteklim rokom se upisuje (to je ono što je stiglo), ali odgovorno lice odmah saznaje
     // — i takva stavka se ne može prihvatiti (donesiOdlukuOLotu).
-    const istekli = ulaz.stavke.filter((s) => s.rokTrajanja && s.rokTrajanja < ulaz.datumPrijema);
+    const istekli = stavkeUlaz.filter((s) => s.rokTrajanja && s.rokTrajanja < ulaz.datumPrijema);
     if (istekli.length > 0) {
       await obavijestiUlogu(klijent, "bzr", {
         naslov: `Primljena roba sa isteklim rokom — ${istekli.length === 1 ? "1 stavka" : `${istekli.length} stavke`}`,
-        poruka: `${istekli.map((s) => `lot ${s.brojLota.trim()} (rok ${s.rokTrajanja})`).join(", ")}. Ne može se prihvatiti — odbijte je (povrat ili uništenje).`,
+        poruka: `${istekli.map((s) => `${s.bezBroja ? s.brojLota : `lot ${s.brojLota}`} (rok ${s.rokTrajanja})`).join(", ")}. Ne može se prihvatiti — odbijte je (povrat ili uništenje).`,
         ozbiljnost: "VISOK",
         izvorTip: "prijem",
         izvorId: prijemId,
@@ -358,14 +385,15 @@ export async function izmijeniStavku(lotId: string, ulaz: StavkaIzmjenaUlaz, kor
     if (lotRed.rows[0].status !== "PRIMLJEN") {
       throw new ApiGreska(409, "ODLUKA_VEC_DONESENA", "Stavka se više ne može mijenjati — odluka o prijemu je već donesena.");
     }
+    // Broj serije se može dopisati (lot „bez serije“ dobija pravi broj), ali ne i obrisati — trag ostaje.
     if (ulaz.brojLota !== undefined && ulaz.brojLota.trim() === "") {
-      throw new ApiGreska(400, "LOT_OBAVEZAN", "Broj lota je obavezan — bez njega nema sledljivosti.");
+      throw new ApiGreska(400, "LOT_OBAVEZAN", "Broj serije se ne briše — ako ga nema, ostaje oznaka računa ili otpremnice.");
     }
     // Šta je pisalo prije izmjene — spor sa dobavljačem i inspektor traže baš to (R-06).
     const stanjeStavke = async () =>
       (
         await klijent.query<Record<string, unknown>>(
-          `select l.broj_lota, l.proizvodni_datum, l.rok_trajanja, l.primljena_kolicina, ps.temperatura_prijema
+          `select l.broj_lota, l.bez_broja, l.proizvodni_datum, l.rok_trajanja, l.primljena_kolicina, ps.temperatura_prijema
            from lot l join prijem_stavka ps on ps.lot_id = l.id where l.id = $1`,
           [lotId],
         )
@@ -375,6 +403,7 @@ export async function izmijeniStavku(lotId: string, ulaz: StavkaIzmjenaUlaz, kor
     await klijent.query(
       `update lot set
          broj_lota = coalesce($1, broj_lota),
+         bez_broja = case when $1::text is null then bez_broja else false end,
          proizvodni_datum = coalesce($2, proizvodni_datum),
          rok_trajanja = coalesce($3, rok_trajanja),
          primljena_kolicina = coalesce($4, primljena_kolicina),

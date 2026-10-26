@@ -123,7 +123,8 @@ const artikalSchema = z.object({
   sifra: z.string().optional(),
   naziv: z.string().min(2),
   jedinicaMjere: z.string().default("kom"),
-  zahtijevaLot: z.boolean().default(true),
+  // Broj serije obavezan pri prijemu (npr. jaja — oznaka sa jajeta ili kutije). Ostalo: kad ga ima (P4).
+  zahtijevaLot: z.boolean().default(false),
   tempKontrolisano: z.boolean().default(false),
   tempMin: z.number().optional(),
   tempMax: z.number().optional(),
