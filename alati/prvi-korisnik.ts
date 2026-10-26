@@ -7,6 +7,9 @@
 // --konsultant              — konsultantski nalog (izvodjac). Upisuje adresu i PIB firme (Podešavanje), podešava
 //                             HACCP plan i dobija obavještenje kad odgovorno lice samo zatvori
 //                             neusaglašenost („bez četiri oka“, #41). Može i sam, kasnije: --konsultant moje.ime
+//   npm run prvi-korisnik -- --firma "Naziv" --konsultant moje.ime   (27.10.2026 — samo konsultant na NOVOJ bazi:
+//                             firma, skladište „Atelje“ i kontrolne tačke se prave, a vlasnicu i zaposlene konsultant
+//                             otvara u aplikaciji, Ljudi → Novo lice → nalog)
 //
 // Zaštita (04.10.2026): ispisuje u koju bazu upisuje, odbija bazu koja već ima odgovorno lice ili konsultanta
 // (npr. demo iz .env kad se zaboravi DATABASE_URL nove baze) i sve upisuje u JEDNOJ transakciji, sa auditom.
@@ -23,7 +26,8 @@ function argument(naziv: string): string | undefined {
 
 const UPOTREBA = `Upotreba:
   npm run prvi-korisnik -- --firma "Naziv d.o.o." --ime "Ime Prezime" --korisnik ime.prezime [--konsultant moje.ime]
-  npm run prvi-korisnik -- --konsultant moje.ime          (samo konsultantski nalog, u bazi koja već ima odgovorno lice)`;
+  npm run prvi-korisnik -- --firma "Naziv d.o.o." --konsultant moje.ime   (prvo samo konsultant; vlasnicu otvara u aplikaciji)
+  npm run prvi-korisnik -- --konsultant moje.ime          (samo konsultantski nalog, u bazi koja već ima firmu)`;
 
 const novaLozinka = () => crypto.randomBytes(12).toString("base64url").slice(0, MINIMALNA_DUZINA_LOZINKE + 4);
 
@@ -32,7 +36,8 @@ async function main() {
   const ime = argument("ime");
   const korisnickoIme = argument("korisnik");
   const konsultant = argument("konsultant");
-  const odgovorno = Boolean(firmaNaziv || ime || korisnickoIme);
+  // Odgovorno lice se pravi kad su zadati ime i korisničko ime; --firma sama (uz --konsultant) samo imenuje firmu.
+  const odgovorno = Boolean(ime || korisnickoIme);
   if ((odgovorno && (!firmaNaziv || !ime || !korisnickoIme)) || (!odgovorno && !konsultant)) {
     console.error(UPOTREBA);
     process.exit(1);
@@ -69,6 +74,10 @@ async function main() {
     for (const ki of [korisnickoIme, konsultant].filter(Boolean) as string[]) {
       if ((await klijent.query(`select 1 from korisnik where korisnicko_ime = $1`, [ki])).rows.length) throw new Error(`Korisničko ime "${ki}" već postoji.`);
     }
+    const imaFirmu = (await klijent.query(`select 1 from firma limit 1`)).rows.length > 0;
+    if (!imaFirmu && !firmaNaziv) {
+      throw new Error(`Baza još nema firmu — dodajte --firma "Naziv" (konsultant je kasnije mijenja u Podešavanju).`);
+    }
 
     await klijent.query("begin");
     const audit = (id: string, vrijednosti: Record<string, unknown>) =>
@@ -77,10 +86,11 @@ async function main() {
         [id, JSON.stringify({ ...vrijednosti, izvor: "alati/prvi-korisnik" })],
       );
 
-    if (odgovorno) {
-      if (!(await klijent.query(`select 1 from firma limit 1`)).rows.length) {
-        await klijent.query(`insert into firma (naziv, odgovorno_lice_ime) values ($1, $2)`, [firmaNaziv, ime]);
-      }
+    // Firma, skladište i kontrolne tačke — na novoj bazi, ko god da je prvi nalog (vlasnica ili konsultant).
+    if (!imaFirmu) {
+      await klijent.query(`insert into firma (naziv, odgovorno_lice_ime) values ($1, $2)`, [firmaNaziv, ime ?? null]);
+    }
+    {
       // Podrazumijevano skladište (dopuna 19 ga pravi kao „Glavni magacin“) se u ateljeu zove „Atelje“ — samo dok je
       // jedino i prazno. Dok je jedno, izbor se nigdje ne prikazuje, ali naziv ide u izvoz i inspekcijski paket.
       await klijent.query(
@@ -103,6 +113,9 @@ async function main() {
          ) as v (sifra, naziv, opis)
          where not exists (select 1 from kontrolna_tacka k where k.sifra = v.sifra)`,
       );
+    }
+
+    if (odgovorno) {
       // Šifra je unutrašnji evidencioni broj (#17) — zaposlenom ne treba, pa se ne ispisuje.
       const lice = await klijent.query<{ id: string }>(
         `insert into lice (ime, radno_mjesto, rukuje_hranom, sifra) values ($1, 'Odgovorno lice za bezbjednost hrane', true, $2) returning id`,
@@ -144,7 +157,8 @@ async function main() {
   console.log("Sljedeće:");
   if (konsultant) {
     console.log("  • prijavite se kao konsultant → Moja strana → potvrda u dva koraka; zatim na Renderu OBAVEZNA_2FA=izvodjac");
-    console.log("  • Podešavanje → adresa i PIB firme; HACCP plan → granice: frižider (KKT2), vitrina (KKT2-V), zamrzivač (KKT2-Z), predaja torte (KKT3); još jedan frižider = nova tačka KKT2-…");
+    console.log("  • Podešavanje → naziv, adresa i PIB firme; HACCP plan → granice: frižider (KKT2), vitrina (KKT2-V), zamrzivač (KKT2-Z), predaja torte (KKT3); još jedan frižider = nova tačka KKT2-…");
+    if (!odgovorno) console.log("  • Ljudi → Novo lice → vlasnica sa nalogom „Vlasnica“ (odgovorno lice); zatim zaposleni — lozinka se pokaže jednom");
   }
   if (odgovorno) console.log("  • dodajte red u alati/klijenti.txt (Naziv = adresa baze) — bekap i dnevni pregled ga uzimaju sami");
   console.log("");

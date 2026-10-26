@@ -174,6 +174,47 @@ export async function pokreni({ provjeri }) {
         await pool.query(`drop database if exists ${ime} with (force)`).catch(() => undefined);
       }
     }
+
+    // ── Prvo samo konsultant (27.10.2026): firma, „Atelje“ i tačke se prave; vlasnicu otvara u aplikaciji ──
+    const ime2 = `pilot_kons_${Date.now().toString(36)}`;
+    let napravljena2 = false;
+    try {
+      await pool.query(`create database ${ime2}`);
+      napravljena2 = true;
+    } catch (e) {
+      provjeri(`prvi-korisnik samo konsultant · preskočeno (nova baza se ne može napraviti: ${e.message})`, true);
+    }
+    if (napravljena2) {
+      const url2 = new URL(URL_TESTA);
+      url2.pathname = `/${ime2}`;
+      const nova2 = url2.toString();
+      await alat("db/migriraj.ts", [], { DATABASE_URL: nova2 });
+      const bezFirme = await alat("alati/prvi-korisnik.ts", ["--konsultant", "konsultantkinja"], { DATABASE_URL: nova2 });
+      const samo = await alat("alati/prvi-korisnik.ts", ["--firma", "Proba atelje", "--konsultant", "konsultantkinja"], { DATABASE_URL: nova2 });
+      const k2 = new pg.Client({ connectionString: nova2 });
+      await k2.connect();
+      try {
+        const nalozi = (await k2.query(`select korisnicko_ime, uloga::text as uloga, mora_promijeniti_lozinku from korisnik`)).rows;
+        const firma = (await k2.query(`select naziv, odgovorno_lice_ime from firma`)).rows;
+        const tacke = (await k2.query(`select sifra from kontrolna_tacka`)).rows.map((x) => x.sifra).sort().join(",");
+        const skladista = (await k2.query(`select naziv from skladiste`)).rows.map((x) => x.naziv).join(",");
+        provjeri(
+          "prvi-korisnik samo sa --konsultant na praznoj bazi: traži --firma, ništa ne upiše",
+          bezFirme.kod === 1 && /nema firmu/.test(bezFirme.izlaz),
+          bezFirme.izlaz.trim().slice(0, 160),
+        );
+        provjeri(
+          "--firma + --konsultant: samo konsultantski nalog (privremena lozinka), firma bez odgovornog lica, „Atelje“, KKT 1–3 sa uređajima",
+          samo.kod === 0 && nalozi.length === 1 && nalozi[0].uloga === "izvodjac" && nalozi[0].mora_promijeniti_lozinku === true &&
+            firma.length === 1 && firma[0].naziv === "Proba atelje" && firma[0].odgovorno_lice_ime === null &&
+            tacke === "KKT1,KKT2,KKT2-V,KKT2-Z,KKT3" && skladista === "Atelje" && /Ljudi → Novo lice/.test(samo.izlaz),
+          `${samo.kod} ${JSON.stringify(nalozi)} ${JSON.stringify(firma)} ${tacke} ${skladista} | ${samo.izlaz.trim().slice(0, 200)}`,
+        );
+      } finally {
+        await k2.end();
+        await pool.query(`drop database if exists ${ime2} with (force)`).catch(() => undefined);
+      }
+    }
   }
 
   fs.rmSync(fajlUpitnika, { force: true });
