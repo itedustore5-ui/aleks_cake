@@ -322,7 +322,10 @@ provjerava server** (`requireUloga` po ruti) — meni samo sakriva.
 ### Uloge
 
 **Atelje (26.10.2026): tri uloge** — `izvodjac` (Konsultant), `bzr` (Vlasnica), `operater` (Zaposleni); `NAZIV_ULOGE` u
-`src/lib/auth.tsx`, grupe poruka u `porukeService`. Vlasnica otvara naloge samo zaposlenima. Redovi `uprava` i `vozac`
+`src/lib/auth.tsx`, grupe poruka u `porukeService`. Vlasnica otvara naloge samo zaposlenima; **konsultant u formi
+naloga (Ljudi) bira i „Vlasnica — odgovorno lice“** (27.10.2026 — ranije je forma nudila samo „Zaposleni“, pa posle
+`prvi-korisnik --firma … --konsultant …` vlasnica nije mogla dobiti nalog). Prvi nalog vlasnice upiše njeno ime i u
+`firma.odgovorno_lice_ime`, ako je prazno (rješenje o imenovanju, HACCP plan). Redovi `uprava` i `vozac`
 ispod su distributerska istorija — tih uloga u kodu nema (vrijednosti ostaju u enumu baze).
 
 | Uloga | Ko | Prva strana | Upis unazad (`PROZOR`) | Šta radi |
