@@ -223,7 +223,7 @@ export function Inspekcija() {
           )}
 
           {ima("prijemi") && (
-            <Odjeljak rb={rb("prijemi")} naslov="Prijem robe — KKT 1" opis="Svaka stavka sa lotom i rokom (sledljivost, čl. 27); temperatura je izmjerena pri prijemu, ocijenjena po granici artikla.">
+            <Odjeljak rb={rb("prijemi")} naslov="Prijem sastojaka — KKT 1" opis="Svaka stavka sa lotom i rokom (sledljivost, čl. 27); temperatura je izmjerena pri prijemu, ocijenjena po granici artikla.">
               <Tabela
                 kolone={["Datum", "Dobavljač · dokument", "Artikal", "Lot · rok", "Primljeno", "Temperatura", "Odluka", "Primio"]}
                 redovi={paket.prijemi.map((r) => [

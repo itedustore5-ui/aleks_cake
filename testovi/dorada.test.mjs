@@ -1,7 +1,5 @@
 // Dorada posle probe vlasnice (01.10.2026):
-//   • D1 se traži samo za vozilo koje tog dana vozi — vozaču ne stoji crveno za kamion koji ne vozi,
-//     a posle kontrole se skida; spisak vozila zna „danas vozi“;
-//   • vozač dobija obavještenje i kad mu isporuka ODE (drugom vozaču / bez vozača) i kad se izmijeni;
+//   (D1 po danu vožnje i obavještenja vozaču o izmjeni isporuke — uklonjeno sa vozilima i isporukama, PLAN.md 8.3)
 //   • temperatura sa prijema se vidi uz stavku (vrijednost, granica, ocjena, termometar);
 //   • neusaglašenost unaprijed kaže šta fali za zatvaranje i da li treba izuzetak „bez četiri oka“;
 //   • „Riješeno je“ (03.10.2026): mjera + provjera + zatvaranje jednim upisom, uz ista pravila
@@ -11,15 +9,14 @@
 //   • pitanje firme na koje se već odgovaralo mijenja se kao nova verzija.
 import { pool, prijava, NALOZI, danasCG, glavnoSkladiste, rokZaDana } from "./pomoc.mjs";
 
-export const naziv = "Dorada: D1 po danu vožnje, vozač i izmjena isporuke, temperatura prijema, provjera NC, poruke, filteri";
+export const naziv = "Dorada: temperatura prijema, istekao rok, provjera NC, „Riješeno je“, poruke, filteri";
 
 export async function pokreni({ provjeri }) {
   const ana = await prijava(NALOZI.ana);
   const marko = await prijava(NALOZI.marko);
-  const petar = await prijava(NALOZI.petar);
   const konsultant = await prijava(NALOZI.konsultant);
   const oznaka = `E2E-DO-${Date.now().toString(36)}`;
-  const t = { artikli: [], prijemi: [], vozilo: null, isporuke: [], plan: null, tacka: null, uredjaj: null, nc: [], pitanja: [], poruke: [], kljucevi: [], povlacenje: null };
+  const t = { artikli: [], prijemi: [], plan: null, tacka: null, uredjaj: null, nc: [], pitanja: [], poruke: [], kljucevi: [], povlacenje: null };
   const K = (s) => {
     const k = `${oznaka}-${s}`;
     t.kljucevi.push(k);
@@ -29,7 +26,6 @@ export async function pokreni({ provjeri }) {
 
   try {
     const dobavljac = (await ana("/dobavljaci")).tijelo[0];
-    const kupac = (await ana("/kupci")).tijelo[0];
     const skladisteId = await glavnoSkladiste(marko);
 
     // ── Termometar i komora (prijem pod režimom, mjerenje za NC) ─────────────────────────────
@@ -80,40 +76,6 @@ export async function pokreni({ provjeri }) {
     const ispravka = await ana(`/prijem/${prijemX.tijelo?.id}/lot/${lotX}`, { method: "PATCH", telo: { rokTrajanja: rokZaDana(30) } });
     const prihvaceno = await ana(`/prijem/${prijemX.tijelo?.id}/lot/${lotX}/odluka`, { method: "PATCH", telo: { odluka: "PRIHVATI", kolicina: 5 } });
     provjeri("…pogrešno ukucan rok se ispravi na stavci, pa se roba prihvata", ispravka.status < 300 && prihvaceno.status < 300, `${ispravka.status} ${prihvaceno.status} ${prihvaceno.tijelo?.error?.message ?? ""}`);
-
-    // ── D1 samo za vozilo koje danas vozi ────────────────────────────────────────────────────
-    const v = await ana("/vozila", { telo: { registarskiBroj: `E2E-${oznaka.slice(-7)}`, tip: "kombi", tempKontrolisano: false } });
-    t.vozilo = v.tijelo?.id;
-    const plan = await ana("/plan-monitoringa", { telo: { naziv: `${oznaka} D1`, vrsta: "kontrola_vozila", voziloId: t.vozilo, ucestalost: "RADNIM_DANIMA", uloga: "vozac" } });
-    t.plan = plan.tijelo?.id;
-    const stavkaD1 = async (k) => (await k("/monitoring/danas")).tijelo.stavke.find((s) => s.id === t.plan);
-    provjeri("D1: vozilo bez današnje isporuke — nije na spisku „šta danas fali“ (ni kod vodstva ni kod vozača)", plan.status === 201 && !(await stavkaD1(ana)) && !(await stavkaD1(petar)), `${plan.status}`);
-    const vozilaPrije = (await petar("/vozila")).tijelo.find((x) => x.id === t.vozilo);
-    provjeri("…a spisak vozila kaže „danas ne vozi“", vozilaPrije?.vozi_danas === false);
-
-    const nova = (telo, kljuc) => ana("/isporuke", { telo: { kupacId: kupac.id, skladisteId, napomena: oznaka, ...telo }, zaglavlja: { "x-kljuc-zahtjeva": K(kljuc) } });
-    const i1 = await nova({ datumIsporuke: danasCG(), vozilId: t.vozilo, vozacKorisnikId: NALOZI.petar.id, stavke: [{ lotId: lotKeks, planiranaKolicina: 1 }] }, "i1");
-    t.isporuke.push(i1.tijelo?.id);
-    const sAna = await stavkaD1(ana);
-    const sPetar = await stavkaD1(petar);
-    provjeri("D1: vozilo sa današnjom isporukom — fali kod vodstva i kod vozača te isporuke", i1.status === 201 && sAna?.fali === 1 && sPetar?.fali === 1, `${i1.status} ${i1.tijelo?.error?.message ?? ""} ${sAna?.fali} ${sPetar?.fali}`);
-    provjeri("…spisak vozila: „danas vozi“", (await petar("/vozila")).tijelo.find((x) => x.id === t.vozilo)?.vozi_danas === true);
-    await petar("/kontrole-vozila", { telo: { vozilId: t.vozilo, cistoca: true, opremaOk: true, vrataOk: true } });
-    provjeri("…posle kontrole crveno se skida (fali 0, ko je uradio)", (await stavkaD1(petar))?.fali === 0 && (await stavkaD1(petar))?.uradili?.length === 1);
-
-    // ── Vozač i izmjena isporuke ─────────────────────────────────────────────────────────────
-    const brojI1 = (await pool.query(`select broj from isporuka where id = $1`, [i1.tijelo?.id])).rows[0]?.broj ?? "—";
-    const obavj = async (k) => (await k("/obavjestenja")).tijelo.filter((o) => (o.naslov ?? "").includes(brojI1));
-    const iz = (telo) => {
-      const tijelo = { datumIsporuke: danasCG(), vozilId: t.vozilo, vozacKorisnikId: NALOZI.petar.id, stavke: [{ lotId: lotKeks, planiranaKolicina: 1 }], ...telo };
-      if (tijelo.vozacKorisnikId === null) delete tijelo.vozacKorisnikId; // „bez vozača“ = polje se ne šalje
-      return ana(`/isporuke/${i1.tijelo.id}`, { method: "PATCH", telo: tijelo });
-    };
-    const promjena = await iz({ stavke: [{ lotId: lotKeks, planiranaKolicina: 2 }] });
-    provjeri("Vozač: isporuka izmijenjena dok je njegova — dobija „izmijenjena“ i šta je promijenjeno", promjena.status < 300 && (await obavj(petar)).some((o) => o.naslov.includes("izmijenjena") && /roba ili količina/.test(o.poruka ?? "")), `${promjena.status}`);
-    const skinut = await iz({ vozacKorisnikId: null, stavke: [{ lotId: lotKeks, planiranaKolicina: 2 }] });
-    provjeri("Vozač: isporuka mu je oduzeta — dobija „više nije vaša“", skinut.status < 300 && (await obavj(petar)).some((o) => o.naslov.includes("više nije vaša")), `${skinut.status}`);
-    provjeri("…i ne vidi je više na svom spisku", !(await petar("/isporuke")).tijelo.some((x) => x.id === i1.tijelo.id));
 
     // ── Neusaglašenost: šta fali i ko provjerava — unaprijed ────────────────────────────────
     const kt = await ana("/kontrolne-tacke", { telo: { sifra: `E2ED${String(Date.now()).slice(-6)}`, naziv: `${oznaka} komora` } });
@@ -232,11 +194,11 @@ export async function pokreni({ provjeri }) {
 
     // ── Poruke: primljene, po vremenu ────────────────────────────────────────────────────────
     for (const [i, naslov] of [`${oznaka} prva`, `${oznaka} druga`].entries()) {
-      const r = await marko("/poruke", { telo: { naslov, primaoci: { nacin: "pojedinacno", korisnici: [NALOZI.petar.id] } } });
+      const r = await marko("/poruke", { telo: { naslov, primaoci: { nacin: "pojedinacno", korisnici: [NALOZI.ana.id] } } });
       t.poruke.push(r.tijelo?.id);
       if (i === 0) await new Promise((ok) => setTimeout(ok, 30));
     }
-    const primljene = (await petar("/poruke/primljene")).tijelo.filter((x) => x.naslov.startsWith(oznaka));
+    const primljene = (await ana("/poruke/primljene")).tijelo.filter((x) => x.naslov.startsWith(oznaka));
     provjeri(
       "Poruke: primalac ih vidi na strani Poruke, najnovija prva, sa pošiljaocem i da li je pročitao",
       primljene.length === 2 && primljene[0].naslov.endsWith("druga") && primljene[0].posiljalac && primljene[0].procitano_at === null,
@@ -292,16 +254,14 @@ export async function pokreni({ provjeri }) {
       await k.query("begin");
       const art = t.artikli.filter(Boolean);
       const lotovi = (await k.query(`select id from lot where artikal_id = any($1)`, [art])).rows.map((r) => r.id);
-      const isporuke = t.isporuke.filter(Boolean);
       const mjerenja = (await k.query(`select id from mjerenje_temperature where kontrolna_tacka_id = $1 or lot_id = any($2)`, [t.tacka, lotovi])).rows.map((r) => r.id);
-      const kontrole = t.vozilo ? (await k.query(`select id from kontrola_vozila where vozilo_id = $1`, [t.vozilo])).rows.map((r) => r.id) : [];
       const povlacenja = (await k.query(`select id from povlacenje where lot_id = any($1)`, [lotovi])).rows.map((r) => r.id);
-      const ncIds = (await k.query(`select id from neusaglasenost where id = any($1) or izvor_id = any($2)`, [t.nc.filter(Boolean), [...mjerenja, ...kontrole, ...isporuke, ...lotovi, ...povlacenja]])).rows.map((r) => r.id);
+      const ncIds = (await k.query(`select id from neusaglasenost where id = any($1) or izvor_id = any($2)`, [t.nc.filter(Boolean), [...mjerenja, ...lotovi, ...povlacenja]])).rows.map((r) => r.id);
       const pravila = (await k.query(`select id from pravilo_kontrole where kontrolna_tacka_id = $1 or artikal_id = any($2)`, [t.tacka, art])).rows.map((r) => r.id);
       const provjere = t.uredjaj ? (await k.query(`select id from provjera_uredjaja where uredjaj_id = $1`, [t.uredjaj])).rows.map((r) => r.id) : [];
       const poruke = t.poruke.filter(Boolean);
       const pitanja = t.pitanja.filter(Boolean);
-      const sve = [...art, ...lotovi, ...isporuke, ...mjerenja, ...kontrole, ...ncIds, ...povlacenja, ...pravila, ...provjere, ...poruke, ...pitanja, ...t.prijemi.filter(Boolean), t.vozilo, t.plan, t.tacka, t.uredjaj].filter(Boolean);
+      const sve = [...art, ...lotovi, ...mjerenja, ...ncIds, ...povlacenja, ...pravila, ...provjere, ...poruke, ...pitanja, ...t.prijemi.filter(Boolean), t.plan, t.tacka, t.uredjaj].filter(Boolean);
       await k.query(`delete from obavjestenje where izvor_id = any($1) or naslov like $2 or poruka like $2`, [sve, `%${oznaka}%`]);
       await k.query(`delete from zadatak where izvor_id = any($1)`, [sve]);
       await k.query(`delete from audit_log where entitet_id = any($1)`, [sve]);
@@ -311,11 +271,7 @@ export async function pokreni({ provjeri }) {
       await k.query(`delete from povlacenje_kontakt where povlacenje_id = any($1)`, [povlacenja]);
       await k.query(`delete from povlacenje where id = any($1)`, [povlacenja]);
       await k.query(`delete from mjerenje_temperature where id = any($1)`, [mjerenja]);
-      await k.query(`delete from isporuka_stavka where isporuka_id = any($1)`, [isporuke]);
-      await k.query(`delete from isporuka where id = any($1)`, [isporuke]);
-      await k.query(`delete from kontrola_vozila where id = any($1)`, [kontrole]);
       if (t.plan) await k.query(`delete from plan_monitoringa where id = $1`, [t.plan]);
-      if (t.vozilo) await k.query(`delete from vozilo where id = $1`, [t.vozilo]);
       await k.query(`delete from kretanje_zalihe where lot_id = any($1)`, [lotovi]);
       await k.query(`delete from zaliha where lot_id = any($1)`, [lotovi]);
       await k.query(`delete from prijem_stavka where prijem_id = any($1)`, [t.prijemi.filter(Boolean)]);

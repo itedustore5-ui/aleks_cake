@@ -543,8 +543,9 @@ function Predaja({ d, potvrdjeno, onPredato }: { d: Detalj; potvrdjeno: boolean;
   const dostava = d.nacin === "DOSTAVA";
   const zadrzan = d.lotovi.some((l) => l.lot_status !== "PRIHVACEN");
 
-  if (izlaz.ceka(`porudzbina:${d.id}`)) return <section><span className="ceka-mrezu">Predaja je na telefonu — šalje se čim bude signala</span></section>;
+  // Prvo potvrda „Sačuvano na telefonu“ — upis je u tom trenutku već u redu, pa bi je „čeka mrežu“ inače sakrilo.
   if (naTelefonu) return <SacuvanoNaTelefonu naslov={`Predaja ${d.broj}`} opis={`Predaja torte ${d.broj}`} onClose={() => setNaTelefonu(false)} />;
+  if (izlaz.ceka(`porudzbina:${d.id}`)) return <section><span className="ceka-mrezu">Predaja je na telefonu — šalje se čim bude signala</span></section>;
 
   const predaj = () => {
     const fali: string[] = [];

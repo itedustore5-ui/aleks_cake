@@ -9,7 +9,8 @@ import type { Pool } from "pg";
 // a /api/zdravlje kaže koja dopuna nije primijenjena (invarijanta #79).
 
 const DB_FOLDER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "db");
-const DEMO = "13_demo_cg.sql";
+// Demo ateljea ide POSLJEDNJI (99): treba tabele iz dopuna 19–39 (vidi zaglavlje fajla).
+const DEMO = "99_demo_atelje.sql";
 /** Ključ za pg_advisory_lock — dva procesa (npr. deploy i `npm run migriraj` u isto vrijeme) ne
  * primjenjuju istu dopunu dvaput. */
 const KLJUC_ZAKLJUCAVANJA = 72_010_033;

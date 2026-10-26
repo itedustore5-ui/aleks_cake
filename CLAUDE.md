@@ -5,7 +5,7 @@ Ovdje je sve što se ne vidi iz koda: mapa aplikacije, zašto je nešto tako, š
 dirati, šta je poznato da ne valja, i na čemu se već izgubilo vrijeme.
 
 Ažurira se pri svakoj većoj izmjeni. Ako nešto naučiš na teži način — upiši ovdje.
-Posljednji pregled koda i usklađivanje ovog fajla: **11.10.2026.** (jednostavan Kontrolni centar direktora, provjera znanja samo za one koji rukuju hranom; „Stanje poslovanja“ — izvještaj direktoru mejlom, Izvještaji samo kod konsultanta; upitnik za početak i `uvoz-start`, kontrolne tačke na svakoj bazi; 04.10. inspekcijski paket i „Riješeno je“ za neusaglašenost; 01.10. dorada posle probe vlasnice; talas 6 30.09.; ranije inspekcija i talas 5 29.09., revizija 25.09. i talasi 1–4) (Ranija verzija ovog fajla
+Posljednji pregled koda i usklađivanje ovog fajla: **26.10.2026.** (atelje: uklonjeni vozila, isporuke, direktor i vozač iz koda; uloge Konsultant / Vlasnica / Zaposleni; demo `99_demo_atelje`; testovi prepravljeni za atelje — 622 + 49 provjera. Ispod je distributerska istorija: 11.10.2026 — jednostavan Kontrolni centar direktora, provjera znanja samo za one koji rukuju hranom; „Stanje poslovanja“ — izvještaj direktoru mejlom, Izvještaji samo kod konsultanta; upitnik za početak i `uvoz-start`, kontrolne tačke na svakoj bazi; 04.10. inspekcijski paket i „Riješeno je“ za neusaglašenost; 01.10. dorada posle probe vlasnice; talas 6 30.09.; ranije inspekcija i talas 5 29.09., revizija 25.09. i talasi 1–4) (Ranija verzija ovog fajla
 opisivala je staru aplikaciju — `zapisi.js`, `promet.html`, `veza.js` — koje u ovom kodu nema.)
 
 ---
@@ -33,10 +33,18 @@ po klijentu — pravilo ispod važi i ovdje).
 - **Plan izrade je `PLAN.md`** (u korijenu, u `.gitignore` — ima cijene i poruke klijentkinji). Dio 8 je
   uputstvo: šta se zadržava, uklanja, mijenja i dodaje, nove invarijante P1–P4, testovi, procjena.
 - **Ostatak ovog fajla opisuje NASLIJEĐENI kod distributera** dok se modul ne prepravi; kad se prepravi,
-  mijenja se i njegov opis ovdje. Vozila (D1), isporuke, direktor (`uprava`) i vozač (`vozac`) se uklanjaju iz
-  **koda** — tabele i vrijednosti enuma ostaju u bazi (PLAN.md 8.1, 8.3).
+  mijenja se i njegov opis ovdje. **Vozila (D1), isporuke, karantin povrata, otpremnica za štampu, direktor
+  (`uprava`) i vozač (`vozac`) su UKLONJENI iz koda 26.10.2026** (rute, servisi, strane, meni, testovi) — tabele i
+  vrijednosti enuma ostaju u bazi (PLAN.md 8.1, 8.3). Invarijante koje opisuju samo njih (#24, #48–#55, #62, #63,
+  #65, #86, #87, #95 i djelovi #85) su u ateljeu bez predmeta — ne brišu se, da brojevi ostanu; kad se vrati
+  dostava kao modul (npr. „preuzima kupac“ / dostava torte), važe ponovo. Predaja kupcu je predaja PORUDŽBINE
+  (P1–P5), a sve što je išlo „vozaču i magacioneru“ ide zaposlenom (`operater`).
 - **Dopune `db/01…37` se ne brišu i ne mijenjaju** (nova baza ih prođe za sekunde, a brisanje lomi
-  `schema_migracije`). Nove tabele idu od `38_…`.
+  `schema_migracije`). Nove tabele idu od `38_…`. **Jedini izuzetak je demo:** distributerski `13_demo_cg.sql`
+  je obrisan i zamijenjen sa `99_demo_atelje.sql` (26.10.2026) — demo nije dopuna (server ga ne očekuje), a
+  demo baza ateljea još nije bila podignuta. Broj 99 jer demo treba tabele iz 19–39 (skladište, termometri,
+  alergeni, porudžbine), a dopune idu redom po imenu fajla; nova dopuna (40, 41…) zato na novoj bazi ide PRIJE
+  demoa — demo upisuje sve sam (firma, KKT 1–3, pravila, skladište „Atelje“) i ne oslanja se na kasnije dopune.
 
 **Zajednički fajlovi — ispravka u jednom projektu se ručno prenosi u drugi** (naročito bezbjednost):
 `server/auth.ts`, `lozinke.ts`, `dvaFaktora.ts`, `db.ts`, `migracije.ts`, `provjeraRuta.ts`, `greske.ts`,
@@ -61,11 +69,13 @@ smiju raditi u isto vrijeme.
 | Porudžbina torte — kupac sa telefonom, alergeni potvrđeni prije predaje (P1), lotovi ključnih sastojaka (P2), predaja sa temperaturom kod dostave (P3), otkaz, reklamacija — dopuna 39, `/porudzbine`, test `porudzbine` | ✓ 18.10.2026 |
 | Sledljivost i povlačenje preko porudžbina (serija → torte → kupci; povlačenje zove kupce predatih torti, „Ne predajte tortu“ za one u izradi); izvoz `porudzbine` | ✓ 18.10.2026 |
 | „Sastav i alergeni“ za štampu (sada samo tekst za poruku kupcu) i etiketa roka (faza 2) | — |
-| Uklanjanje vozila, isporuka, direktora i vozača iz koda | — |
-| Uloge i meni („Vlasnica“, „Zaposleni“), „Pregled ateljea“ | — |
+| Uklanjanje vozila, isporuka, direktora i vozača iz koda (rute, servisi, strane, meni; inspekcijski paket, Stanje poslovanja, Kontrolni centar i sledljivost preko torti) | ✓ 26.10.2026 |
+| Uloge i meni („Vlasnica“, „Zaposleni“) — `Uloga` u kodu ima tri vrijednosti; kartice „Torte (danas, sutra) bez potvrđenih alergena“ i „Torte danas“ | ✓ 26.10.2026 |
+| „Pregled ateljea“ (jutarnji pregled vlasnice — šta danas ide, šta fali) | — |
 | Lot pri prijemu nije obavezan, trag jeste (P4) | — |
 | Obrazac „broj sa granicom“ (krem, hlađenje, vitrina — P3), QR naljepnice | — |
-| Nov demo `13_demo_atelje`, testovi za atelje | — |
+| Nov demo (`99_demo_atelje` — vidi gore zašto 99), testovi za atelje (622 API + 49 ekrana) | ✓ 26.10.2026 |
+| Upitnik za početak (`upitnik-start/`, `uvoz-start`) za atelje — još distributerski (vozila, magacioneri, direktor) | — |
 
 ### Pravila poslastičarnice (P1–P5) — uz invarijante distributera ispod
 
@@ -97,7 +107,7 @@ smiju raditi u isto vrijeme.
 Kod nema razdvajanje firmi: tabela `firma` ima jedan red, a sve ostale tabele pripadaju toj
 firmi. Prvi put kad se dva klijenta nađu u istoj bazi, svaki vidi sve.
 
-**Demo baza** (`npm run seed:demo`, `db/13_demo_cg.sql`) je samo za prodajne sastanke i
+**Demo baza** (`npm run seed:demo`, `db/99_demo_atelje.sql`) je samo za prodajne sastanke i
 testove. Demo se nikad ne koristi za pravi rad, niti obrnuto. `npm run test:e2e` sam provjeri
 da je baza demo i inače odbije da krene.
 
@@ -301,12 +311,16 @@ provjerava server** (`requireUloga` po ruti) — meni samo sakriva.
 
 ### Uloge
 
+**Atelje (26.10.2026): tri uloge** — `izvodjac` (Konsultant), `bzr` (Vlasnica), `operater` (Zaposleni); `NAZIV_ULOGE` u
+`src/lib/auth.tsx`, grupe poruka u `porukeService`. Vlasnica otvara naloge samo zaposlenima. Redovi `uprava` i `vozac`
+ispod su distributerska istorija — tih uloga u kodu nema (vrijednosti ostaju u enumu baze).
+
 | Uloga | Ko | Prva strana | Upis unazad (`PROZOR`) | Šta radi |
 |---|---|---|:-:|---|
 | `izvodjac` | konsultantkinja | `/tabla` | 30 dana | sve što i `bzr` + Podešavanje, banka pitanja konsultanta; otvara sve naloge osim `izvodjac`; **Izvještaji (izvoz) i Stanje poslovanja** — samo on (#93) |
-| `bzr` | odgovorno lice | `/tabla` | 7 | odluke o prijemu, karantin povrata sa isporuke (pusti / otpiši), mjere i provjera neusaglašenosti, povlačenje, nalozi `operater`/`vozac`, pitanja firme, HACCP plan (plan monitoringa, termometri, verifikacija), inspekcijski paket, poruke |
+| `bzr` | vlasnica (odgovorno lice) | `/tabla` | 7 | odluke o prijemu, odluka o zadržanom lotu (pusti / odbij), mjere i provjera neusaglašenosti, povlačenje, nalozi zaposlenih (`operater`), pitanja firme, HACCP plan (plan monitoringa, termometri, verifikacija), inspekcijski paket, poruke, porudžbine |
 | `uprava` | direktor | `/tabla` | — (samo gleda) | SVOJ Kontrolni centar (#95): semafor „šta traži vašu odluku“, četiri broja za 7 dana, zapisi po danu za 14 dana, povlačenje u toku, aktivnost uživo (sklopljena); inspekcijski paket, poruke, Moja strana. Bez zaliha, HACCP plana i sledljivosti u meniju, bez zadataka, unosa i provjere znanja (ako ne rukuje hranom — #94) |
-| `operater` | magacioner | `/moja` | 1 | prijem, zalihe i otpis, obrasci P3–P10 (i ispravka SVOG zapisa — #57), isporuka (samo svoje — #51; i otkaz svoje u pripremi — #63), prijava problema, SVOJA korektivna mjera; „Danas po planu" na Mojoj strani; provjera termometra (API) |
+| `operater` | zaposleni (poslastičar, prodavačica) | `/moja` | 1 | porudžbine torti (sve u ateljeu — P5: sastojci, alergeni, predaja), prijem, zalihe i otpis, obrasci P3–P10 (i ispravka SVOG zapisa — #57), prijava problema, SVOJA korektivna mjera; „Danas po planu" i „Torte danas" na Mojoj strani; provjera termometra (API) |
 | `vozac` | vozač | `/moja` | 1 | isporuka i potvrda sa temperaturom (KKT 3) — samo dodijeljene (#51), kontrola vozila D1 (sa temperaturom — #55), prijava problema, SVOJA mjera; „Danas po planu" |
 
 `PROZOR`, `NA_TERENU`, `ogranicenjeDatuma()`, `provjeriProzorUpisa()`, `izvrsilacZa()`,
@@ -348,7 +362,7 @@ provjerava server** (`requireUloga` po ruti) — meni samo sakriva.
 | `10_events_audit` | `dogadjaj`, `audit_log` |
 | `11_provjera_znanja` | `pitanje`, `sesija_znanja`, `ucesnik_znanja`, `odgovor_znanja` |
 | `12_pogledi` | `v_lica`, `v_plan_obuke`, `v_zaliha_dostupna`, `v_sledljivost_*`, `v_evidencija_osposobljavanja`, … |
-| `13_demo_cg` | **demo podaci — samo `npm run seed:demo`, samo demo baza** |
+| ~~`13_demo_cg`~~ | obrisan 26.10.2026 — demo je sada `99_demo_atelje` (posljednji fajl, samo `npm run seed:demo`, samo demo baza: tri naloga, atelje u Baru, sastojci sa alergenima, KKT 1–3 sa pravilima, tri porudžbine, pavlaka na HOLD-u) |
 | `14_povlacenje` | `povlacenje`, `povlacenje_kontakt` |
 | `15_isporuka_uneo_cg` | `isporuka.uneo_korisnik_id` |
 | `16_bekap_cg` | `bekap_log` (bekap u ISTOJ bazi — od dopune 35 samo trag preuzimanja) |
@@ -386,7 +400,7 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `npm run uvoz-start -- --fajl … [--upisi]` | fajl iz upitnika (`upitnik-start/`) u bazu NOVOG klijenta, posle `prvi-korisnik` (#92). Bez `--upisi` samo pokaže (ista transakcija, pa rollback) |
 | `npm run dnevni-pregled` | stanje svih klijenata iz `alati/klijenti.txt` (+ veličina baze i otpremnica); izlazni kod 1 ako je neko u zastoju ili mu je baza ≥ `BAZA_UPOZORENJE_MB` (400). `KLIJENTI_FAJL=` drugi spisak (test ga usmjerava na nepostojeći, da gleda samo `DATABASE_URL`) |
 | `alati/napravi-licencu.ts` | licencni ključ za ugovor (papirni trag, aplikacija ga ne provjerava) |
-| `npm run demo-lozinke` | nove lozinke pet demo naloga, SAMO na demo bazi; upiše ih u `.env` (`DEMO_LOZINKA_*`) za `test:e2e` |
+| `npm run demo-lozinke` | nove lozinke tri demo naloga (konsultant, ana.b, marko.v), SAMO na demo bazi; upiše ih u `.env` (`DEMO_LOZINKA_*`) za `test:e2e` |
 | `npm run iskljuci-2fa -- --korisnik ime` | isključi 2FA nalogu bez telefona i rezervnih kodova (#81); prekida prijave, audit |
 | `npm run zakazi-bekap` | `npm run bekap` u Windows Task Scheduler — svaki dan 13:00 (`-Vrijeme`, `-Ukloni`); pokreće vlasnica |
 | `npm run demo:lokalno` | aplikacija na LOKALNOJ probnoj bazi sa demo podacima (http://localhost:5069, isti klaster kao `npm test`, baza `pilot_lokalno`) — za klik kroz ekrane bez žive baze |
@@ -402,6 +416,12 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `npm run test:ekrani` | kao `npm test`, pa `vite build` i server KAO NA RENDERU (produkcija, service worker); Chrome bez prozora u veličini telefona (375 × 812) | posle izmjene ekrana — `testovi/ekrani/*.ekran.mjs` |
 | `npm run test:ci` | `TEST_DATABASE_URL` (mora biti localhost) — API testovi pa ekrani (`--sve`) | GitHub Actions (`.github/workflows/testovi.yml`) na svaki push na `main` |
 | `npm run test:e2e` | demo baza iz `.env`, server koji već radi | samo kad treba provjeriti baš demo bazu |
+
+**Atelje (26.10.2026): 26 testova, 622 provjere na čistoj bazi; ekrani 6 scenarija, 49 provjera.** Tri demo naloga
+(`NALOZI` u `testovi/pomoc.mjs`: konsultant, ana — vlasnica, marko — zaposleni); drugog zaposlenog test otvara sam
+(`drugiZaposleni()` / `obrisiZaposlenog()` — poruke među zaposlenima, „tuđe“ provjere, ko ne rukuje hranom). Testovi
+isporuka, D1 i karantina povrata su uklonjeni ili prepravljeni na tortu (`povlacenje`, `obavjestenja`, `talas1`, `talas3`,
+`talas6`, `neusaglasenosti_teren`, ekrani `2_teren`, `3_bez_mreze`, `5_porudzbina_nc`). Opis ispod je distributerski:
 
 26 testova, 673 provjere (na čistoj bazi; na demo bazi dvije manje — preskaču se, a obavezna 2FA se provjerava samo lokalno), kroz svih pet uloga: pristup (svaka uloga × svaka adresa), obavještenja
 i zadaci, poruke i skladišta, povlačenje, provjera znanja, pitanja firme, neusaglašenost sa
@@ -440,11 +460,11 @@ već ima vodstvo i bazu bez tabela; uvoz-start — proba bez upisa, upis, ponovn
 artikal bez granice, granice nepotvrđene, pravila KKT 1/3, šifra kod dobavljača, demo baza odbijena; dnevni-pregled javlja veličinu baze — `alati`). i stanje poslovanja (šest vrsta perioda sa granicama i nazivom, tekući period do danas, budućnost odbijena, nova neusaglašenost VISOK
 pali crveno, primaoci, slanje kroz LAŽNI SMTP server testa — prijava na nalog, oba primaoca, HTML i tekst, trag; SMTP odbije → 502 bez traga;
 Odgovorno lice, direktor i magacioner 403; direktorov Kontrolni centar — isti semafor za 7 dana, 14 dana zapisa — `stanje`; u `provjera_znanja` i:
-direktor koji ne rukuje hranom ne dobija karticu i ne ulazi). **Rade samo na demo podacima** (`testovi/pomoc.mjs` provjeri pet demo naloga sa
+direktor koji ne rukuje hranom ne dobija karticu i ne ulazi). **Rade samo na demo podacima** (`testovi/pomoc.mjs` provjeri tri demo naloga sa
 fiksnim ID-jevima) i brišu sve što naprave. Nov tok u aplikaciji = nov test.
 
 Demo baza nije čista — vlasnica kroz Render unosi svoje (npr. drugo skladište „Magacin Bar").
-Testovi to **ne diraju**: prijem ide u „Glavni magacin" (`glavnoSkladiste()`), isporuka iz
+Testovi to **ne diraju**: prijem ide u „Atelje" (`glavnoSkladiste()`; kod distributera „Glavni magacin"), isporuka iz
 skladišta svog lota; provjera koja traži JEDNO skladište se tada preskače i ispiše „· preskočeno".
 Demo lotovi vremenom isteknu (rok je računat od dana punjenja) — test koji isporučuje demo lot bira
 važeći (`nijeIstekao()` iz `pomoc.mjs`). Demo lotovi su roba pod režimom — isporuka ide rashladnim vozilom
@@ -1143,6 +1163,9 @@ repozitorijuma. Ovdje samo stanje.
 | `npm run typecheck` prolazi, a u stranici fali uvoz | korijenski `tsconfig.json` ima `"files": []` sa referencom — `tsc --noEmit` bez `-b` NE provjerava frontend (hvatao ga je samo `tsc -b` u `npm run build`) | `typecheck` = `tsc --noEmit -p tsconfig.app.json && … -p tsconfig.server.json` |
 | Prilozi na telefonu vire 26 px van ekrana | 40 px unutrašnje margine + dva potpisa u redu bez prelamanja, tabele bez skrola | `.prilog-list` (manja margina na telefonu), potpisi se prelamaju, tabele u `.data-table-wrap` — našao test ekrana |
 | temperatura na KKT 3 ocijenjena po drugoj granici nego na KKT 1 | KKT 3 je padao na `artikal.temp_*` kad pravila nema, KKT 1 nije | jedan izvor — pravilo (invarijanta #39); dopuna 24 napravila pravila iz postojećih granica |
+| demo ateljea na broju 13 ne može da upiše porudžbine ni alergene (26.10.2026) | dopune idu redom po imenu fajla — `13_…` se primijeni prije 19 (skladište), 24 (termometri), 38–39 (alergeni, porudžbine) | demo je `99_demo_atelje.sql` i sam pravi firmu, KKT 1–3, pravila i skladište |
+| predaja torte bez mreže: „Sačuvano na telefonu“ se nikad nije pokazalo (26.10.2026) | u `Predaja` se prvo provjeravalo „čeka mrežu“ — upis je u tom trenutku već u redu, pa je potvrda bila sakrivena | prvo `naTelefonu`, pa „čeka mrežu“; našao ga je test ekrana `3_bez_mreze` |
+| Python izmjena kroz bash heredoc pukne sa `unexpected EOF while looking for matching` | navodnici i obrnuti apostrofi u tijelu skripte zbune bash | skriptu napisati u `.py` fajl (scratchpad) alatom za pisanje, pa `python fajl.py` iz PowerShell-a |
 
 ### Gdje se zapravo testira
 

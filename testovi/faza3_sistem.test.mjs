@@ -19,8 +19,6 @@ const pomjeri = (dana) => {
 export async function pokreni({ provjeri }) {
   const ana = await prijava(NALOZI.ana);
   const marko = await prijava(NALOZI.marko);
-  const petar = await prijava(NALOZI.petar);
-  const direktor = await prijava(NALOZI.direktor);
   const konsultant = await prijava(NALOZI.konsultant);
   const pocetak = (await pool.query(`select now() as t`)).rows[0].t;
   const trag = { artikal: null, tacka: null, uredjaj: null, zapisi: [], nc: [], verifikacije: [] };
@@ -77,10 +75,9 @@ export async function pokreni({ provjeri }) {
 
     const danasZa = async (k, id) => (await k("/monitoring/danas")).tijelo.stavke.find((s) => s.id === id);
     const s0 = await danasZa(marko, stavka.tijelo.id);
-    provjeri("Magacioner vidi šta danas fali: 0 od 2 mjerenja", s0?.uradjeno === 0 && s0.fali === 2, JSON.stringify(s0 && { u: s0.uradjeno, f: s0.fali }));
-    provjeri("Vozač ne vidi magacinsku stavku", !(await danasZa(petar, stavka.tijelo.id)));
-    const t0 = (await direktor("/tabla")).tijelo.kriticno;
-    const d0 = (await direktor("/tabla/detalj/monitoring")).tijelo;
+    provjeri("Zaposleni vidi šta danas fali: 0 od 2 mjerenja", s0?.uradjeno === 0 && s0.fali === 2, JSON.stringify(s0 && { u: s0.uradjeno, f: s0.fali }));
+    const t0 = (await ana("/tabla")).tijelo.kriticno;
+    const d0 = (await ana("/tabla/detalj/monitoring")).tijelo;
     provjeri("Kontrolni centar: kartica „danas fali\" i lista iza nje", t0.monitoringFali >= 1 && d0.redovi.some((r) => r.sta === "E2E temperatura komore 9"));
     // Mjerenje nosi termometar (R-23): test ima svoj, provjeren — ne zavisi od stanja demo baze.
     const pomocni = await ana("/mjerni-uredjaji", { telo: { naziv: "E2E-F3 pomoćni termometar", intervalProvjereMjeseci: 1 } });
@@ -100,9 +97,9 @@ export async function pokreni({ provjeri }) {
     await pool.query(`update plan_monitoringa set vazi_od = $1 where id = $2`, [pomjeri(-5), stavka.tijelo.id]);
     const juce = (await ana("/monitoring/danas")).tijelo.juce.find((s) => s.id === stavka.tijelo.id);
     provjeri("„Juče propušteno\": 0 od 2", juce?.uradjeno === 0 && juce.fali === 2);
-    const pregled = (await direktor("/monitoring/pregled?dana=7")).tijelo.stavke.find((s) => s.id === stavka.tijelo.id);
+    const pregled = (await ana("/monitoring/pregled?dana=7")).tijelo.stavke.find((s) => s.id === stavka.tijelo.id);
     provjeri("Pregled rupa: 5 propuštenih dana, svaki sa datumom", pregled?.periodaUkupno === 5 && pregled.propusteno.length === 5 && pregled.propusteno[0].od === pomjeri(-5), JSON.stringify(pregled?.propusteno?.map((p) => p.od)));
-    provjeri("Magacioner ne mijenja plan (403)", (await marko("/plan-monitoringa", { telo: { naziv: "x", vrsta: "obrazac", obrazacKod: "P3", ucestalost: "DNEVNO" } })).status === 403);
+    provjeri("Zaposleni ne mijenja plan (403)", (await marko("/plan-monitoringa", { telo: { naziv: "x", vrsta: "obrazac", obrazacKod: "P3", ucestalost: "DNEVNO" } })).status === 403);
 
     // ── Termometri ──────────────────────────────────────────────────────────────────────────
     const ur = await ana("/mjerni-uredjaji", { telo: { naziv: "E2E ubodni termometar", oznaka: "T-99", intervalProvjereMjeseci: 1, intervalKalibracijeMjeseci: 12 } });
@@ -119,8 +116,7 @@ export async function pokreni({ provjeri }) {
     const los = await marko(`/mjerni-uredjaji/${trag.uredjaj}/provjera`, { telo: { datum: danasCG(), vrsta: "INTERNA", referentna: 0, izmjereno: 1.2 } });
     provjeri("Pokazao 1,2 umjesto 0 — neispravan, otvorena neusaglašenost", los.tijelo.rezultat === "NEISPRAVAN" && !!los.tijelo.neusaglasenost);
     provjeri("…stanje NEISPRAVAN, odgovorno lice obaviješteno", (await stanjeUr())?.stanje === "NEISPRAVAN" && (await ana("/obavjestenja")).tijelo.some((o) => o.izvor_id === trag.uredjaj));
-    provjeri("…i vidi se u HACCP rokovima na Kontrolnom centru", (await direktor("/tabla/detalj/rokovi")).tijelo.redovi.some((r) => r.sta.includes("E2E ubodni termometar") && r.stanje === "NEISPRAVAN"));
-    provjeri("Vozač ne upisuje provjeru termometra (403)", (await petar(`/mjerni-uredjaji/${trag.uredjaj}/provjera`, { telo: { datum: danasCG(), vrsta: "INTERNA", referentna: 0, izmjereno: 0 } })).status === 403);
+    provjeri("…i vidi se u HACCP rokovima na Kontrolnom centru", (await ana("/tabla/detalj/rokovi")).tijelo.redovi.some((r) => r.sta.includes("E2E ubodni termometar") && r.stanje === "NEISPRAVAN"));
 
     // ── Verifikacija sistema ────────────────────────────────────────────────────────────────
     provjeri("Revizija sa praznim nalazom — odbijena (400)", (await ana("/verifikacija-sistema", { telo: { vrsta: "REVIZIJA_PLANA", datum: danasCG(), nalaz: "ok", zakljucak: "USAGLASENO" } })).status === 400);
@@ -131,16 +127,16 @@ export async function pokreni({ provjeri }) {
     trag.verifikacije.push(rev.tijelo?.id);
     provjeri("Revizija upisana, sljedeća za godinu dana", rev.status === 201 && rev.tijelo.sljedecaDo.slice(0, 4) === String(Number(danasCG().slice(0, 4)) + 1));
     provjeri("„Potrebne izmjene\" otvaraju zadatak", (await pool.query(`select 1 from zadatak where izvor_tip = 'verifikacija_sistema' and izvor_id = $1`, [rev.tijelo.id])).rows.length === 1);
-    const stanjeRev = (await direktor("/verifikacija-sistema")).tijelo.stanje.find((s) => s.vrsta === "REVIZIJA_PLANA");
-    provjeri("Direktor vidi stanje revizije: važi", stanjeRev?.stanje === "VAZI");
-    provjeri("Magacioner ne upisuje reviziju (403)", (await marko("/verifikacija-sistema", { telo: { vrsta: "INTERNI_AUDIT", datum: danasCG(), nalaz: "E2E pokušaj magacionera", zakljucak: "USAGLASENO" } })).status === 403);
+    const stanjeRev = (await konsultant("/verifikacija-sistema")).tijelo.stanje.find((s) => s.vrsta === "REVIZIJA_PLANA");
+    provjeri("Konsultant vidi stanje revizije: važi", stanjeRev?.stanje === "VAZI");
+    provjeri("Zaposleni ne upisuje reviziju (403)", (await marko("/verifikacija-sistema", { telo: { vrsta: "INTERNI_AUDIT", datum: danasCG(), nalaz: "E2E pokušaj zaposlenog", zakljucak: "USAGLASENO" } })).status === 403);
 
     // ── HACCP plan za štampu ────────────────────────────────────────────────────────────────
-    const plan = await direktor("/haccp-plan");
+    const plan = await konsultant("/haccp-plan");
     const t9 = plan.tijelo?.kontrolneTacke?.find((t) => t.id === trag.tacka);
     provjeri("HACCP plan: tačka sa opasnošću, granicom, monitoringom i mjerom", !!t9?.opasnost && Number(t9.opstaGranica?.max_vrijednost) === 5 && t9.monitoring.some((m) => m.id === stavka.tijelo.id) && !!t9.korektivna_mjera);
     provjeri("HACCP plan: termometri i verifikacija sistema", plan.tijelo.uredjaji.some((u) => u.id === trag.uredjaj) && plan.tijelo.verifikacija.length === 3);
-    provjeri("Magacioner ne otvara HACCP plan (403)", (await marko("/haccp-plan")).status === 403);
+    provjeri("Zaposleni ne otvara HACCP plan (403)", (await marko("/haccp-plan")).status === 403);
 
     // ── H7: četiri oka u firmi sa jednim odgovornim licem ───────────────────────────────────
     const nc = await marko("/neusaglasenosti", { telo: { opis: "E2E-F3 vrata komore ne dihtuju", ozbiljnost: "NIZAK" } });

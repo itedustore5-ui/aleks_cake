@@ -43,7 +43,6 @@ function raspakuj(buf) {
 export async function pokreni({ provjeri }) {
   const ana = await prijava(NALOZI.ana);
   const marko = await prijava(NALOZI.marko);
-  const direktor = await prijava(NALOZI.direktor);
   const oznaka = `E2E-INSP-${Date.now().toString(36)}`;
   const t = { artikal: null, prijem: null, tacka: null, uredjaj: null, zapisi: [], nc: [] };
   const danas = danasCG();
@@ -136,7 +135,8 @@ export async function pokreni({ provjeri }) {
     );
     const bezOd = await ana("/inspekcija");
     provjeri("…bez perioda: godinu dana unazad, zaključno sa danas", bezOd.status === 200 && bezOd.tijelo.period.do === danas && bezOd.tijelo.period.dana === 366, JSON.stringify(bezOd.tijelo?.period));
-    provjeri("Direktor (uprava) izvlači paket sam", (await direktor(`/inspekcija?od=${juce}&do=${danas}`)).status === 200);
+    provjeri("Paket ima odjeljak porudžbina torti (alergeni, sastojci, predaja)", Array.isArray(p.porudzbine) && typeof p.sazetak.torti === "number" && p.kalendar.every((d) => "torte" in d && !("d1" in d)));
+    provjeri("Zaposleni ne izvlači paket (403)", (await marko(`/inspekcija?od=${juce}&do=${danas}`)).status === 403);
 
     // ── ZIP ───────────────────────────────────────────────────────────────────────────────────
     const zip = await preuzmi(ana, `/inspekcija/paket.zip?od=${juce}&do=${danas}`);

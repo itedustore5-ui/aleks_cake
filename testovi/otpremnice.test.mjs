@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { pool, prijava, NALOZI, danasCG, posaljiFajl, preuzmi, glavnoSkladiste } from "./pomoc.mjs";
+import { pool, prijava, NALOZI, danasCG, posaljiFajl, preuzmi, glavnoSkladiste, drugiZaposleni, obrisiZaposlenog } from "./pomoc.mjs";
 
 export const naziv = "Otpremnica: PDF i fotografija (i okrenuta, tamna, sa cijenama) → prijem, pamćenje artikala, pakovanje, nov dobavljač i artikal, manjak, istekao rok";
 
@@ -42,8 +42,7 @@ export async function pokreni({ provjeri }) {
   const ana = await prijava(NALOZI.ana);
   const konsultant = await prijava(NALOZI.konsultant);
   const marko = await prijava(NALOZI.marko);
-  const petar = await prijava(NALOZI.petar);
-  const trag = { dokumenti: [], prijemi: [], dobavljacId: null, noviDobavljacId: null, artikalId: null };
+  const trag = { dokumenti: [], prijemi: [], dobavljacId: null, noviDobavljacId: null, artikalId: null, pomocniArtikli: [], kolega: null };
   const zapamti = (r) => r.tijelo?.dokumentId && trag.dokumenti.push(r.tijelo.dokumentId);
   // Čitanje ide u pozadini (#76): odgovor je 201 sa rezultatom, ili 202 „čitam“ — tada se pita za
   // stanje dok ne završi (kao što radi forma na telefonu).
@@ -61,7 +60,6 @@ export async function pokreni({ provjeri }) {
 
   try {
     // ── Pristup i vrsta fajla ───────────────────────────────────────────────────────────────
-    provjeri("Vozač ne šalje otpremnice za prijem (403)", (await posaljiFajl(petar, "/prijem/otpremnica", PDF, "application/pdf")).status === 403);
     const tekst = await posaljiFajl(marko, "/prijem/otpremnica", Buffer.from("ovo nije otpremnica"), "text/plain");
     provjeri("Fajl koji nije PDF ni slika — odbijen (415)", tekst.status === 415, tekst.tijelo?.error?.message);
 
@@ -82,6 +80,15 @@ export async function pokreni({ provjeri }) {
     provjeri("Nepoznat dobavljač — nije pogođen, nego se traži izbor", prvi.tijelo.otpremnice[0].dobavljac.id === null && prvi.tijelo.otpremnice[0].upozorenja.some((u) => u.includes("nije u šifarniku")));
     const o156 = prvi.tijelo.otpremnice.find((o) => o.broj === "2026-000156");
     provjeri("Istekao rok (15.09.2026) prepoznat već na otpremnici", o156.stavke[0].rokIstekao === true && o156.upozorenja.some((u) => u.includes("isteklim rokom")));
+
+    // Demo ateljea nema piletinu ni jogurt (probne otpremnice su distributerske) — test ih upisuje sam.
+    for (const a of [
+      { naziv: "Pileći file smrznuti 500g", jedinicaMjere: "kom", tempKontrolisano: true, tempMin: -20, tempMax: -15, granicaPotvrdio: true },
+      { naziv: "Jogurt 2.8% 1kg", jedinicaMjere: "kom", tempKontrolisano: true, tempMin: 0, tempMax: 5, granicaPotvrdio: true },
+    ]) {
+      const r = await ana("/artikli", { telo: a });
+      if (r.tijelo?.id) trag.pomocniArtikli.push(r.tijelo.id);
+    }
 
     // ── Dobavljač po PIB-u ──────────────────────────────────────────────────────────────────
     const dob = await ana("/dobavljaci", { telo: { naziv: "ADRIATIC DISTRIBUCIJA d.o.o. Podgorica", pib: "03098765" } });
@@ -283,7 +290,9 @@ export async function pokreni({ provjeri }) {
         stanje.tijelo?.status === "gotovo" || (stanje.tijelo?.status === "cita" && typeof stanje.tijelo.opis === "string" && typeof stanje.tijelo.sekundi === "number"),
         JSON.stringify(stanje.tijelo).slice(0, 160),
       );
-      provjeri("…vozač ne vidi tuđu otpremnicu (403)", (await petar(`/prijem/otpremnica/${spora.tijelo.dokumentId}/stanje`)).status === 403);
+      trag.kolega = await drugiZaposleni(ana, "E2E Kolega Otpremnica");
+      const tudja = await trag.kolega.k(`/prijem/otpremnica/${spora.tijelo.dokumentId}/stanje`);
+      provjeri("…drugi zaposleni ne vidi tuđu otpremnicu (403/404)", tudja.status === 403 || tudja.status === 404, `${tudja.status}`);
       provjeri("…odgovorno lice vidi stanje", (await ana(`/prijem/otpremnica/${spora.tijelo.dokumentId}/stanje`)).status === 200);
       provjeri("…„Ne čekaj — upiši ručno“ prekida čitanje (204)", (await marko(`/prijem/otpremnica/${spora.tijelo.dokumentId}/prekini`, { method: "POST" })).status === 204);
       let kraj = stanje;
@@ -375,6 +384,14 @@ export async function pokreni({ provjeri }) {
         await k.query(`delete from artikal_dobavljaca where artikal_id = $1`, [trag.artikalId]);
         await k.query(`delete from artikal where id = $1`, [trag.artikalId]);
       }
+      for (const id of trag.pomocniArtikli) {
+        const pravila = (await k.query(`select id from pravilo_kontrole where artikal_id = $1`, [id])).rows.map((r) => r.id);
+        await k.query(`delete from audit_log where entitet_id = any($1)`, [[id, ...pravila]]);
+        await k.query(`delete from pravilo_kontrole where artikal_id = $1`, [id]);
+        await k.query(`delete from artikal_dobavljaca where artikal_id = $1`, [id]);
+        await k.query(`delete from artikal where id = $1`, [id]);
+      }
+      await obrisiZaposlenog(k, trag.kolega);
       for (const id of [trag.dobavljacId, trag.noviDobavljacId].filter(Boolean)) {
         await k.query(`delete from audit_log where entitet_id = $1`, [id]);
         await k.query(`delete from artikal_dobavljaca where dobavljac_id = $1`, [id]);

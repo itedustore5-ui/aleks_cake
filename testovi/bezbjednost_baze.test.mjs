@@ -38,7 +38,7 @@ export async function pokreni({ provjeri }) {
   const z = await anonimno()("/zdravlje");
   provjeri("Aplikacija vidi svoje tabele — zdravlje 200, baza „ok“", z.status === 200 && z.tijelo.baza === "ok", JSON.stringify(z.tijelo));
   const korisnika = (await pool.query(`select count(*)::int as n from korisnik`)).rows[0].n;
-  provjeri("…korisnik baze iz aplikacije čita naloge (vlasnik tabela nije ograničen RLS-om)", korisnika >= 5, String(korisnika));
+  provjeri("…korisnik baze iz aplikacije čita naloge (vlasnik tabela nije ograničen RLS-om)", korisnika >= 3, String(korisnika));
 
   const imaAnon = (await pool.query(`select 1 from pg_roles where rolname = 'anon'`)).rows.length > 0;
   if (!imaAnon) {

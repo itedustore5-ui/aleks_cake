@@ -4,7 +4,7 @@
 //   B2 baza prima samo poznate izvore (izvor_tip);
 //   U1 terenske uloge ne čitaju ono što im ne treba;
 //   + nalog i početna lozinka odmah pri unosu zaposlenog, "nova lozinka" za zaboravljenu;
-//   + kartice Kontrolnog centra kod direktora otvaraju listu.
+//   + kartice Kontrolnog centra otvaraju listu (atelje: vlasnica; direktorov pregled je uklonjen).
 import { pool, prijava, NALOZI } from "./pomoc.mjs";
 
 export const naziv = "Faza 2: brojevi, transakcije, izvori, čitanje po ulogama, nalozi";
@@ -12,8 +12,6 @@ export const naziv = "Faza 2: brojevi, transakcije, izvori, čitanje po ulogama,
 export async function pokreni({ provjeri }) {
   const ana = await prijava(NALOZI.ana);
   const marko = await prijava(NALOZI.marko);
-  const petar = await prijava(NALOZI.petar);
-  const direktor = await prijava(NALOZI.direktor);
   const trag = { nc: [], lica: [], korisnici: [] };
 
   try {
@@ -26,7 +24,7 @@ export async function pokreni({ provjeri }) {
     provjeri("B1: pet istovremenih prijava — sve upisane", paralelno.every((r) => r.status === 201), paralelno.map((r) => r.status).join(","));
     provjeri("B1: pet različitih brojeva, istog oblika NC-YYMMDD-NNN", new Set(brojevi).size === 5 && brojevi.every((b) => /^NC-\d{6}-\d{3}$/.test(b)), brojevi.join(" "));
 
-    const lica = await Promise.all([1, 2, 3].map((i) => ana("/lica", { telo: { ime: `E2E F2 Radnik ${i}`, radnoMjesto: "magacioner" } })));
+    const lica = await Promise.all([1, 2, 3].map((i) => ana("/lica", { telo: { ime: `E2E F2 Radnik ${i}`, radnoMjesto: "poslastičar" } })));
     lica.forEach((r) => trag.lica.push(r.tijelo?.id));
     const sifre = lica.map((r) => r.tijelo?.sifra);
     provjeri("B1: tri istovremena unosa zaposlenih — tri različite šifre", lica.every((r) => r.status === 201) && new Set(sifre).size === 3, sifre.join(" "));
@@ -34,15 +32,15 @@ export async function pokreni({ provjeri }) {
     // ── Novo lice + nalog + početna lozinka u jednom koraku ─────────────────────────────────
     const ime = `e2e.f2.${Date.now() % 100000}`;
     const saNalogom = await ana("/lica", {
-      telo: { ime: "E2E F2 Vozač Novi", radnoMjesto: "vozač", nalog: { korisnickoIme: ime, uloga: "vozac", lozinka: "Durmitor-2026" } },
+      telo: { ime: "E2E F2 Poslastičarka Nova", radnoMjesto: "poslastičarka", nalog: { korisnickoIme: ime, uloga: "operater", lozinka: "Durmitor-2026" } },
     });
     trag.lica.push(saNalogom.tijelo?.id);
     provjeri("Ana unosi zaposlenog i odmah mu otvara nalog sa svojom početnom lozinkom", saNalogom.status === 201 && saNalogom.tijelo.nalog?.privremenaLozinka === "Durmitor-2026", `${saNalogom.status} ${saNalogom.tijelo?.error?.message ?? ""}`);
     const nalogRed = (await pool.query(`select id, lice_id, uloga, mora_promijeniti_lozinku from korisnik where korisnicko_ime = $1`, [ime])).rows[0];
     trag.korisnici.push(nalogRed?.id);
-    provjeri("Nalog je vezan za to lice, uloga vozač, lozinka se mora promijeniti", nalogRed?.lice_id === saNalogom.tijelo.id && nalogRed.uloga === "vozac" && nalogRed.mora_promijeniti_lozinku === true);
+    provjeri("Nalog je vezan za to lice, uloga zaposleni, lozinka se mora promijeniti", nalogRed?.lice_id === saNalogom.tijelo.id && nalogRed.uloga === "operater" && nalogRed.mora_promijeniti_lozinku === true);
     const novi = await prijava({ ime, lozinka: "Durmitor-2026", id: nalogRed.id });
-    provjeri("Novi vozač se prijavljuje tom lozinkom", (await novi("/auth/ja")).tijelo?.korisnik?.mora_promijeniti_lozinku === true);
+    provjeri("Nova poslastičarka se prijavljuje tom lozinkom", (await novi("/auth/ja")).tijelo?.korisnik?.mora_promijeniti_lozinku === true);
 
     // A2: zauzeto korisničko ime → ni lice ni nalog
     const prijeBroj = (await pool.query(`select count(*)::int as n from lice`)).rows[0].n;
@@ -62,35 +60,37 @@ export async function pokreni({ provjeri }) {
     provjeri("…stara prijava tog naloga prestaje da važi (401)", (await novi("/auth/ja")).status === 401);
     const ponovo = await prijava({ ime, lozinka: "Lovcen-4411x", id: nalogRed.id });
     provjeri("…nova radi i opet traži promjenu", (await ponovo("/auth/ja")).tijelo?.korisnik?.mora_promijeniti_lozinku === true);
-    const tudji = await ana(`/nalozi/${NALOZI.direktor.id}/lozinka`, { method: "PATCH", telo: {} });
-    provjeri("Ana ne mijenja lozinku direktoru (403)", tudji.status === 403);
+    const tudji = await ana(`/nalozi/${NALOZI.konsultant.id}/lozinka`, { method: "PATCH", telo: {} });
+    provjeri("Ana ne mijenja lozinku konsultantu (403)", tudji.status === 403);
     const svoja = await ana(`/nalozi/${NALOZI.ana.id}/lozinka`, { method: "PATCH", telo: {} });
     provjeri("Svoju lozinku ne mijenja preko tuđeg ekrana (409)", svoja.status === 409);
 
     // ── U1: čitanje po ulogama ──────────────────────────────────────────────────────────────
-    provjeri("U1: magacioner ne čita cijeli spisak zaposlenih i knjižica (403)", (await marko("/lica")).status === 403);
+    provjeri("U1: zaposleni ne čita cijeli spisak zaposlenih i knjižica (403)", (await marko("/lica")).status === 403);
     const mojeLice = await marko("/lica/ja");
     provjeri("U1: …ali vidi svoje lice (šifra, knjižica)", mojeLice.status === 200 && mojeLice.tijelo?.ime === "Marko Vuković", mojeLice.tijelo?.ime);
-    provjeri("U1: vozač ne čita prijeme ni obrasce (403)", (await petar("/prijem")).status === 403 && (await petar("/zapisi")).status === 403);
-    provjeri("U1: terenske uloge ne čitaju Kontrolni centar (403)", (await marko("/tabla")).status === 403 && (await petar("/tabla")).status === 403);
-    const petrova = await petar("/neusaglasenosti", { telo: { opis: "E2E-F2 vozač prijavljuje", ozbiljnost: "NIZAK" } });
-    trag.nc.push(petrova.tijelo?.id);
-    provjeri("U1: magacioner ne vidi vozačevu prijavu", !(await marko("/neusaglasenosti")).tijelo.some((n) => n.id === petrova.tijelo.id));
-    provjeri("U1: …ni kad je traži po broju (404)", (await marko(`/neusaglasenosti/${petrova.tijelo.id}`)).status === 404);
-    provjeri("U1: vozač vidi svoju, odgovorno lice vidi sve", (await petar("/neusaglasenosti")).tijelo.some((n) => n.id === petrova.tijelo.id) && (await ana("/neusaglasenosti")).tijelo.some((n) => n.id === petrova.tijelo.id));
+    provjeri("U1: zaposleni ne čita Kontrolni centar (403)", (await marko("/tabla")).status === 403);
+    const anina = await ana("/neusaglasenosti", { telo: { opis: "E2E-F2 vlasnica prijavljuje", ozbiljnost: "NIZAK" } });
+    trag.nc.push(anina.tijelo?.id);
+    provjeri("U1: zaposleni ne vidi tuđu prijavu neusaglašenosti", !(await marko("/neusaglasenosti")).tijelo.some((n) => n.id === anina.tijelo.id));
+    provjeri("U1: …ni kad je traži po broju (404)", (await marko(`/neusaglasenosti/${anina.tijelo.id}`)).status === 404);
+    provjeri("U1: zaposleni vidi svoje, vlasnica vidi sve", (await marko("/neusaglasenosti")).tijelo.some((n) => n.id === trag.nc[0]) && (await ana("/neusaglasenosti")).tijelo.some((n) => n.id === trag.nc[0]));
 
-    // ── Kontrolni centar kod direktora ──────────────────────────────────────────────────────
-    const tabla = (await direktor("/tabla")).tijelo;
-    const detalj = await direktor("/tabla/detalj/neusaglasenosti");
-    provjeri("Direktor: klik na karticu daje listu", detalj.status === 200 && Array.isArray(detalj.tijelo.redovi), `${detalj.status}`);
-    provjeri("Direktor: dužina liste = broj na kartici", detalj.tijelo.redovi.length === tabla.kriticno.neusaglasenostiOtvorene, `${detalj.tijelo.redovi.length} / ${tabla.kriticno.neusaglasenostiOtvorene}`);
-    for (const kartica of ["temperature", "vozila", "knjizice", "prijemi", "isporuke", "zapisi"]) {
-      const r = await direktor(`/tabla/detalj/${kartica}`);
-      if (r.status !== 200) provjeri(`Direktor: kartica ${kartica}`, false, `${r.status}`);
+    // ── Kontrolni centar vlasnice ────────────────────────────────────────────────────────────
+    const tabla = (await ana("/tabla")).tijelo;
+    const detalj = await ana("/tabla/detalj/neusaglasenosti");
+    provjeri("Kontrolni centar: klik na karticu daje listu", detalj.status === 200 && Array.isArray(detalj.tijelo.redovi), `${detalj.status}`);
+    provjeri("Kontrolni centar: dužina liste = broj na kartici", detalj.tijelo.redovi.length === tabla.kriticno.neusaglasenostiOtvorene, `${detalj.tijelo.redovi.length} / ${tabla.kriticno.neusaglasenostiOtvorene}`);
+    const alergeni = await ana("/tabla/detalj/porudzbine-alergeni");
+    provjeri("Kartica „Torte bez potvrđenih alergena“: lista = broj na kartici", alergeni.status === 200 && alergeni.tijelo.redovi.length === tabla.kriticno.porudzbineBezAlergena, `${alergeni.tijelo?.redovi?.length} / ${tabla.kriticno.porudzbineBezAlergena}`);
+    const pale = [];
+    for (const kartica of ["temperature", "knjizice", "prijemi", "zapisi", "porudzbine"]) {
+      const r = await ana(`/tabla/detalj/${kartica}`);
+      if (r.status !== 200) pale.push(`${kartica} → ${r.status}`);
     }
-    provjeri("Direktor: svih šest ostalih kartica otvara listu", true);
-    provjeri("Direktor čita povlačenja (Sledljivost), ali ih ne zatvara (403)", (await direktor("/povlacenja")).status === 200 && (await direktor("/povlacenja/00000000-0000-0000-0000-000000000000/zavrsi", { method: "PATCH", telo: {} })).status === 403);
-    provjeri("Nepoznata kartica — 404", (await direktor("/tabla/detalj/nesto")).status === 404);
+    provjeri("Kontrolni centar: ostale kartice otvaraju listu", pale.length === 0, pale.join(", "));
+    provjeri("Kartice vozila i isporuka ne postoje (404)", (await ana("/tabla/detalj/vozila")).status === 404 && (await ana("/tabla/detalj/isporuke")).status === 404);
+    provjeri("Nepoznata kartica — 404", (await ana("/tabla/detalj/nesto")).status === 404);
 
     // ── B2: baza prima samo poznate izvore ──────────────────────────────────────────────────
     const k = await pool.connect();

@@ -1,37 +1,37 @@
 // Matrica pristupa: svaka uloga protiv adresa koje MORA vidjeti i onih koje NE SMIJE.
 // Ovaj test je nastao poslije greške u kojoj je .use(requireUloga) jednog rutera na
-// zajedničkom "/api" zaključavao sve rute registrovane poslije njega: uprava je dobijala 403 na
-// svom Kontrolnom centru, a ulazak u provjeru znanja šifrom je vraćao 401.
+// zajedničkom "/api" zaključavao sve rute registrovane poslije njega: uprava (kod distributera) je dobijala
+// 403 na svom Kontrolnom centru, a ulazak u provjeru znanja šifrom je vraćao 401.
 import { prijava, anonimno, NALOZI } from "./pomoc.mjs";
 
 export const naziv = "Ko šta smije da vidi";
 
+// Atelje (PLAN.md 8.3): tri uloge — konsultant, vlasnica (odgovorno lice) i zaposleni. Vozila, isporuke, vozač i
+// direktorov pregled su uklonjeni iz koda — njihove adrese više ne postoje (404 za svakoga).
 const MORA = {
-  ana: ["/tabla", "/prijem", "/lotovi", "/zaliha", "/zapisi", "/mjerenja", "/isporuke", "/vozila", "/kontrole-vozila", "/neusaglasenosti",
+  ana: ["/tabla", "/prijem", "/lotovi", "/zaliha", "/zapisi", "/mjerenja", "/neusaglasenosti",
     "/lica", "/nalozi", "/plan-obuke", "/evidencija-osposobljavanja", "/provjera-znanja/sesije", "/poruke", "/poruke/primaoci", "/zadaci",
     "/zadaci/izvrsioci", "/obavjestenja", "/skladista", "/kupci", "/dobavljaci", "/artikli", "/povlacenja", "/audit",
-    "/bekap/poslednji", "/firma", "/sledljivost/pretraga?q=MLJ", "/zdravlje", "/aktivnost", "/pitanja-firme",
+    "/bekap/poslednji", "/firma", "/sledljivost/pretraga?q=PV", "/zdravlje", "/aktivnost", "/pitanja-firme",
     "/provjera-znanja/rezultati",
-    "/haccp-plan", "/plan-monitoringa", "/monitoring/danas", "/monitoring/pregled", "/mjerni-uredjaji", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/tabla/detalj/rokovi", "/auth/2fa",
+    "/haccp-plan", "/plan-monitoringa", "/monitoring/danas", "/monitoring/pregled", "/mjerni-uredjaji", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/tabla/detalj/rokovi",
+    "/tabla/detalj/porudzbine-alergeni", "/tabla/detalj/porudzbine", "/auth/2fa",
     "/van-mreze/odbijeno", "/inspekcija?od=2026-09-01&do=2026-09-30",
     "/alergeni", "/porudzbine", "/porudzbine/sastojci", "/porudzbine/pretraga?q=PRD"],
-  direktor: ["/tabla", "/tabla/direktor", "/aktivnost", "/tabla/detalj/neusaglasenosti", "/povlacenja", "/lotovi", "/poruke", "/poruke/primaoci", "/zadaci", "/obavjestenja", "/skladista", "/sledljivost/pretraga?q=MLJ", "/zdravlje",
-    "/haccp-plan", "/plan-monitoringa", "/monitoring/danas", "/monitoring/pregled", "/mjerni-uredjaji", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/provjera-znanja/moj-termin", "/inspekcija?od=2026-09-01&do=2026-09-30"],
-  marko: ["/prijem", "/zaliha", "/lotovi", "/zapisi", "/mjerenja", "/isporuke", "/neusaglasenosti", "/zadaci", "/obavjestenja", "/skladista", "/lica/ja", "/poruke", "/poruke/primaoci",
-    "/kupci", "/dobavljaci", "/artikli", "/vozaci", "/zdravlje", "/monitoring/danas", "/mjerni-uredjaji",
+  marko: ["/prijem", "/zaliha", "/lotovi", "/zapisi", "/mjerenja", "/neusaglasenosti", "/zadaci", "/obavjestenja", "/skladista", "/lica/ja", "/poruke", "/poruke/primaoci",
+    "/kupci", "/dobavljaci", "/artikli", "/zdravlje", "/monitoring/danas", "/mjerni-uredjaji", "/termometri", "/provjera-znanja/moj-termin",
     "/alergeni", "/porudzbine", "/porudzbine/sastojci"],
-  petar: ["/isporuke", "/vozila", "/kontrole-vozila", "/neusaglasenosti", "/zadaci", "/obavjestenja", "/vozaci", "/skladista", "/kupci", "/zaliha", "/lica/ja", "/zdravlje", "/monitoring/danas", "/provjera-znanja/moj-termin", "/poruke", "/poruke/primaoci", "/termometri"],
   konsultant: ["/tabla", "/inspekcija", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/izvoz/porudzbine/pregled", "/porudzbine", "/stanje-poslovanja?vrsta=sedmica", "/audit", "/pitanja", "/nalozi", "/povlacenja", "/zdravlje", "/greske", "/auth/2fa", "/van-mreze/odbijeno"],
 };
 
 const NE_SMIJE = {
-  direktor: ["/porudzbine", "/porudzbine/sastojci", "/stanje-poslovanja", "/van-mreze/odbijeno", "/pitanja-firme", "/izvoz/prijemi/pregled", "/izvoz/izvori", "/audit", "/nalozi", "/pitanja", "/kontrole-vozila", "/lica", "/prijem", "/zapisi", "/plan-obuke"],
-  marko: ["/porudzbine/pretraga?q=PRD", "/stanje-poslovanja", "/tabla/direktor", "/greske", "/aktivnost", "/tabla", "/tabla/detalj/neusaglasenosti", "/lica", "/plan-obuke", "/pravila-kontrole", "/pitanja-firme", "/provjera-znanja/rezultati", "/kontrole-vozila", "/izvoz/izvori", "/nalozi", "/audit", "/povlacenja", "/sledljivost/pretraga?q=MLJ", "/pitanja",
+  marko: ["/porudzbine/pretraga?q=PRD", "/stanje-poslovanja", "/greske", "/aktivnost", "/tabla", "/tabla/detalj/neusaglasenosti", "/lica", "/plan-obuke", "/pravila-kontrole", "/pitanja-firme", "/provjera-znanja/rezultati", "/izvoz/izvori", "/nalozi", "/audit", "/povlacenja", "/sledljivost/pretraga?q=PV", "/pitanja",
     "/haccp-plan", "/plan-monitoringa", "/monitoring/pregled", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/van-mreze/odbijeno", "/inspekcija", "/inspekcija/paket.zip"],
-  petar: ["/izvoz/izvori", "/nalozi", "/audit", "/povlacenja", "/pitanja", "/sledljivost/pretraga?q=MLJ", "/tabla", "/lica", "/prijem", "/zapisi", "/mjerenja", "/dobavljaci", "/artikli", "/lotovi", "/kontrolne-tacke", "/mjerni-uredjaji", "/haccp-plan", "/plan-monitoringa", "/inspekcija", "/inspekcija/paket.zip",
-    "/porudzbine", "/porudzbine/sastojci", "/porudzbine/pretraga?q=PRD"],
-  ana: ["/pitanja", "/greske", "/tabla/direktor", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/stanje-poslovanja"], // izvještaji i stanje poslovanja su konsultantovi (11.10.2026) // banka pitanja je samo konsultantova (#14); dnevnik grešaka takođe (#80)
+  ana: ["/pitanja", "/greske", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/stanje-poslovanja"], // izvještaji i stanje poslovanja su konsultantovi (11.10.2026) // banka pitanja je samo konsultantova (#14); dnevnik grešaka takođe (#80)
 };
+
+/** Adrese distributera kojih u ateljeu nema — ni za koga. */
+const UKLONJENO = ["/isporuke", "/vozila", "/kontrole-vozila", "/vozaci", "/tabla/direktor", "/isporuke/kupci"];
 
 export async function pokreni({ provjeri }) {
   const anon = anonimno();
@@ -60,8 +60,19 @@ export async function pokreni({ provjeri }) {
     provjeri(`${NALOZI[kljuc].ime}: ne vidi ${adrese.length} tuđih adresa (403)`, propusteno.length === 0, propusteno.join(", "));
   }
 
-  const direktor = await prijava(NALOZI.direktor);
-  provjeri("Direktor ne mijenja plan monitoringa (403)", (await direktor("/plan-monitoringa/osnovni", { telo: {} })).status === 403);
-  const petar = await prijava(NALOZI.petar);
-  provjeri("Vozač ne upisuje HACCP obrasce (403)", (await petar("/zapisi", { telo: { obrazacKod: "P3", datum: "2026-01-01", podaci: {} } })).status === 403);
+  for (const kljuc of ["ana", "marko", "konsultant"]) {
+    const k = await prijava(NALOZI[kljuc]);
+    const ima = [];
+    for (const a of UKLONJENO) {
+      const r = await k(a);
+      if (r.status !== 404) ima.push(`${a} → ${r.status}`);
+    }
+    provjeri(`${NALOZI[kljuc].ime}: adrese vozila, isporuka i direktora ne postoje (404)`, ima.length === 0, ima.join(", "));
+  }
+
+  const marko = await prijava(NALOZI.marko);
+  provjeri("Zaposleni ne mijenja plan monitoringa (403)", (await marko("/plan-monitoringa/osnovni", { telo: {} })).status === 403);
+  const ana = await prijava(NALOZI.ana);
+  const vozac = await ana("/nalozi", { telo: { korisnickoIme: "e2e.vozac", lozinka: "Proba-2026-vozac", uloga: "vozac" } });
+  provjeri("Vlasnica ne otvara nalog vozača — te uloge više nema (400/403)", vozac.status === 400 || vozac.status === 403, `${vozac.status}`);
 }

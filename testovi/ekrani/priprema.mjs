@@ -1,15 +1,15 @@
-// Podaci za testove ekrana na terenu: sopstveni artikal (bez režima), prijem sa jednim lotom, vozilo i
-// isporuka za vozača Petra; za magacionera sopstvena komora i provjeren termometar. Sve se briše posle.
+// Podaci za testove ekrana u ateljeu: sopstveni sastojak (bez režima, sa alergenom), prijem sa jednim lotom i
+// današnja torta zaposlenog Marka sa tim lotom i potvrđenim alergenima (spremna za predaju); za mjerenje sopstvena
+// komora i provjeren termometar. Sve se briše posle.
 import { pool, prijava, NALOZI, danasCG, glavnoSkladiste, rokZaDana } from "../pomoc.mjs";
 
 export async function napraviTeren(oznaka) {
   const ana = await prijava(NALOZI.ana);
   const marko = await prijava(NALOZI.marko);
-  const trag = { oznaka, artikal: null, prijem: null, vozilo: null, isporuke: [], zapisi: [], tacka: null, uredjaj: null, pocetak: new Date() };
+  const trag = { oznaka, artikal: null, prijem: null, porudzbine: [], zapisi: [], tacka: null, uredjaj: null, pocetak: new Date() };
   const dobavljac = (await ana("/dobavljaci")).tijelo[0];
-  const kupac = (await ana("/kupci")).tijelo[0];
   const skladisteId = await glavnoSkladiste(marko);
-  const a = await ana("/artikli", { telo: { naziv: `${oznaka} keks`, tempKontrolisano: false } });
+  const a = await ana("/artikli", { telo: { naziv: `${oznaka} keks`, tempKontrolisano: false, alergeni: ["GLUTEN"] } });
   trag.artikal = a.tijelo?.id;
   const p = await marko("/prijem", {
     telo: { dobavljacId: dobavljac.id, brojDokumenta: oznaka, datumPrijema: danasCG(), skladisteId, stavke: [{ artikalId: trag.artikal, brojLota: `${oznaka}-L`, primljenaKolicina: 10, rokTrajanja: rokZaDana(60) }] },
@@ -18,22 +18,21 @@ export async function napraviTeren(oznaka) {
   trag.prijem = p.tijelo?.id;
   const lot = (await pool.query(`select id from lot where prijem_id = $1`, [trag.prijem])).rows[0]?.id;
   await ana(`/prijem/${trag.prijem}/lot/${lot}/odluka`, { method: "PATCH", telo: { odluka: "PRIHVATI", kolicina: 10 } });
-  const registarski = `E2E-${oznaka.slice(-7)}`;
-  const v = await ana("/vozila", { telo: { registarskiBroj: registarski, tip: "kombi", tempKontrolisano: false } });
-  trag.vozilo = v.tijelo?.id;
-  const i = await ana("/isporuke", {
-    telo: { kupacId: kupac.id, skladisteId, datumIsporuke: danasCG(), napomena: oznaka, vozilId: trag.vozilo, vozacKorisnikId: NALOZI.petar.id, stavke: [{ lotId: lot, planiranaKolicina: 2 }] },
-    zaglavlja: { "x-kljuc-zahtjeva": `${oznaka}-isporuka` },
+  const kupac = `${oznaka} Kupac`;
+  const t = await marko("/porudzbine", {
+    telo: { kupacIme: kupac, kupacTelefon: "067 123 999", preuzimanjeDatum: danasCG(), preuzimanjeVrijeme: "23:59", opis: `${oznaka} torta sa keksom` },
+    zaglavlja: { "x-kljuc-zahtjeva": `${oznaka}-torta` },
   });
-  if (i.tijelo?.id) trag.isporuke.push(i.tijelo.id);
-  const broj = (await pool.query(`select broj from isporuka where id = $1`, [i.tijelo?.id])).rows[0]?.broj;
-  if (!trag.artikal || !trag.prijem || !trag.vozilo || !broj) {
-    throw new Error(`Priprema terena nije uspjela: artikal ${a.status}, prijem ${p.status}, vozilo ${v.status}, isporuka ${i.status} ${i.tijelo?.error?.message ?? ""}`);
+  if (t.tijelo?.id) trag.porudzbine.push(t.tijelo.id);
+  const sastojak = await marko(`/porudzbine/${t.tijelo?.id}/lotovi`, { telo: { lotId: lot } });
+  const alergeni = await marko(`/porudzbine/${t.tijelo?.id}/alergeni`, { telo: { alergeni: ["GLUTEN"] } });
+  if (!trag.artikal || !trag.prijem || !t.tijelo?.broj || sastojak.status >= 300 || alergeni.status >= 300) {
+    throw new Error(`Priprema terena nije uspjela: artikal ${a.status}, prijem ${p.status}, torta ${t.status} ${t.tijelo?.error?.message ?? ""}, sastojak ${sastojak.status}, alergeni ${alergeni.status}`);
   }
-  return { trag, registarski, isporukaId: i.tijelo.id, broj };
+  return { trag, porudzbinaId: t.tijelo.id, broj: t.tijelo.broj, kupac };
 }
 
-/** Komora sa pravilom 0–5 °C i provjeren termometar — za mjerenje sa telefona magacionera. */
+/** Komora sa pravilom 0–5 °C i provjeren termometar — za mjerenje sa telefona zaposlenog. */
 export async function napraviKomoru(trag) {
   const ana = await prijava(NALOZI.ana);
   const marko = await prijava(NALOZI.marko);
@@ -51,17 +50,16 @@ export async function ocisti(trag) {
   try {
     await k.query("begin");
     const lotovi = trag.artikal ? (await k.query(`select id from lot where artikal_id = $1`, [trag.artikal])).rows.map((r) => r.id) : [];
-    const isporuke = trag.isporuke.filter(Boolean);
-    const mjerenja = trag.tacka ? (await k.query(`select id from mjerenje_temperature where kontrolna_tacka_id = $1`, [trag.tacka])).rows.map((r) => r.id) : [];
-    const kontrole = trag.vozilo ? (await k.query(`select id from kontrola_vozila where vozilo_id = $1`, [trag.vozilo])).rows.map((r) => r.id) : [];
+    const porudzbine = trag.porudzbine.filter(Boolean);
+    const mjerenja = (await k.query(`select id from mjerenje_temperature where kontrolna_tacka_id = $1 or id in (select mjerenje_id from porudzbina where id = any($2))`, [trag.tacka, porudzbine])).rows.map((r) => r.id);
     // Zapisi koje je test upisao kroz ekran (scenario ih pamti čim ih upiše).
     const zapisi = trag.zapisi.filter(Boolean);
     const ncIds = (
-      await k.query(`select id from neusaglasenost where izvor_id = any($1) or opis like $2`, [[...mjerenja, ...kontrole, ...zapisi, ...isporuke, ...lotovi], `%${trag.oznaka}%`])
+      await k.query(`select id from neusaglasenost where izvor_id = any($1) or opis like $2`, [[...mjerenja, ...zapisi, ...porudzbine, ...lotovi], `%${trag.oznaka}%`])
     ).rows.map((r) => r.id);
     const pravila = (await k.query(`select id from pravilo_kontrole where kontrolna_tacka_id = $1 or artikal_id = $2`, [trag.tacka, trag.artikal])).rows.map((r) => r.id);
     const provjere = trag.uredjaj ? (await k.query(`select id from provjera_uredjaja where uredjaj_id = $1`, [trag.uredjaj])).rows.map((r) => r.id) : [];
-    const sve = [trag.tacka, trag.uredjaj, trag.artikal, trag.prijem, trag.vozilo, ...lotovi, ...isporuke, ...mjerenja, ...kontrole, ...zapisi, ...ncIds, ...pravila, ...provjere].filter(Boolean);
+    const sve = [trag.tacka, trag.uredjaj, trag.artikal, trag.prijem, ...lotovi, ...porudzbine, ...mjerenja, ...zapisi, ...ncIds, ...pravila, ...provjere].filter(Boolean);
     await k.query(`delete from obavjestenje where izvor_id = any($1) or naslov like $2 or poruka like $2`, [sve, `%${trag.oznaka}%`]);
     await k.query(`delete from zadatak where izvor_id = any($1)`, [sve]);
     await k.query(`delete from audit_log where entitet_id = any($1)`, [sve]);
@@ -70,11 +68,9 @@ export async function ocisti(trag) {
     await k.query(`delete from korektivna_mjera where neusaglasenost_id = any($1)`, [ncIds]);
     await k.query(`delete from neusaglasenost where id = any($1)`, [ncIds]);
     await k.query(`delete from zapis where id = any($1)`, [zapisi]);
+    await k.query(`delete from porudzbina_lot where porudzbina_id = any($1)`, [porudzbine]);
+    await k.query(`delete from porudzbina where id = any($1)`, [porudzbine]);
     await k.query(`delete from mjerenje_temperature where id = any($1)`, [mjerenja]);
-    await k.query(`delete from isporuka_stavka where isporuka_id = any($1)`, [isporuke]);
-    await k.query(`delete from isporuka where id = any($1)`, [isporuke]);
-    await k.query(`delete from kontrola_vozila where id = any($1)`, [kontrole]);
-    if (trag.vozilo) await k.query(`delete from vozilo where id = $1`, [trag.vozilo]);
     await k.query(`delete from kretanje_zalihe where lot_id = any($1)`, [lotovi]);
     await k.query(`delete from zaliha where lot_id = any($1)`, [lotovi]);
     if (trag.prijem) await k.query(`delete from prijem_stavka where prijem_id = $1`, [trag.prijem]);
@@ -88,7 +84,7 @@ export async function ocisti(trag) {
     await k.query(`delete from kljuc_zahtjeva where kljuc like $1 or created_at >= $2 and korisnik_id = any($3) and radnja like 'vm:%'`, [
       `${trag.oznaka}%`,
       trag.pocetak,
-      [NALOZI.petar.id, NALOZI.marko.id],
+      [NALOZI.marko.id],
     ]);
     await k.query("commit");
   } catch (e) {

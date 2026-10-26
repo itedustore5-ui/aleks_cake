@@ -4,14 +4,12 @@ import { primijeniMigracije } from "../server/migracije.js";
 
 const zeliDemo = process.argv.includes("--demo");
 
-// Demo nalozi postoje samo na demo bazi (db/13_demo_cg.sql, fiksni heševi). Početne lozinke su iste kao
+// Demo nalozi postoje samo na demo bazi (db/99_demo_atelje.sql, fiksni heševi). Početne lozinke su iste kao
 // u testovima — na demo bazi koju vide drugi ljudi odmah ih promijeniti: `npm run demo-lozinke`.
 const DEMO_NALOZI = [
   { korisnickoIme: "konsultant", uloga: "izvodjac" },
   { korisnickoIme: "ana.b", uloga: "bzr" },
   { korisnickoIme: "marko.v", uloga: "operater" },
-  { korisnickoIme: "petar.j", uloga: "vozac" },
-  { korisnickoIme: "direktor", uloga: "uprava" },
 ];
 
 async function main() {

@@ -1,5 +1,5 @@
 // Testovi ekrana na telefonu (talas 6): pravi pregledač (Chrome, bez prozora) u veličini telefona
-// 375 × 812, svih pet uloga, izgrađena aplikacija kao na Renderu (service worker, paket po stranama).
+// 375 × 812, sve tri uloge, izgrađena aplikacija kao na Renderu (service worker, paket po stranama).
 //
 // npm run test:ekrani            — sopstvena čista baza + izgrađena aplikacija (testovi/izolovano.mjs --ekrani)
 // node testovi/ekrani/pokreni.mjs bez_mreze — samo scenariji čiji naziv fajla sadrži "bez_mreze", na serveru

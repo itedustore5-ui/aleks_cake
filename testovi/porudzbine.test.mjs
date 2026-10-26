@@ -11,7 +11,6 @@ const OZNAKA = `E2E-PRD-${Date.now().toString(36)}`;
 export async function pokreni({ provjeri }) {
   const ana = await prijava(NALOZI.ana);
   const marko = await prijava(NALOZI.marko);
-  const petar = await prijava(NALOZI.petar);
   const konsultant = await prijava(NALOZI.konsultant);
   const trag = { artikli: [], prijem: null, lotovi: [], porudzbine: [], uredjaj: null, povlacenje: null, nc: [], kljuc: `${OZNAKA}-kljuc-1` };
 
@@ -65,7 +64,7 @@ export async function pokreni({ provjeri }) {
     provjeri("#52: isti ključ zahtjeva — ista porudžbina, ne druga", ponovo.status === 201 && ponovo.tijelo?.id === nova.tijelo.id);
     const id = nova.tijelo.id;
 
-    provjeri("Vozač ne vidi porudžbine (403)", (await petar("/porudzbine")).status === 403);
+    provjeri("Konsultant vidi porudžbine ateljea", (await konsultant("/porudzbine")).tijelo?.some((p) => p.id === id));
     const lista = (await ana("/porudzbine")).tijelo;
     const red = lista.find((p) => p.id === id);
     provjeri("P5: odgovorno lice vidi porudžbinu koju je upisao zaposleni, sa danom i vremenom", red?.dan === sutra && red.vrijeme === "16:30", JSON.stringify(red && { dan: red.dan, vrijeme: red.vrijeme }));

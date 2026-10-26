@@ -1,38 +1,40 @@
 // Provjera znanja do Priloga 14: radi je PRIJAVLJENI zaposleni, SVOJOM šifrom (invarijanta #32) —
 // tuđa šifra se ne može upisati, tuđa provjera se ne može odgovarati ni završiti; rezultat se ne
 // može naduvati; evidencija osposobljavanja. Briše sve što napravi.
-import { pool, prijava, anonimno, NALOZI } from "./pomoc.mjs";
+import { pool, prijava, anonimno, NALOZI, drugiZaposleni, obrisiZaposlenog } from "./pomoc.mjs";
 
 export const naziv = "Provjera znanja do Priloga 14";
 
 export async function pokreni({ provjeri }) {
   const ana = await prijava(NALOZI.ana);
   const marko = await prijava(NALOZI.marko);
-  const petar = await prijava(NALOZI.petar);
-  const direktor = await prijava(NALOZI.direktor);
   const anon = anonimno();
-  const trag = { sesijaId: null };
+  const trag = { sesijaId: null, nina: null, ivan: null };
   const pocetak = new Date();
 
   try {
+    // Drugi zaposleni (rukuje hranom) i jedan koji ne rukuje hranom (npr. administracija) — atelje ima jednog demo zaposlenog.
+    trag.nina = await drugiZaposleni(ana, "E2E Nina Znanje");
+    const nina = trag.nina.k;
+    trag.ivan = await drugiZaposleni(ana, "E2E Ivan Administracija", { radnoMjesto: "administracija", rukujeHranom: false });
+    const ivan = trag.ivan.k;
     const sesija = await ana("/provjera-znanja/sesije", { telo: { naziv: "E2E provjera", brojPitanja: 3, cuvaImena: true } });
     trag.sesijaId = sesija.tijelo?.id;
     provjeri("Ana otvara provjeru znanja (3 pitanja)", sesija.status === 201);
 
     const lica = (await ana("/lica")).tijelo;
     const lice = lica.find((l) => l.sifra && l.aktivan !== false && /Marko/.test(l.ime));
-    const petrovo = lica.find((l) => l.sifra && l.aktivan !== false && /Petar/.test(l.ime));
     if (!lice) throw new Error("U demo bazi nema Markove šifre na spisku zaposlenih.");
 
     // Ulaz se nudi na početnoj strani prijavljenog (ne na strani za prijavu).
     const mojPrije = (await marko("/provjera-znanja/moj-termin")).tijelo;
-    provjeri("Magacioner na svojoj strani vidi otvoren termin (bez šifre — ne treba mu)", mojPrije?.otvoren === true && mojPrije.naziv === "E2E provjera" && mojPrije.vezan === true && !("sifra" in mojPrije) && mojPrije.zavrseno === false, JSON.stringify(mojPrije));
+    provjeri("Zaposleni na svojoj strani vidi otvoren termin (bez šifre — ne treba mu)", mojPrije?.otvoren === true && mojPrije.naziv === "E2E provjera" && mojPrije.vezan === true && !("sifra" in mojPrije) && mojPrije.zavrseno === false, JSON.stringify(mojPrije));
 
-    // Direktor (Đorđe Perović) ne rukuje hranom — provjera mu se ne nudi i ne prima (#20).
-    const dirTermin = (await direktor("/provjera-znanja/moj-termin")).tijelo;
-    const dirUlaz = await direktor("/provjera-znanja/uci", { telo: { lozinka: NALOZI.direktor.lozinka } });
+    // Ko ne rukuje hranom — provjera mu se ne nudi i ne prima (#20, #94).
+    const dirTermin = (await ivan("/provjera-znanja/moj-termin")).tijelo;
+    const dirUlaz = await ivan("/provjera-znanja/uci", { telo: { lozinka: trag.ivan.lozinka } });
     provjeri(
-      "Ko ne rukuje hranom (direktor): bez kartice na početnoj strani, ulaz odbijen (403 PROVJERA_NIJE_ZA_VAS)",
+      "Ko ne rukuje hranom: bez kartice na početnoj strani, ulaz odbijen (403 PROVJERA_NIJE_ZA_VAS)",
       dirTermin?.otvoren === false && dirUlaz.status === 403 && dirUlaz.tijelo?.error?.code === "PROVJERA_NIJE_ZA_VAS",
       `${JSON.stringify(dirTermin)} ${dirUlaz.status} ${dirUlaz.tijelo?.error?.code}`,
     );
@@ -44,10 +46,10 @@ export async function pokreni({ provjeri }) {
     provjeri("Bez lozinke se ne počinje (400)", bezLozinke.status === 400);
     const pogresna = await marko("/provjera-znanja/uci", { telo: { lozinka: "neka-pogresna-lozinka" } });
     provjeri("Pogrešna lozinka se odbija (403)", pogresna.status === 403 && pogresna.tijelo.error.code === "POGRESNA_LOZINKA");
-    const tudjaLozinka = await marko("/provjera-znanja/uci", { telo: { lozinka: NALOZI.petar.lozinka } });
+    const tudjaLozinka = await marko("/provjera-znanja/uci", { telo: { lozinka: trag.nina.lozinka } });
     provjeri("Ni lozinka drugog zaposlenog ne pušta na Markovom nalogu (403)", tudjaLozinka.status === 403);
     // Tuđa šifra u zahtjevu se ne gleda — zaposleni je onaj čiji je nalog.
-    const ulaz = await marko("/provjera-znanja/uci", { telo: { lozinka: NALOZI.marko.lozinka, sifra: petrovo?.sifra ?? "M-99" } });
+    const ulaz = await marko("/provjera-znanja/uci", { telo: { lozinka: NALOZI.marko.lozinka, sifra: trag.nina.sifra ?? "M-99" } });
     const ciji = ulaz.status === 200 ? (await pool.query(`select lice_id from ucesnik_znanja where id = $1`, [ulaz.tijelo.ucesnikId])).rows[0]?.lice_id : null;
     provjeri("Ulazi prijavljeni, kao on sam (tuđa šifra iz zahtjeva se ne gleda; šifra se ne vraća)", ulaz.status === 200 && ciji === lice.id && !("sifra" in ulaz.tijelo) && ulaz.tijelo.pitanja.length === 3, `${ulaz.status} ${ulaz.tijelo?.error?.message ?? ""}`);
     if (ulaz.status !== 200) return;
@@ -58,7 +60,7 @@ export async function pokreni({ provjeri }) {
       (await pool.query(`select id, tacan_indeks from pitanje where id = any($1)`, [pitanja.map((p) => p.id)])).rows.map((r) => [r.id, r.tacan_indeks]),
     );
     const odgovor = (p, tacno) => ({ ucesnikId, pitanjeId: p.id, datIndeks: tacno ? tacni[p.id] : (tacni[p.id] + 1) % p.ponudjeni_odgovori.length });
-    const tudji = await petar("/provjera-znanja/odgovor", { telo: odgovor(pitanja[0], true) });
+    const tudji = await nina("/provjera-znanja/odgovor", { telo: odgovor(pitanja[0], true) });
     provjeri("Drugi zaposleni ne može odgovarati na tuđu provjeru (403)", tudji.status === 403 && tudji.tijelo.error.code === "TUDJA_PROVJERA", `${tudji.status}`);
 
     await marko("/provjera-znanja/odgovor", { telo: odgovor(pitanja[0], true) });
@@ -67,7 +69,7 @@ export async function pokreni({ provjeri }) {
     await marko("/provjera-znanja/odgovor", { telo: odgovor(pitanja[1], false) });
     await marko("/provjera-znanja/odgovor", { telo: odgovor(pitanja[2], true) });
 
-    provjeri("Drugi zaposleni ne može završiti tuđu provjeru (403)", (await petar("/provjera-znanja/zavrsi", { telo: { ucesnikId } })).status === 403);
+    provjeri("Drugi zaposleni ne može završiti tuđu provjeru (403)", (await nina("/provjera-znanja/zavrsi", { telo: { ucesnikId } })).status === 403);
     const kraj = await marko("/provjera-znanja/zavrsi", { telo: { ucesnikId } });
     provjeri("Rezultat: 2 od 3", kraj.status === 200 && kraj.tijelo.brojTacnih === 2 && kraj.tijelo.brojPitanja === 3, JSON.stringify(kraj.tijelo));
     const poslije = await marko("/provjera-znanja/odgovor", { telo: odgovor(pitanja[1], true) });
@@ -91,6 +93,14 @@ export async function pokreni({ provjeri }) {
       await pool.query(`delete from odgovor_znanja where ucesnik_id in (select id from ucesnik_znanja where sesija_id = $1)`, [trag.sesijaId]);
       await pool.query(`delete from ucesnik_znanja where sesija_id = $1`, [trag.sesijaId]);
       await pool.query(`delete from sesija_znanja where id = $1`, [trag.sesijaId]);
+    }
+    const k = await pool.connect();
+    try {
+      for (const z of [trag.nina, trag.ivan]) if (z) await pool.query(`delete from audit_log where akcija = 'SIGURNOST' and entitet_id = $1`, [z.id]);
+      await obrisiZaposlenog(k, trag.nina);
+      await obrisiZaposlenog(k, trag.ivan);
+    } finally {
+      k.release();
     }
   }
 }

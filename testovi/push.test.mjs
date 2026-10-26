@@ -46,7 +46,6 @@ export async function pokreni({ provjeri }) {
 
   const ana = await prijava(NALOZI.ana);
   const marko = await prijava(NALOZI.marko);
-  const petar = await prijava(NALOZI.petar);
   const telefon = uredjaj();
   const trag = { poruke: [] };
 
@@ -94,7 +93,7 @@ export async function pokreni({ provjeri }) {
     provjeri("Nestao uređaj (410) se briše sam", await cekaj(async () => (await brojPretplata(adresa("nestalo"))) === 0, 5_000));
 
     // Odjava: samo svog uređaja.
-    provjeri("Vozač ne može odjaviti tuđi uređaj", (await petar("/push/odjava", { telo: { endpoint: adresa("marko") } })).status === 204 && (await brojPretplata(adresa("marko"))) === 1);
+    provjeri("Drugi nalog ne može odjaviti tuđi uređaj", (await ana("/push/odjava", { telo: { endpoint: adresa("marko") } })).status === 204 && (await brojPretplata(adresa("marko"))) === 1);
     const odjava = await marko("/push/odjava", { telo: { endpoint: adresa("marko") } });
     provjeri("Odjava briše uređaj", odjava.status === 204 && (await brojPretplata(adresa("marko"))) === 0);
   } finally {

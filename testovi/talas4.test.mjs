@@ -62,7 +62,7 @@ export async function pokreni({ provjeri }) {
     );
     const kopije = (await pool.query(`select count(*)::int as n from bekap_log where podaci is not null`)).rows[0].n;
     provjeri("…i nijedan stari bekap više ne drži kopiju podataka u bazi", kopije === 0, `${kopije}`);
-    provjeri("R-19: bekap nosi naloge, ali bez heša lozinke", Array.isArray(podaci?.korisnik) && podaci.korisnik.length >= 5 && podaci.korisnik.every((k) => !("lozinka_hash" in k)));
+    provjeri("R-19: bekap nosi naloge, ali bez heša lozinke", Array.isArray(podaci?.korisnik) && podaci.korisnik.length >= 3 && podaci.korisnik.every((k) => !("lozinka_hash" in k)));
     provjeri("R-19: …bez sesija, VAPID ključa, push uređaja i ključeva zahtjeva", ["sesija_prijave", "web_push_kljuc", "push_pretplata", "kljuc_zahtjeva", "bekap_log"].every((t) => !(t in podaci)));
     provjeri("R-19: …a sa tabelama HACCP sistema (plan, termometri, verifikacija)", ["plan_monitoringa", "mjerni_uredjaj", "provjera_uredjaja", "verifikacija_sistema", "artikal_dobavljaca"].every((t) => t in podaci));
     provjeri("R-19: otpremnice bez samog fajla (on je u pg_dump bekapu)", Array.isArray(podaci.prijem_dokument) && podaci.prijem_dokument.every((p) => !("sadrzaj" in p)));

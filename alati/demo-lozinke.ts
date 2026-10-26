@@ -1,7 +1,7 @@
-// Nove lozinke za pet demo naloga na DEMO bazi (talas 5): repozitorijum je od 20. do 29.09.2026. bio
+// Nove lozinke za tri demo naloga na DEMO bazi (talas 5): repozitorijum je od 20. do 29.09.2026. bio
 // javan, a početne demo lozinke stoje u kodu — svako je mogao ući u demo kao konsultant.
 //   npm run demo-lozinke
-// Radi SAMO na demo bazi (pet demo naloga sa fiksnim ID-jevima). Nove lozinke upiše u .env
+// Radi SAMO na demo bazi (tri demo naloga sa fiksnim ID-jevima). Nove lozinke upiše u .env
 // (DEMO_LOZINKA_*, za npm run test:e2e) i ispiše ih jednom. Sve prijave demo naloga se prekidaju.
 import "dotenv/config";
 import crypto from "node:crypto";
@@ -14,8 +14,6 @@ const DEMO = [
   { kljuc: "KONSULTANT", ime: "konsultant", id: "11000000-0000-0000-0000-000000000001" },
   { kljuc: "ANA", ime: "ana.b", id: "11000000-0000-0000-0000-000000000002" },
   { kljuc: "MARKO", ime: "marko.v", id: "11000000-0000-0000-0000-000000000003" },
-  { kljuc: "PETAR", ime: "petar.j", id: "11000000-0000-0000-0000-000000000004" },
-  { kljuc: "DIREKTOR", ime: "direktor", id: "11000000-0000-0000-0000-000000000005" },
 ];
 
 /** 14 znakova, čitljivo (bez 0/O, 1/l/I), uz crticu u sredini — lako se prekuca na sastanku. */
@@ -47,7 +45,7 @@ async function main() {
       [DEMO.map((d) => d.id), DEMO.map((d) => d.ime)],
     );
     if (r.rows[0].n !== DEMO.length) {
-      console.error("Ovo NIJE demo baza (nema svih pet demo naloga) — ništa nije promijenjeno.");
+      console.error("Ovo NIJE demo baza (nema sva tri demo naloga) — ništa nije promijenjeno.");
       process.exit(1);
     }
     const nove: Record<string, string> = {};

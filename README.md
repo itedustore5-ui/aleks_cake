@@ -4,8 +4,11 @@ Aplikacija za dobru higijensku praksu i HACCP u poslastičarnicama i ateljeima t
 prijem sastojaka, porudžbine torti sa alergenima i sastojcima po seriji, frižideri i vitrina, kremovi i
 hlađenje, neusaglašenosti i korektivne mjere, ljudi (sanitarne knjižice, plan obuke), izvoz i prilozi.
 
-Napravljena kao kopija PILOT Distributeri (commit `b61b6d5`, 12.10.2026) — ostatak ovog README-a još
-opisuje naslijeđeni kod distributera dok se moduli ne preprave; stanje je u [CLAUDE.md](CLAUDE.md).
+Napravljena kao kopija PILOT Distributeri (commit `b61b6d5`, 12.10.2026). **Od 26.10.2026 u kodu nema vozila,
+isporuka, D1, karantina povrata, vozača ni direktora** — uloge su Konsultant, Vlasnica (odgovorno lice) i Zaposleni,
+a predaja ide preko porudžbine torte. Djelovi ovog README-a koji još opisuju te module (Isporuka, Vozila, Otpremnica,
+direktorov pregled, rad bez mreže „za vozača“) su istorija distributera i prepisuju se kad se dotiču; stanje je u
+[CLAUDE.md](CLAUDE.md).
 
 Ne prodaje se softver — prodaje se odgovor na pitanje *„serija je sporna, u kojim je tortama i kome su
 otišle?"* i dokaz da zapisi nastaju svakog dana, ne noć prije inspekcije. Pravni okvir i sve
@@ -65,8 +68,9 @@ tokenom (za razliku od ranije verzije aplikacije). Sve administrativne operacije
 
 `npm run migriraj` primjenjuje SQL fajlove iz `db/` po redu (`01_organizacija.sql` →
 `33_talas5_cg.sql`), i pamti šta je već primijenjeno u tabeli `schema_migracije` —
-bezbjedno je pokrenuti ga više puta. `db/13_demo_cg.sql` se primjenjuje samo sa `--demo`
-(odnosno `npm run seed:demo`), i **nikad na bazi pravog klijenta**. Fajlovi poslije 13
+bezbjedno je pokrenuti ga više puta. Demo ateljea `db/99_demo_atelje.sql` se primjenjuje samo sa `--demo`
+(odnosno `npm run seed:demo`), posljednji (treba tabele porudžbina i alergena), i **nikad na bazi pravog
+klijenta**. Fajlovi poslije 13
 (`14_povlacenje.sql`, `15_isporuka_uneo_cg.sql`, `16_bekap_cg.sql`, `17_naknadno_cg.sql`, `18_temperatura_predaje_cg.sql`, `19_skladista_poruke_cg.sql`, `20_sesije_prijave_cg.sql`, `21_pitanja_firme_cg.sql`, `22_integritet_cg.sql`, `23_otpremnice_cg.sql`, `24_haccp_sistem_cg.sql`, `25_push_cg.sql`, `26_talas1_cg.sql`, `27_talas2_cg.sql`, `28_talas3_otkaz_cg.sql`, `29_talas3_cg.sql`, `30_bekap_bez_tajni_cg.sql`, `31_magacin_mjerenja_cg.sql`, `32_bezbjednost_baze_cg.sql`, `33_talas5_cg.sql`) su dodati naknadno namjerno —
 brojevi fajlova prate redoslijed kad su nastali, ne semantičku grupu; runner demo fajl uvijek
 tretira posebno bez obzira na njegov broj.
@@ -82,10 +86,12 @@ se ne mogu ponovo prikazati). Podrazumijevano:
 | Uloga | Korisničko ime |
 |---|---|
 | Konsultant (izvođač) | `konsultant` |
-| Odgovorno lice (bzr) | `ana.b` |
-| Magacioner (operater) | `marko.v` |
-| Vozač | `petar.j` |
-| Uprava | `direktor` |
+| Vlasnica — odgovorno lice (bzr) | `ana.b` |
+| Zaposleni (operater) | `marko.v` |
+
+Demo atelje: „Demo Atelje torti d.o.o.“, Bar — jaja, pavlaka, maskarpone, brašno, lješnik, čokolada, smrznute
+maline (sa alergenima), frižideri i vitrina (KKT 2), tri porudžbine torti (predata, u izradi bez potvrđenih
+alergena, sutrašnja sa alergijom kupca) i pavlaka zadržana zbog 9,1 °C na prijemu.
 
 ---
 
@@ -126,10 +132,10 @@ Svaki klijent dobija **svoj** Supabase projekat i **svoj** Render web servis, sa
    ```
    Alat prvo ispiše u koju bazu upisuje i **odbija bazu koja već ima odgovorno lice ili konsultanta**
    (npr. demo iz `.env` kad se zaboravi adresa nove baze). Obje lozinke su privremene i ispišu se
-   jednom. Konsultantski nalog treba: samo on otvara nalog direktoru (`uprava`), upisuje adresu i PIB
+   jednom. Konsultantski nalog treba: upisuje adresu i PIB
    firme (Podešavanje) i dobija obavještenje kad odgovorno lice samo zatvori neusaglašenost („bez četiri
    oka“). Bez njega: izostaviti `--konsultant` (može se dodati i kasnije: samo `--konsultant vase.ime`).
-   Odgovorno lice u `/moja` mijenja lozinku i u `/ljudi` otvara naloge magacioneru i vozaču. Alat pravi i kontrolne
+   Vlasnica u `/moja` mijenja lozinku i u `/ljudi` otvara naloge zaposlenima. Alat pravi i kontrolne
    tačke KKT 1–3 — bez njih se temperatura na prijemu i predaji ne ocjenjuje.
    **Podaci firme iz upitnika:** distributer popuni `upitnik-start/Upitnik-za-pocetak.html` i pošalje fajl, a vi:
    ```powershell
@@ -222,15 +228,15 @@ testovi/               E2E testovi; izolovano.mjs pravi sopstvenu test bazu (npm
 alati/                 CLI skripte, pokreću se sa računara konsultantkinje
 ```
 
-### Pet uloga (ne deset)
+### Tri uloge
 
 | Uloga | Za koga | Vidi |
 |---|---|---|
-| `bzr` | Odgovorno lice za bezbjednost hrane | sve u firmi — prva strana poslije prijave je `/tabla` |
-| `operater` | Magacioner | prijem, zalihe, HACCP, isporuka — samo poslednji 1 dan, samo svoje unose i isporuke koje je sam spremio |
-| `vozac` | Vozač | vozila (D1 — vidi samo vozač), isporuka — samo poslednji 1 dan, samo dodijeljene; on potvrđuje predaju |
-| `uprava` | Direktor | svoj Kontrolni centar (semafor, četiri broja, zapisi po danu), Za inspekciju, poruke — bez unosa |
+| `bzr` | Vlasnica — odgovorno lice za bezbjednost hrane | sve u ateljeu — prva strana poslije prijave je `/tabla` |
+| `operater` | Zaposleni (poslastičar, prodavačica) | porudžbine (sve u ateljeu — P5), prijem, zalihe, HACCP/DHP — upis samo za posljednji 1 dan, u listama svoje unose |
 | `izvodjac` | Konsultant | sve + banka pitanja za provjeru znanja + podešavanje firme (`/admin`) + Izvještaji (izvoz) i Stanje poslovanja — samo on |
+
+Vrijednosti `vozac` i `uprava` ostaju u enumu baze (dopune se ne mijenjaju), ali ih kod ne dodjeljuje.
 
 Dozvole se provjeravaju **na serveru** (`server/auth.ts` → `requireUloga`, `ogranicenjeDatuma`,
 `samoMoje`, `izvrsilacZa`) — frontend meni samo krije stavke, ne štiti ništa.
@@ -764,15 +770,15 @@ Prijem robe, odluke i otpis traže mrežu. Uslov: vozač jednom otvori stranu Is
 ```bash
 npm run typecheck
 npm run build
-npm test             # 673 provjere na SOPSTVENOJ čistoj bazi; izlazni kod 1 ako išta padne
-npm run test:ekrani  # 55 provjera ekrana: telefon 375 px, pet uloga, rad bez mreže, inspekcijski paket, stanje poslovanja, pregled direktora
+npm test             # 622 provjere na SOPSTVENOJ čistoj bazi; izlazni kod 1 ako išta padne
+npm run test:ekrani  # 49 provjera ekrana: telefon 375 px, tri uloge, predaja torte, rad bez mreže, inspekcijski paket, stanje poslovanja
 ```
 
 **`npm run test:ekrani`** izgradi aplikaciju kao za Render, pokrene server u produkcijskom režimu (sa
 service workerom) na istoj takvoj čistoj bazi, i kroz pravi Chrome bez prozora (`playwright-core` —
 pregledač se ne preuzima, koristi se instaliran Chrome; `PW_KANAL=msedge` za Edge) u veličini telefona
-prođe svaku stranu svake uloge (otvara se, ne viri van ekrana, bez greške u konzoli), D1 i predaju,
-mjerenje, obrazac i prijem, i vozača bez signala. Lozinka se ne kuca u pregledač — prijava ide kroz API.
+prođe svaku stranu svake uloge (otvara se, ne viri van ekrana, bez greške u konzoli), predaju torte,
+mjerenje, obrazac i prijem, novu porudžbinu, i zaposlenog bez signala (mjerenje i predaja torte čekaju na telefonu). Lozinka se ne kuca u pregledač — prijava ide kroz API.
 
 **`npm test`** ne dira ni demo bazu na Renderu ni vaše PostgreSQL servise: iz PostgreSQL-a
 instaliranog na računaru (`C:/Program Files/PostgreSQL`, ili `PG_BIN=`) pravi svoj klaster u
@@ -783,13 +789,13 @@ test: `npm test -- povlacenje`. Isto radi **GitHub Actions na svaki push** na `m
 
 `npm run test:e2e` pušta iste testove protiv servera koji već radi i baze iz `.env` — samo kad
 treba provjeriti baš demo bazu. Radi **samo na demo bazi** — prije prvog koraka provjeri
-da u bazi stoji svih pet demo naloga sa svojim fiksnim ID-jevima i inače odbije da krene, jer
+da u bazi stoje sva tri demo naloga sa svojim fiksnim ID-jevima i inače odbije da krene, jer
 testovi prave i brišu podatke. Server i test moraju gledati istu bazu (`DATABASE_URL` iz
 `.env`); drugi server se zadaje sa `APP_URL=`. Jedan test: `npm run test:e2e -- povlacenje`.
 
 Demo baza može imati i ono što je uneseno ručno kroz aplikaciju (npr. drugo skladište). Testovi
-to ne diraju: prijem ide u „Glavni magacin" (`glavnoSkladiste()` u `testovi/pomoc.mjs`),
-isporuka iz skladišta svog lota. Provjera koja traži da je skladište jedino se tada preskače i to
+to ne diraju: prijem ide u skladište „Atelje" (`glavnoSkladiste()` u `testovi/pomoc.mjs`).
+Drugog zaposlenog (za provjere „tuđe“ i poruke među zaposlenima) test otvara sam — `drugiZaposleni()`. Provjera koja traži da je skladište jedino se tada preskače i to
 se ispiše („· preskočeno"). Demo lotovi vremenom isteknu (rok je od dana punjenja baze) — test
 koji isporučuje demo lot bira onaj koji nije istekao (`nijeIstekao()`).
 
@@ -830,12 +836,11 @@ Svaki test briše sve što napravi. Nov tok u aplikaciji = nov test u `testovi/`
 su dugo bile na Renderu (neusaglašenost se nije mogla zatvoriti; uprava i provjera znanja
 zaključani) našao je tek test koji prolazi tok do kraja.
 
-Ručno, na `npm run dev`, kroz svih pet uloga:
+Ručno, na `npm run dev` (ili `npm run demo:lokalno`), kroz sve tri uloge:
 
-1. Prijava kao `bzr`, `operater`, `vozac`, `uprava`, `izvodjac` — provjeriti da meni odgovara
-   ulozi.
-2. **Prijem → LOT → zaliha → isporuka**: unijeti prijem sa temperaturom u opsegu, prihvatiti
-   lot, kreirati isporuku, potvrditi je.
+1. Prijava kao `bzr`, `operater`, `izvodjac` — provjeriti da meni odgovara ulozi.
+2. **Prijem → LOT → torta → predaja**: unijeti prijem sa temperaturom u opsegu, prihvatiti
+   lot, upisati porudžbinu, dodati lot sastojka, potvrditi alergene, predati tortu.
 3. **Devijacija**: unijeti mjerenje van opsega (npr. 8.6°C za rashlađeno) → provjeriti da se
    otvorila neusaglašenost, zadatak i da je LOT otišao na HOLD; dodati korektivnu mjeru,
    završiti je, verifikovati drugim nalogom (ne istim koji je završio mjeru), zatvoriti.

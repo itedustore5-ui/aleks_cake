@@ -2,17 +2,15 @@
 // konzoli; meni na telefonu se otvara i nudi samo strane te uloge.
 import { telefon, otvori, siroko } from "./telefon.mjs";
 
-export const naziv = "Ekrani: svih pet uloga, svaka strana na telefonu (375 px)";
+export const naziv = "Ekrani: sve tri uloge, svaka strana na telefonu (375 px)";
 
 // Isto kao meni (STAVKE u src/components/Layout.tsx).
 const STRANE = {
-  petar: ["/moja", "/isporuka", "/vozila", "/neusaglasenosti", "/poruke"],
-  marko: ["/moja", "/porudzbine", "/prijem", "/zalihe", "/haccp", "/isporuka", "/neusaglasenosti", "/poruke"],
-  ana: ["/tabla", "/moja", "/porudzbine", "/prijem", "/zalihe", "/haccp", "/haccp-plan", "/isporuka", "/vozila", "/neusaglasenosti", "/poruke", "/ljudi", "/sifarnici", "/sledljivost", "/prilozi", "/inspekcija", "/audit"],
-  direktor: ["/tabla", "/moja", "/poruke", "/inspekcija"], // jednostavniji interfejs direktora (11.10.2026)
+  marko: ["/moja", "/porudzbine", "/prijem", "/zalihe", "/haccp", "/neusaglasenosti", "/poruke"],
+  ana: ["/tabla", "/moja", "/porudzbine", "/prijem", "/zalihe", "/haccp", "/haccp-plan", "/neusaglasenosti", "/poruke", "/ljudi", "/sifarnici", "/sledljivost", "/prilozi", "/inspekcija", "/audit"],
 };
 STRANE.konsultant = [...STRANE.ana, "/izvjestaji", "/stanje", "/admin"];
-const IME = { petar: "Vozač", marko: "Magacioner", ana: "Odgovorno lice", direktor: "Uprava", konsultant: "Konsultant" };
+const IME = { marko: "Zaposleni", ana: "Vlasnica", konsultant: "Konsultant" };
 
 export async function pokreni({ provjeri }) {
   for (const [nalog, strane] of Object.entries(STRANE)) {
@@ -44,7 +42,7 @@ export async function pokreni({ provjeri }) {
           const s = await siroko(t.strana);
           if (s.visak > 0) siroki.push(`${kartica}: ${s.visak}px (${s.krivi.join(", ")})`);
         }
-        provjeri("Odgovorno lice: sva četiri priloga za štampu staju u telefon", siroki.length === 0, siroki.join("; "));
+        provjeri("Vlasnica: sva četiri priloga za štampu staju u telefon", siroki.length === 0, siroki.join("; "));
       }
 
       // Meni na telefonu: skriven dok se ne otvori, pa nudi tačno strane uloge.
@@ -58,6 +56,10 @@ export async function pokreni({ provjeri }) {
         zatvoren === 0 && stavke.length === strane.length && strane.every((s) => stavke.includes(s)),
         `${zatvoren} · ${stavke.join(" ")}`,
       );
+      // Strane distributera (vozila, isporuke) više ne postoje — adresa vodi na početnu stranu uloge.
+      await t.strana.goto(`${t.strana.url().replace(/\/[^/]*$/, "")}/vozila`, { waitUntil: "domcontentloaded" });
+      await t.strana.waitForSelector(".page-header h1", { timeout: 20_000 });
+      provjeri(`${IME[nalog]}: adresa /vozila ne otvara ništa od distributera`, !/\/vozila$/.test(t.strana.url()) || (await t.strana.locator(".vehicle-card").count()) === 0, t.strana.url());
     } finally {
       await t.zatvori();
     }

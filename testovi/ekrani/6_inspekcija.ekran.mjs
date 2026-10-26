@@ -14,8 +14,8 @@ export async function pokreni({ provjeri }) {
     const s = await siroko(t.strana);
     await slikaj(t.strana, "10-inspekcija");
     provjeri(
-      "Paket se sklopi: 12 odjeljaka, prvi je kontinuitet zapisa, strana ne viri van telefona",
-      naslovi.length === 12 && naslovi[0].startsWith("1. Kontinuitet zapisa") && s.visak === 0,
+      "Paket se sklopi: 11 odjeljaka, prvi je kontinuitet zapisa, strana ne viri van telefona",
+      naslovi.length === 11 && naslovi[0].startsWith("1. Kontinuitet zapisa") && s.visak === 0,
       `${naslovi.length} · ${naslovi[0]} · ${s.visak}px ${s.krivi.join(", ")}`,
     );
 
@@ -24,7 +24,7 @@ export async function pokreni({ provjeri }) {
     const posle = await odjeljci.allInnerTexts();
     provjeri(
       "Isključen odjeljak nestaje iz dokumenta i iz sadržaja, brojevi idu redom",
-      posle.length === 11 && !posle.some((n) => n.includes("Povlačenja")) && posle[10].startsWith("11.") &&
+      posle.length === 10 && !posle.some((n) => n.includes("Povlačenja")) && posle[9].startsWith("10.") &&
         !(await t.strana.locator(".insp-sadrzaj li", { hasText: "Povlačenja" }).count()),
       posle.join(" | "),
     );

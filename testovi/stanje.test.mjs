@@ -1,4 +1,4 @@
-// „Stanje poslovanja“ (11.10.2026): konsultantov izvještaj direktoru — period (dan … godina), pokazatelji i
+// „Stanje poslovanja“ (11.10.2026): konsultantov izvještaj vlasnici ateljea — period (dan … godina), pokazatelji i
 // semafor, primaoci, i slanje mejlom. Mejl ide na LAŽNI SMTP server ovog testa (port 54337, samo lokalno);
 // pravi mejl se nikad ne šalje — ako server ima drugo SMTP podešavanje, slanje se preskače.
 import net from "node:net";
@@ -91,7 +91,6 @@ const danaOd = (dan, n) => {
 export async function pokreni({ provjeri }) {
   const konsultant = await prijava(NALOZI.konsultant);
   const ana = await prijava(NALOZI.ana);
-  const direktor = await prijava(NALOZI.direktor);
   const marko = await prijava(NALOZI.marko);
   const oznaka = `E2E-STANJE-${Date.now().toString(36)}`;
   const pocetak = new Date();
@@ -101,10 +100,10 @@ export async function pokreni({ provjeri }) {
 
   try {
     // ── Ko smije ──────────────────────────────────────────────────────────────────────────────
-    const zabrane = await Promise.all([ana, direktor, marko].map((k) => k("/stanje-poslovanja?vrsta=mjesec")));
-    provjeri("Odgovorno lice, direktor i magacioner ne otvaraju izvještaj (403) — pravi ga i šalje konsultant", zabrane.every((r) => r.status === 403), zabrane.map((r) => r.status).join(","));
+    const zabrane = await Promise.all([ana, marko].map((k) => k("/stanje-poslovanja?vrsta=mjesec")));
+    provjeri("Vlasnica i zaposleni ne otvaraju izvještaj (403) — pravi ga i šalje konsultant", zabrane.every((r) => r.status === 403), zabrane.map((r) => r.status).join(","));
     const slanjeAna = await ana("/stanje-poslovanja/posalji", { telo: { vrsta: "mjesec" } });
-    provjeri("Odgovorno lice ne šalje izvještaj (403)", slanjeAna.status === 403, String(slanjeAna.status));
+    provjeri("Vlasnica ne šalje izvještaj (403)", slanjeAna.status === 403, String(slanjeAna.status));
 
     // ── Periodi: granice, naziv i grafikon (2025 — cijela godina je prošla) ──────────────────────
     const OCEKIVANO = {
@@ -150,7 +149,7 @@ export async function pokreni({ provjeri }) {
 
     // ── Pokazatelji prate stvarne upise: neusaglašenost VISOK danas → semafor crveno ─────────────
     const prije = (await konsultant(`/stanje-poslovanja?vrsta=dan&dan=${danas}`)).tijelo;
-    const nc = await marko("/neusaglasenosti", { telo: { opis: `${oznaka} curi rashladna komora`, ozbiljnost: "VISOK" } });
+    const nc = await marko("/neusaglasenosti", { telo: { opis: `${oznaka} ne hladi vitrina sa tortama`, ozbiljnost: "VISOK" } });
     t.nc.push(nc.tijelo?.id);
     const poslije = (await konsultant(`/stanje-poslovanja?vrsta=dan&dan=${danas}`)).tijelo;
     provjeri(
@@ -166,14 +165,14 @@ export async function pokreni({ provjeri }) {
     const stub = poslije.grafikon.stubovi[poslije.grafikon.stubovi.length - 1];
     provjeri("Dnevni izvještaj: grafikon posljednjih 14 dana, današnji stub broji novu neusaglašenost", poslije.grafikon.stubovi.length === 14 && stub.od === danas && stub.ncNove >= 1, `${poslije.grafikon.stubovi.length} ${stub?.od} ${stub?.ncNove}`);
 
-    // ── Kontrolni centar direktora: isti semafor, za posljednjih 7 dana ───────────────────────
-    const dir = await direktor("/tabla/direktor");
+    // ── Atelje: torte umjesto isporuka i D1 ─────────────────────────────────────────────────────
+    const promet = poslije.pokazatelji?.promet ?? {};
     provjeri(
-      "Direktorov pregled: semafor (sa novom neusaglašenošću VISOK — crveno), 7 dana, 14 dana zapisa, povlačenja u toku",
-      dir.status === 200 && dir.tijelo.ocjena.nivo === "crveno" && dir.tijelo.period.do === danas && dir.tijelo.period.od === danaOd(danas, -6) &&
-        dir.tijelo.grafikon.stubovi.length === 14 && Array.isArray(dir.tijelo.povlacenja) && dir.tijelo.pokazatelji.nc.otvorene_visok >= 1,
-      `${dir.status} ${dir.tijelo?.ocjena?.nivo} ${dir.tijelo?.period?.od}–${dir.tijelo?.period?.do} ${dir.tijelo?.grafikon?.stubovi?.length}`,
+      "Izvještaj broji predate i otkazane torte, bez isporuka i kontrola vozila",
+      "torte" in promet && "otkazane" in promet && !("isporuke" in promet) && !("d1" in promet) && poslije.html.includes("Predate torte"),
+      JSON.stringify(Object.keys(promet)),
     );
+    provjeri("Direktorovog pregleda više nema (404)", (await konsultant("/tabla/direktor")).status === 404);
 
     // ── Preuzimanje (kad slanje sa servera nije podešeno) ──────────────────────────────────────
     const fajl = await preuzmi(konsultant, "/stanje-poslovanja/izvjestaj.html?vrsta=mjesec&dan=2025-05-14");

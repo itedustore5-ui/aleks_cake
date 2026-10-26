@@ -32,7 +32,7 @@ export async function pokreni({ provjeri }) {
       `${imaStatus} ${statusi.length} ${s1.visak}px ${s1.krivi.join(",")}`,
     );
 
-    // ── Stanje poslovanja: pregled mejla direktoru, „Pošalji“ nikad ćuti (#74) ──────────────────
+    // ── Stanje poslovanja: pregled mejla vlasnici, „Pošalji“ nikad ćuti (#74) ──────────────────
     await otvori(t, "/stanje");
     await t.strana.getByRole("button", { name: "Sedmica", exact: true }).click();
     await t.strana.waitForFunction(() => /sedmica/.test(document.querySelector(".stanje-period strong")?.textContent ?? ""), null, { timeout: 15_000 });
@@ -44,14 +44,14 @@ export async function pokreni({ provjeri }) {
       const d = f?.contentDocument?.documentElement;
       return { visina: f?.getBoundingClientRect().height ?? 0, sirina: f?.clientWidth ?? 0, unutra: d?.scrollWidth ?? 9999 };
     });
-    await t.strana.getByRole("button", { name: "Pošalji direktoru" }).click();
+    await t.strana.getByRole("button", { name: "Pošalji vlasnici" }).click();
     const javljeno = (await t.strana.locator(".stanje-slanje [role=alert]").textContent({ timeout: 5_000 }).catch(() => "")) ?? "";
     await slikaj(t.strana, "4-stanje-poslovanja");
     if (process.env.EKRANI_SLIKE) await t.strana.screenshot({ path: `${process.env.EKRANI_SLIKE}/4-stanje-cijelo.png`, fullPage: true }).catch(() => undefined);
     const s0 = await siroko(t.strana);
     provjeri(
       "Stanje poslovanja: sedmica, mejl u okviru čitav (bez skrola u stranu), „Pošalji“ kaže šta fali; ne viri van ekrana",
-      mjere.visina > 600 && mjere.unutra <= mjere.sirina + 1 && /SMTP|primaoce|mejl direktora/.test(javljeno) && s0.visak === 0,
+      mjere.visina > 600 && mjere.unutra <= mjere.sirina + 1 && /SMTP|primaoce|mejl vlasnice/.test(javljeno) && s0.visak === 0,
       `okvir ${Math.round(mjere.visina)}px ${mjere.unutra}/${mjere.sirina} · „${javljeno.trim().slice(0, 60)}“ · ${s0.visak}px ${s0.krivi.join(",")}`,
     );
 

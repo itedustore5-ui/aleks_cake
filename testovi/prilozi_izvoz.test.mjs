@@ -1,6 +1,6 @@
 // Podaci za štampu priloga i izvoz klijentu (invarijante #30, #31): svaki izvor se izvozi, nijedan
-// ne nedostaje, i kolone koje se prodaju kao dokaz (naknadni unos, temperatura pri predaji,
-// skladište) stvarno stoje u CSV-u. Ništa ne upisuje.
+// ne nedostaje, i kolone koje se prodaju kao dokaz (naknadni unos, skladište, alergeni i serije sastojaka
+// torte) stvarno stoje u CSV-u. Ništa ne upisuje.
 import { prijava, NALOZI } from "./pomoc.mjs";
 
 export const naziv = "Prilozi za štampu i izvoz";
@@ -9,7 +9,7 @@ const zaglavlje = (csv) => (typeof csv === "string" ? csv.replace(/^﻿/, "").sp
 
 export async function pokreni({ provjeri }) {
   const ana = await prijava(NALOZI.ana);
-  const direktor = await prijava(NALOZI.direktor);
+  const marko = await prijava(NALOZI.marko);
   // Izvještaji i izvoz su konsultantovi (odluka vlasnice 11.10.2026).
   const konsultant = await prijava(NALOZI.konsultant);
 
@@ -33,8 +33,8 @@ export async function pokreni({ provjeri }) {
   }
   provjeri(`Svih ${izvori.length} CSV fajlova se preuzima`, pali.length === 0, pali.join(", "));
   provjeri("Prijemi: kolone naknadno_dana i skladiste_naziv", ["naknadno_dana", "skladiste_naziv"].every((k) => zaglavlje(csv.prijemi).includes(k)));
-  provjeri("Isporuke: kolone naknadno_dana i skladiste_naziv", ["naknadno_dana", "skladiste_naziv"].every((k) => zaglavlje(csv.isporuke).includes(k)));
-  provjeri("Stavke isporuka: temperatura_predaje", zaglavlje(csv.isporuke_stavke).includes("temperatura_predaje"));
+  provjeri("Porudžbine: alergeni, serije sastojaka i temperatura pri predaji", ["Alergeni", "Sastojci po seriji", "Temperatura pri predaji"].every((k) => zaglavlje(csv.porudzbine).includes(k)), zaglavlje(csv.porudzbine).join(" | "));
+  provjeri("Izvora isporuka i kontrola vozila više nema", !izvori.some((i) => /isporuk|vozil/.test(i.kod)), izvori.map((i) => i.kod).join(", "));
   provjeri("Dnevni zapisi: naknadno_dana", zaglavlje(csv.zapisi).includes("naknadno_dana"));
 
   const pregled = await konsultant("/izvoz/prijemi/pregled");
@@ -42,7 +42,7 @@ export async function pokreni({ provjeri }) {
 
   const sve = await konsultant("/izvoz/sve.json");
   provjeri("Sve u jednom JSON-u, bez nedostajućih", sve.status === 200 && (sve.tijelo?.nedostaje ?? []).length === 0 && Object.keys(sve.tijelo?.podaci ?? {}).length === izvori.length);
-  provjeri("Uprava ne izvozi podatke (403)", (await direktor("/izvoz/sve.json")).status === 403);
-  provjeri("Odgovorno lice više ne izvozi tabele (403) — izvještaji su kod konsultanta; ostaje mu „Za inspekciju“",
+  provjeri("Zaposleni ne izvozi podatke (403)", (await marko("/izvoz/sve.json")).status === 403);
+  provjeri("Vlasnica (odgovorno lice) ne izvozi tabele (403) — izvještaji su kod konsultanta; ostaje mu „Za inspekciju“",
     (await ana("/izvoz/sve.json")).status === 403 && (await ana("/izvoz/prijemi.csv")).status === 403 && (await ana("/inspekcija")).status === 200);
 }
