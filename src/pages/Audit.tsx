@@ -158,7 +158,7 @@ export function Audit() {
           Traži u vrijednostima
           <span>
             <Search size={13} />
-            <input value={trazi} onChange={(e) => setTrazi(e.target.value)} placeholder="npr. broj lota, LOT-2409, HOLD" />
+            <input value={trazi} onChange={(e) => setTrazi(e.target.value)} placeholder="npr. broj lota, J-1023-A, HOLD" />
           </span>
         </label>
         {imaFiltera && (

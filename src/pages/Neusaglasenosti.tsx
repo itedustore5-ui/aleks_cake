@@ -366,7 +366,7 @@ function NcDetaljModal({ detalj, vodiSistem, mojId, onClose, onOsvjezi }: { deta
                   <div className="nc-uradi">
                     <textarea
                       rows={2}
-                      placeholder="Šta je urađeno (npr. komora očišćena i dezinfikovana, termometar zamijenjen)"
+                      placeholder="Šta je urađeno (npr. frižider očišćen i dezinfikovan, termometar zamijenjen)"
                       value={uradjeno[m.id] ?? ""}
                       onChange={(e) => setUradjeno((u) => ({ ...u, [m.id]: e.target.value }))}
                     />
@@ -406,14 +406,14 @@ function NcDetaljModal({ detalj, vodiSistem, mojId, onClose, onOsvjezi }: { deta
                     rows={2}
                     value={staJeUradjeno}
                     onChange={(e) => setStaJeUradjeno(e.target.value)}
-                    placeholder="npr. komora očišćena i dezinfikovana, roba premještena u komoru 1, kupci obaviješteni"
+                    placeholder="npr. vitrina očišćena, torte premještene u frižider, kupci obaviješteni"
                   />
                 </label>
                 {zatvaraOdmah ? (
                   <>
                     <label style={{ gridColumn: "1 / -1" }}>
                       Šta ste provjerili
-                      <input value={staJeProvjereno} onChange={(e) => setStaJeProvjereno(e.target.value)} placeholder="npr. pregledala komoru, temperatura 3 °C, roba uredna" />
+                      <input value={staJeProvjereno} onChange={(e) => setStaJeProvjereno(e.target.value)} placeholder="npr. pregledala frižider, 3 °C, kremovi uredni" />
                     </label>
                     <label className="nc-bez-drugog" style={{ gridColumn: "1 / -1" }}>
                       <input type="checkbox" checked={bezDrugog} onChange={(e) => setBezDrugog(e.target.checked)} />
@@ -439,7 +439,7 @@ function NcDetaljModal({ detalj, vodiSistem, mojId, onClose, onOsvjezi }: { deta
               <div className="form-grid">
                 <label style={{ gridColumn: "1 / -1" }}>
                   Šta treba uraditi
-                  <input placeholder="npr. očistiti i dezinfikovati komoru 2" value={opisMjere} onChange={(e) => setOpisMjere(e.target.value)} />
+                  <input placeholder="npr. očistiti i dezinfikovati frižider sa kremovima" value={opisMjere} onChange={(e) => setOpisMjere(e.target.value)} />
                 </label>
                 <label>
                   Kome
@@ -560,7 +560,7 @@ function NovaNcModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
       <div className="form-grid">
         <label style={{ gridColumn: "1 / -1" }}>
           Šta se desilo
-          <textarea rows={3} value={opis} onChange={(e) => setOpis(e.target.value)} placeholder="npr. rashladna komora 2 pokazuje 9 °C, vrata ne dihtuju" />
+          <textarea rows={3} value={opis} onChange={(e) => setOpis(e.target.value)} placeholder="npr. vitrina pokazuje 9 °C, vrata ne dihtuju" />
         </label>
         <label>
           Koliko je ozbiljno

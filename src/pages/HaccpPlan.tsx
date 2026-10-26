@@ -94,6 +94,16 @@ const PREDLOG: Record<string, { opasnost: string; korektivnaMjera: string; verif
     korektivnaMjera: "Proizvode premjestiti u ispravan frižider, pozvati servis, procijeniti koliko dugo su bili van granice i odlučiti o otpisu; upisati šta je urađeno.",
     verifikacija: "Mjerenja dva puta dnevno; odgovorno lice sedmično pregleda zapise i provjerava da nema propuštenih dana.",
   },
+  "KKT2-V": {
+    opasnost: "Umnožavanje mikroorganizama u tortama i kolačima sa kremom u vitrini — vrata se često otvaraju, a roba stoji cio dan.",
+    korektivnaMjera: "Torte premjestiti u frižider, provjeriti vrata i zaptivku, pozvati servis; procijeniti koliko su dugo bile van granice i odlučiti o otpisu; upisati šta je urađeno.",
+    verifikacija: "Mjerenja dva puta dnevno; odgovorno lice sedmično pregleda zapise.",
+  },
+  "KKT2-Z": {
+    opasnost: "Otapanje i ponovno zamrzavanje (smrznuto voće, biskvit, poluproizvodi) — umnožavanje mikroorganizama i gubitak kvaliteta.",
+    korektivnaMjera: "Robu premjestiti u ispravan zamrzivač; otopljeno se ne zamrzava ponovo — upotrijebiti odmah ili otpisati; pozvati servis; upisati šta je urađeno.",
+    verifikacija: "Mjerenja dva puta dnevno; odgovorno lice sedmično pregleda zapise.",
+  },
   KKT3: {
     opasnost: "Prekid hladnog lanca tokom dostave torte do kupca (sala, hotel).",
     korektivnaMjera: "Torta van granice se ne predaje bez procjene odgovornog lica; otvara se neusaglašenost; prevoz (rashladna kutija, vrijeme) se mijenja prije sljedeće dostave.",
@@ -378,7 +388,7 @@ function StavkaPlanaModal({ stavka, onClose, onSacuvano }: { stavka: StavkaPlana
             </select>
           </label>
         )}
-        <label style={{ gridColumn: "1 / -1" }}>Napomena<input value={napomena} onChange={(e) => setNapomena(e.target.value)} placeholder="npr. jutro i popodne, svaka komora" /></label>
+        <label style={{ gridColumn: "1 / -1" }}>Napomena<input value={napomena} onChange={(e) => setNapomena(e.target.value)} placeholder="npr. jutro i popodne" /></label>
       </div>
     </Modal>
   );
@@ -396,7 +406,7 @@ function KontrolneTacke({ mijenja, setGreska }: { mijenja: boolean; setGreska: (
   return (
     <>
       <p className="muted-text" style={{ fontSize: 11, maxWidth: 760, marginBottom: 12 }}>
-        Granica za robu se unosi na artiklu (Šifarnici) i sama postaje pravilo za prijem i predaju. Ovdje je opšta granica tačke (npr. komora)
+        Granica za robu se unosi na artiklu (Šifarnici) i sama postaje pravilo za prijem i predaju. Ovdje je opšta granica tačke (npr. frižider, vitrina, zamrzivač)
         i tekst za HACCP plan: opasnost, korektivna mjera, verifikacija.
       </p>
       {mijenja && <button className="primary-button" style={{ marginBottom: 12 }} onClick={() => setModal("nova")}><Plus size={15} /> Nova kontrolna tačka</button>}
@@ -446,7 +456,9 @@ function TackaModal({ tacka, onClose, onSacuvano }: { tacka: Tacka | null; onClo
   const [greska, setGreska] = useState("");
 
   const predlozi = () => {
-    const p = PREDLOG[sifra.toUpperCase()] ?? PREDLOG_OPSTI;
+    const s = sifra.toUpperCase();
+    // Drugi frižider (KKT2-F2…) dobija tekst frižidera.
+    const p = PREDLOG[s] ?? (s.startsWith("KKT2") ? PREDLOG.KKT2 : PREDLOG_OPSTI);
     setOpasnost(p.opasnost);
     setKorektivnaMjera(p.korektivnaMjera);
     setVerifikacija(p.verifikacija);
@@ -477,8 +489,9 @@ function TackaModal({ tacka, onClose, onSacuvano }: { tacka: Tacka | null; onClo
     <Modal naslov={tacka ? `${tacka.sifra} · ${tacka.naziv}` : "Nova kontrolna tačka"} podnaslov="Tekst za HACCP plan" onClose={onClose} greska={greska}
       footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={posalji} disabled={!naziv.trim() || (!tacka && sifra.trim().length < 2)}>Sačuvaj</button></>}>
       <div className="form-grid">
-        {!tacka && <label>Šifra<input value={sifra} onChange={(e) => setSifra(e.target.value.toUpperCase())} placeholder="npr. KKT2-K02" /></label>}
-        <label style={tacka ? { gridColumn: "1 / -1" } : undefined}>Naziv<input value={naziv} onChange={(e) => setNaziv(e.target.value)} placeholder="npr. Komora K-02" /></label>
+        {!tacka && <label>Šifra<input value={sifra} onChange={(e) => setSifra(e.target.value.toUpperCase())} placeholder="npr. KKT2-F2" /></label>}
+        {!tacka && <small className="muted-text" style={{ gridColumn: "1 / -1", marginTop: -6 }}>Frižider, vitrina i zamrzivač: šifra počinje sa KKT2 (KKT2-F2, KKT2-V2…) — po tome ih „Predloži osnovni plan“ uvrštava u dnevna mjerenja.</small>}
+        <label style={tacka ? { gridColumn: "1 / -1" } : undefined}>Naziv<input value={naziv} onChange={(e) => setNaziv(e.target.value)} placeholder="npr. Drugi frižider (kremovi)" /></label>
         <label>Opšta granica — najmanje (°C)<input type="number" step="0.1" value={min} onChange={(e) => setMin(e.target.value)} /></label>
         <label>Opšta granica — najviše (°C)<input type="number" step="0.1" value={max} onChange={(e) => setMax(e.target.value)} /></label>
         <div style={{ gridColumn: "1 / -1" }}>
@@ -591,7 +604,7 @@ function NovTermometarModal({ onClose, onSacuvano }: { onClose: () => void; onSa
       <div className="form-grid">
         <label>Naziv<input value={naziv} onChange={(e) => setNaziv(e.target.value)} placeholder="npr. Ubodni termometar 1" /></label>
         <label>Oznaka / serijski broj<input value={oznaka} onChange={(e) => setOznaka(e.target.value)} /></label>
-        <label style={{ gridColumn: "1 / -1" }}>Gdje se koristi<input value={lokacija} onChange={(e) => setLokacija(e.target.value)} placeholder="npr. prijem robe, komora K-02" /></label>
+        <label style={{ gridColumn: "1 / -1" }}>Gdje se koristi<input value={lokacija} onChange={(e) => setLokacija(e.target.value)} placeholder="npr. prijem sastojaka, frižider sa kremovima" /></label>
         <label>Interna provjera na (mjeseci)<input type="number" min={1} max={24} value={provjera} onChange={(e) => setProvjera(e.target.value)} /></label>
         <label>Kalibracija na (mjeseci, prazno = ne radi se)<input type="number" min={1} max={60} value={kalibracija} onChange={(e) => setKalibracija(e.target.value)} /></label>
       </div>
@@ -762,7 +775,7 @@ function VerifikacijaModal({ vrsta, onClose, onSacuvano }: { vrsta: string; onCl
         <label style={{ gridColumn: "1 / -1" }}>
           Šta je pregledano i šta je nađeno
           <textarea rows={4} value={nalaz} onChange={(e) => setNalaz(e.target.value)}
-            placeholder={vrsta === "VJEZBA_POVLACENJA" ? "npr. izabran lot MLJ-2609-A; za 12 min nađeno svih 5 kupaca sa telefonima" : "npr. pregledane sve KKT, granice i zapisi za posljednjih 12 mjeseci…"} />
+            placeholder={vrsta === "VJEZBA_POVLACENJA" ? "npr. izabran lot pavlake PV-1023-11; za 12 min nađene sve 3 torte i kupci sa telefonima" : "npr. pregledane sve KKT, granice i zapisi za posljednjih 12 mjeseci…"} />
         </label>
       </div>
     </Modal>

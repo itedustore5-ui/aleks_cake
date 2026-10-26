@@ -109,26 +109,27 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
   }
   if (!f.firma?.direktorJeOdgovorno && t(ff.direktor?.ime)) podsjetnik.push(`Direktor ${t(ff.direktor?.ime)}: nalog „Uprava“ otvara konsultant (Ljudi).`);
 
-  // ── Magacini: podrazumijevani prazni „Glavni magacin“ dobija ime i adresu prvog iz upitnika ──
+  // ── Magacini: podrazumijevani prazni magacin („Atelje“ iz prvi-korisnik, ranije „Glavni magacin“) dobija ime i
+  //    adresu prvog iz upitnika ──
   const magIshod = new Ishod("Magacini");
   ishodi.push(magIshod);
   const magacini = new Map((await klijent.query<{ id: string; naziv: string; adresa: string | null }>(`select id, naziv, adresa from skladiste`)).rows.map((s) => [kljuc(s.naziv), s]));
   const izFajla = lista(f, "magacini").filter((m) => t(m.naziv));
-  const samoPodrazumijevani = magacini.size === 1 && magacini.has("glavni magacin");
+  const podrazumijevani = magacini.size === 1 ? ["atelje", "glavni magacin"].find((k) => magacini.has(k)) : undefined;
   let preimenovan = "";
-  if (samoPodrazumijevani && izFajla.length && !magacini.has(kljuc(izFajla[0].naziv))) {
+  if (podrazumijevani && izFajla.length && !magacini.has(kljuc(izFajla[0].naziv))) {
     const korisceno = (await klijent.query<{ da: boolean }>(
       `select exists (select 1 from prijem) or exists (select 1 from isporuka) or exists (select 1 from mjerenje_temperature) or exists (select 1 from zapis) as da`,
     )).rows[0].da;
     if (!korisceno) {
-      const glavni = magacini.get("glavni magacin")!;
+      const glavni = magacini.get(podrazumijevani)!;
       await klijent.query(`update skladiste set naziv = $2, adresa = coalesce(nullif($3, ''), adresa) where id = $1`, [glavni.id, t(izFajla[0].naziv), t(izFajla[0].adresa)]);
       await logIzmjena(klijent, { korisnikId: null, entitetTip: "skladiste", entitetId: glavni.id, stareVrijednosti: { naziv: glavni.naziv, adresa: glavni.adresa }, noveVrijednosti: { naziv: t(izFajla[0].naziv), adresa: t(izFajla[0].adresa) || glavni.adresa, ...izvor } });
-      magacini.delete("glavni magacin");
+      magacini.delete(podrazumijevani);
       magacini.set(kljuc(izFajla[0].naziv), { ...glavni, naziv: t(izFajla[0].naziv) });
       magIshod.dopunjeno += 1;
       preimenovan = kljuc(izFajla[0].naziv);
-      magIshod.napomene.push(`„Glavni magacin“ (prazan, napravljen sam) preimenovan u „${t(izFajla[0].naziv)}“.`);
+      magIshod.napomene.push(`„${glavni.naziv}“ (prazan, napravljen sam) preimenovan u „${t(izFajla[0].naziv)}“.`);
     }
   }
   for (const m of izFajla) {

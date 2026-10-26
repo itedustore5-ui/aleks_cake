@@ -111,6 +111,25 @@ npm start         # NODE_ENV=production tsx server/index.ts, servira dist/
 
 Svaki klijent dobija **svoj** Supabase projekat i **svoj** Render web servis, sa istim kodom.
 
+### Prije prvog deploya ateljea — provjera (27.10.2026)
+
+- [ ] **GitHub repozitorijum je privatan.** U `testovi/pomoc.mjs` stoje početne demo lozinke (za lokalne testove).
+      Bez prijave adresa repozitorijuma mora davati „404“.
+- [ ] **`.env` se ne šalje na GitHub** (u `.gitignore` je). U njemu su `DATABASE_URL` sa lozinkom baze i demo lozinke.
+- [ ] **Supabase:** odmah pri otvaranju projekta isključiti Data API (Project Settings → Data API); pa Advisors →
+      Security Advisor → Rerun — ostaje samo INFO „RLS Enabled No Policy“ (namjerno).
+- [ ] **Demo i klijent su odvojeni projekti.** `npm run seed:demo` samo na DEMO bazi; na bazi Aleks Cake samo
+      `npm run prvi-korisnik` (alat odbija bazu koja već ima nalog, pa i demo).
+- [ ] **Živa demo baza:** posle `seed:demo` odmah `npm run demo-lozinke` — početne lozinke iz koda tada više ne važe.
+- [ ] **Render:** plaćeni plan (besplatni spava i blokira mejl); `NODE_ENV=production`, `DATABASE_URL` = Session pooler.
+      Kad konsultant uključi potvrdu u dva koraka na Mojoj strani: `OBAVEZNA_2FA=izvodjac`.
+- [ ] **Lozinke vlasnice i konsultanta** iz `prvi-korisnik` se ispišu samo jednom — predati lično, ne mejlom.
+- [ ] **HACCP plan** (konsultant): granice za frižider (`KKT2`), vitrinu (`KKT2-V`), zamrzivač (`KKT2-Z`) i predaju torte
+      (`KKT3`); za svaki dodatni frižider nova tačka `KKT2-…`; pa „Predloži osnovni plan“.
+- [ ] **Šifarnici:** jajima (i svemu sa obaveznom oznakom serije) „Broj serije pri prijemu: Obavezan“; ostalo se prima i bez
+      serije uz broj računa ili otpremnice (P4).
+- [ ] Posle deploya: `GET /api/zdravlje` → `ok: true` i izdanje = `git log -1 --format=%h`.
+
 1. **Supabase**: napraviti novi projekat (region u EU, npr. Frankfurt). **Odmah** Project Settings →
    Data API → isključiti (R-12). Iz **Connect** uzeti **Session pooler** (port 5432), ne Direct
    connection. Besplatni plan: najviše 2 aktivna projekta na nalogu (demo + jedan klijent), 500 MB po
@@ -136,7 +155,8 @@ Svaki klijent dobija **svoj** Supabase projekat i **svoj** Render web servis, sa
    firme (Podešavanje) i dobija obavještenje kad odgovorno lice samo zatvori neusaglašenost („bez četiri
    oka“). Bez njega: izostaviti `--konsultant` (može se dodati i kasnije: samo `--konsultant vase.ime`).
    Vlasnica u `/moja` mijenja lozinku i u `/ljudi` otvara naloge zaposlenima. Alat pravi i kontrolne
-   tačke KKT 1–3 — bez njih se temperatura na prijemu i predaji ne ocjenjuje.
+   tačke KKT 1–3 — bez njih se temperatura na prijemu i predaji ne ocjenjuje — i to za čuvanje svaki uređaj
+   posebno: frižider (`KKT2`), vitrina (`KKT2-V`), zamrzivač (`KKT2-Z`); jedino, prazno skladište nazove „Atelje“.
    **Podaci firme iz upitnika:** distributer popuni `upitnik-start/Upitnik-za-pocetak.html` i pošalje fajl, a vi:
    ```powershell
    $env:DATABASE_URL="<adresa NOVE baze>"; npm run uvoz-start -- --fajl pilot-start-<firma>-<datum>.json

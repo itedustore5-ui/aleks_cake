@@ -185,7 +185,7 @@ export function Poruke() {
                 ))}
               </div>
             )}
-            <label>Naslov<input value={naslov} onChange={(e) => setNaslov(e.target.value)} maxLength={200} placeholder={naTerenu ? "npr. Kamion kasni 20 minuta" : "npr. Od ponedjeljka utovar počinje u 6h"} /></label>
+            <label>Naslov<input value={naslov} onChange={(e) => setNaslov(e.target.value)} maxLength={200} placeholder={naTerenu ? "npr. Nestalo je pavlake za krem" : "npr. Od subote torte za vikend počinju u 7h"} /></label>
             <label>
               Tekst (opciono)
               <textarea value={tekst} onChange={(e) => setTekst(e.target.value)} maxLength={2000} rows={4} />

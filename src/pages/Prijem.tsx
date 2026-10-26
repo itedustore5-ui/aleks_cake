@@ -30,6 +30,8 @@ type Stavka = {
   lot_id: string;
   artikal_naziv: string;
   broj_lota: string;
+  /** Lot bez broja serije (P4) — `broj_lota` je oznaka računa/otpremnice, ne serija. */
+  bez_broja?: boolean;
   lot_status: string;
   primljena_kolicina: string;
   rok_trajanja: string | null;
@@ -135,7 +137,7 @@ export function Prijem() {
     <>
       <PageHeader
         title="Prijem robe"
-        description={<>Bez broja lota nema sledljivosti — svaka stavka mora imati lot <ZakonskaOznaka clan="27" />.</>}
+        description={<>Broj serije sa etikete kad ga ima; kad ga nema — broj računa ili otpremnice, po njemu se serija nalazi <ZakonskaOznaka clan="27" />. Jaja uvijek sa oznakom.</>}
         action={
           <button className="primary-button" onClick={() => setModalNovi(true)}>
             <Plus size={16} /> Novi prijem
@@ -302,7 +304,8 @@ export function Prijem() {
 }
 
 function IzmjenaStavkeModal({ prijemId, stavka, onClose, onSacuvano }: { prijemId: string; stavka: Stavka; onClose: () => void; onSacuvano: () => void }) {
-  const [brojLota, setBrojLota] = useState(stavka.broj_lota);
+  // Lot „bez serije“ (P4): polje je prazno — upisuje se samo ako se serija naknadno nađe na pakovanju.
+  const [brojLota, setBrojLota] = useState(stavka.bez_broja ? "" : stavka.broj_lota);
   const [rokTrajanja, setRokTrajanja] = useState(stavka.rok_trajanja ?? "");
   const [primljenaKolicina, setPrimljenaKolicina] = useState(stavka.primljena_kolicina);
   const [temperaturaPrijema, setTemperaturaPrijema] = useState(stavka.temperatura_prijema ?? "");
@@ -314,7 +317,7 @@ function IzmjenaStavkeModal({ prijemId, stavka, onClose, onSacuvano }: { prijemI
       await api(`/prijem/${prijemId}/lot/${stavka.lot_id}`, {
         method: "PATCH",
         telo: {
-          brojLota,
+          brojLota: brojLota.trim() || undefined,
           rokTrajanja: rokTrajanja || undefined,
           primljenaKolicina: Number(primljenaKolicina),
           temperaturaPrijema: temperaturaPrijema ? Number(temperaturaPrijema) : undefined,
@@ -328,9 +331,13 @@ function IzmjenaStavkeModal({ prijemId, stavka, onClose, onSacuvano }: { prijemI
   };
 
   return (
-    <Modal naslov={`Izmjena — ${stavka.artikal_naziv}`} podnaslov="Dok se ne donese odluka" onClose={onClose} greska={greska} footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={() => salji(posalji)} disabled={radim || !brojLota.trim() || Number(primljenaKolicina) <= 0}>Sačuvaj</button></>}>
+    <Modal naslov={`Izmjena — ${stavka.artikal_naziv}`} podnaslov="Dok se ne donese odluka" onClose={onClose} greska={greska} footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={() => salji(posalji)} disabled={radim || (!stavka.bez_broja && !brojLota.trim()) || Number(primljenaKolicina) <= 0}>Sačuvaj</button></>}>
       <div className="form-grid">
-        <label>Broj lota <ZakonskaOznaka clan="27" /><input value={brojLota} onChange={(e) => setBrojLota(e.target.value)} /></label>
+        <label>
+          Broj serije (lot) <ZakonskaOznaka clan="27" />
+          <input value={brojLota} onChange={(e) => setBrojLota(e.target.value)} placeholder={stavka.bez_broja ? "bez serije — upišite ako je ima na pakovanju" : undefined} />
+          {stavka.bez_broja && <small className="muted-text" style={{ fontWeight: 400 }}>Sada: {stavka.broj_lota}</small>}
+        </label>
         <label>Rok trajanja<input type="date" value={rokTrajanja} onChange={(e) => setRokTrajanja(e.target.value)} /></label>
         <label>Količina<input type="number" value={primljenaKolicina} onChange={(e) => setPrimljenaKolicina(e.target.value)} /></label>
         <label>Temperatura pri prijemu (°C) <ZakonskaOznaka clan="36" /><input type="number" step="0.1" value={temperaturaPrijema} onChange={(e) => setTemperaturaPrijema(e.target.value)} /></label>

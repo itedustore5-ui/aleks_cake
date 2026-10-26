@@ -44,35 +44,45 @@ insert into kupac (id, naziv, adresa, telefon, email) values
 
 -- Sastojci sa alergenima (14, Prilog II Uredbe EU 1169/2011 — server/alergeni.ts). Šećer namjerno bez upisanih
 -- alergena (`alergeni_upisani = false`): ekran porudžbine tada upozori da niko nije pogledao deklaraciju.
+-- Broj serije pri prijemu (P4) je obavezan samo za jaja (oznaka sa jajeta ili kutije); ostalo — kad ga ima.
 insert into artikal (id, sifra, naziv, jedinica_mjere, zahtijeva_lot, temp_kontrolisano, temp_min, temp_max, rok_trajanja_dana, granica_potvrdio, alergeni, alergeni_upisani) values
   ('40000000-0000-0000-0000-000000000001', 'JAJ-001', 'Jaja klasa A', 'kom', true, true, 0, 8, 28, true, '{JAJA}', true),
-  ('40000000-0000-0000-0000-000000000002', 'MLJ-001', 'Slatka pavlaka 35% 1L', 'l', true, true, 0, 4, 30, true, '{MLIJEKO}', true),
-  ('40000000-0000-0000-0000-000000000003', 'MLJ-002', 'Maskarpone 500g', 'kom', true, true, 0, 4, 45, true, '{MLIJEKO}', true),
-  ('40000000-0000-0000-0000-000000000004', 'MLJ-003', 'Mlijeko 3,2% 1L', 'l', true, true, 0, 4, 10, true, '{MLIJEKO}', true),
-  ('40000000-0000-0000-0000-000000000005', 'MLJ-004', 'Puter 82% 250g', 'kom', true, true, 0, 6, 60, true, '{MLIJEKO}', true),
-  ('40000000-0000-0000-0000-000000000006', 'SUH-001', 'Brašno T-400 1kg', 'kg', true, false, null, null, 365, false, '{GLUTEN}', true),
-  ('40000000-0000-0000-0000-000000000007', 'SUH-002', 'Lješnik mljeveni 500g', 'kg', true, false, null, null, 180, false, '{ORASASTI}', true),
-  ('40000000-0000-0000-0000-000000000008', 'SUH-003', 'Čokolada za kuvanje 70%', 'kg', true, false, null, null, 365, false, '{MLIJEKO,SOJA}', true),
-  ('40000000-0000-0000-0000-000000000009', 'SMR-001', 'Maline smrznute 1kg', 'kg', true, true, -22, -18, 365, true, '{}', true),
-  ('40000000-0000-0000-0000-000000000010', 'SUH-004', 'Šećer kristal 1kg', 'kg', true, false, null, null, 730, false, '{}', false);
+  ('40000000-0000-0000-0000-000000000002', 'MLJ-001', 'Slatka pavlaka 35% 1L', 'l', false, true, 0, 4, 30, true, '{MLIJEKO}', true),
+  ('40000000-0000-0000-0000-000000000003', 'MLJ-002', 'Maskarpone 500g', 'kom', false, true, 0, 4, 45, true, '{MLIJEKO}', true),
+  ('40000000-0000-0000-0000-000000000004', 'MLJ-003', 'Mlijeko 3,2% 1L', 'l', false, true, 0, 4, 10, true, '{MLIJEKO}', true),
+  ('40000000-0000-0000-0000-000000000005', 'MLJ-004', 'Puter 82% 250g', 'kom', false, true, 0, 6, 60, true, '{MLIJEKO}', true),
+  ('40000000-0000-0000-0000-000000000006', 'SUH-001', 'Brašno T-400 1kg', 'kg', false, false, null, null, 365, false, '{GLUTEN}', true),
+  ('40000000-0000-0000-0000-000000000007', 'SUH-002', 'Lješnik mljeveni 500g', 'kg', false, false, null, null, 180, false, '{ORASASTI}', true),
+  ('40000000-0000-0000-0000-000000000008', 'SUH-003', 'Čokolada za kuvanje 70%', 'kg', false, false, null, null, 365, false, '{MLIJEKO,SOJA}', true),
+  ('40000000-0000-0000-0000-000000000009', 'SMR-001', 'Maline smrznute 1kg', 'kg', false, true, -22, -18, 365, true, '{}', true),
+  ('40000000-0000-0000-0000-000000000010', 'SUH-004', 'Šećer kristal 1kg', 'kg', false, false, null, null, 730, false, '{}', false);
 
 -- Kontrolne tačke ateljea (iste šifre i nazivi kao alati/prvi-korisnik.ts — kod ih traži po šifri, #91).
+-- Čuvanje: SVAKI uređaj svoja tačka sa svojom granicom — zamrzivač po granici frižidera bi svaki dan „pao“.
 insert into kontrolna_tacka (id, sifra, naziv, opis, opasnost, korektivna_mjera, verifikacija) values
   ('50000000-0000-0000-0000-000000000001', 'KKT1', 'Prijem sastojaka', 'Kontrola temperature i ispravnosti pri prijemu (jaja, mliječno, smrznuto)',
    'Razmnožavanje bakterija (Salmonella, Listeria) u jajima i mliječnim sastojcima primljenim van hladnog lanca.',
    'Sastojak van granice se zadržava (HOLD) i vraća dobavljaču ili otpisuje; dobavljač se obavještava.',
    'Vlasnica sedmično pregleda zapise prijema; termometar se provjerava jednom mjesečno.'),
-  ('50000000-0000-0000-0000-000000000002', 'KKT2', 'Frižideri, vitrina i zamrzivač', 'Kontrola temperature čuvanja sastojaka, kremova i gotovih torti',
-   'Razmnožavanje bakterija u kremovima, šlagu i tortama sa maskarponeom ako frižider ili vitrina ne drže temperaturu.',
+  ('50000000-0000-0000-0000-000000000002', 'KKT2', 'Frižider — kremovi i torte', 'Temperatura frižidera sa kremovima, filovima i gotovim tortama',
+   'Razmnožavanje bakterija u kremovima, šlagu i tortama sa maskarponeom ako frižider ne drži temperaturu.',
    'Roba se premješta u ispravan frižider; krem ili torta duže od 2 h van granice se ne prodaje; poziva se serviser.',
    'Vlasnica sedmično pregleda zapise; termometar se provjerava jednom mjesečno.'),
+  ('50000000-0000-0000-0000-000000000004', 'KKT2-V', 'Vitrina', 'Temperatura vitrine sa tortama i kolačima u prodaji',
+   'Umnožavanje mikroorganizama u tortama i kolačima sa kremom — vrata vitrine se često otvaraju, a roba stoji cio dan.',
+   'Torte se premještaju u frižider, provjeravaju se vrata i zaptivka; poziva se serviser.',
+   'Vlasnica sedmično pregleda zapise.'),
+  ('50000000-0000-0000-0000-000000000005', 'KKT2-Z', 'Zamrzivač', 'Temperatura zamrzivača (smrznuto voće, biskvit, poluproizvodi)',
+   'Otapanje i ponovno zamrzavanje — umnožavanje mikroorganizama i gubitak kvaliteta.',
+   'Roba se premješta u ispravan zamrzivač; otopljeno se ne zamrzava ponovo; poziva se serviser.',
+   'Vlasnica sedmično pregleda zapise.'),
   ('50000000-0000-0000-0000-000000000003', 'KKT3', 'Predaja torte', 'Temperatura torte pri predaji kupcu, naročito kod dostave',
    'Torta sa kremom predugo van frižidera pri dostavi — razmnožavanje bakterija.',
    'Torta van granice pri predaji se upisuje kao neusaglašenost; dostava se mijenja (rashladna torba, kraći put).',
    'Vlasnica pregleda predaje sa dostavom jednom sedmično.');
 
 -- Granice (#39 — jedan izvor, pravilo_kontrole): granica artikla → pravilo na KKT 1 i KKT 3 (kao dopuna 24 i
--- uskladiPravilaArtikla); za frižidere i vitrinu opšte pravilo KKT 2; za predaju torte opšte pravilo KKT 3 (P3).
+-- uskladiPravilaArtikla); svaki uređaj za čuvanje svoje opšte pravilo; za predaju torte opšte pravilo KKT 3 (P3).
 insert into pravilo_kontrole (kontrolna_tacka_id, artikal_id, naziv, min_vrijednost, max_vrijednost, jedinica, ozbiljnost)
 select kt.id, a.id, 'Granica artikla — ' || a.naziv, a.temp_min, a.temp_max, '°C', 'VISOK'
 from artikal a
@@ -80,8 +90,9 @@ cross join kontrolna_tacka kt
 where kt.sifra in ('KKT1', 'KKT3') and a.temp_kontrolisano and (a.temp_min is not null or a.temp_max is not null);
 
 insert into pravilo_kontrole (kontrolna_tacka_id, artikal_id, naziv, min_vrijednost, max_vrijednost, jedinica, ozbiljnost) values
-  ('50000000-0000-0000-0000-000000000002', null, 'Frižideri i vitrina — rashlađeno', 0, 4, '°C', 'VISOK'),
-  ('50000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000009', 'Zamrzivač — smrznuto voće', -22, -18, '°C', 'VISOK'),
+  ('50000000-0000-0000-0000-000000000002', null, 'Frižider — rashlađeno', 0, 4, '°C', 'VISOK'),
+  ('50000000-0000-0000-0000-000000000004', null, 'Vitrina — rashlađeno', 0, 4, '°C', 'VISOK'),
+  ('50000000-0000-0000-0000-000000000005', null, 'Zamrzivač — smrznuto', -25, -18, '°C', 'VISOK'),
   ('50000000-0000-0000-0000-000000000003', null, 'Torta pri predaji — rashlađeno', 0, 6, '°C', 'VISOK');
 
 -- Prijemi i lotovi: jaja i mliječno prije 2–3 dana, suvo i smrznuto prije 5 dana, šećer danas čeka odluku.
@@ -100,7 +111,10 @@ insert into lot (id, artikal_id, dobavljac_id, prijem_id, broj_lota, proizvodni_
   ('70000000-0000-0000-0000-000000000006', '40000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000003', '60000000-0000-0000-0000-000000000003', 'LJ-0915-02', (select d from demo_dan) - 40, (select d from demo_dan) + 120, 'PRIHVACEN', 5, 5),
   ('70000000-0000-0000-0000-000000000007', '40000000-0000-0000-0000-000000000008', '20000000-0000-0000-0000-000000000003', '60000000-0000-0000-0000-000000000003', 'CK-0901-19', (select d from demo_dan) - 60, (select d from demo_dan) + 300, 'PRIHVACEN', 10, 10),
   ('70000000-0000-0000-0000-000000000008', '40000000-0000-0000-0000-000000000009', '20000000-0000-0000-0000-000000000003', '60000000-0000-0000-0000-000000000003', 'MAL-0920-04', (select d from demo_dan) - 35, (select d from demo_dan) + 250, 'PRIHVACEN', 6, 6),
-  ('70000000-0000-0000-0000-000000000009', '40000000-0000-0000-0000-000000000010', '20000000-0000-0000-0000-000000000003', '60000000-0000-0000-0000-000000000004', 'SE-1001-01', (select d from demo_dan) - 25, (select d from demo_dan) + 700, 'PRIMLJEN', 20, 0);
+  ('70000000-0000-0000-0000-000000000009', '40000000-0000-0000-0000-000000000010', '20000000-0000-0000-0000-000000000003', '60000000-0000-0000-0000-000000000004', 'bez serije · VS-11140 · ' || to_char((select d from demo_dan), 'DD.MM.YYYY') || '.', (select d from demo_dan) - 25, (select d from demo_dan) + 700, 'PRIMLJEN', 20, 0);
+
+-- Šećer je stigao bez broja serije na pakovanju — trag je račun VS-11140 (P4, dopuna 40).
+update lot set bez_broja = true where id = '70000000-0000-0000-0000-000000000009';
 
 insert into prijem_stavka (prijem_id, artikal_id, lot_id, ocekivana_kolicina, primljena_kolicina, prihvacena_kolicina, temperatura_prijema) values
   ('60000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000001', 360, 360, 360, 6.5),
@@ -139,16 +153,20 @@ from pravilo_kontrole pk
 cross join lateral (select (((select d from demo_dan) - 2 + time '08:20') at time zone 'Europe/Podgorica') as vrijeme) t
 where pk.kontrolna_tacka_id = '50000000-0000-0000-0000-000000000001' and pk.artikal_id = '40000000-0000-0000-0000-000000000002';
 
--- KKT 2: frižideri i vitrina, jutro i popodne — juče oba, danas jutro.
+-- Čuvanje: frižider, vitrina i zamrzivač — juče jutro i popodne, danas jutro; svako po granici SVOG uređaja.
 insert into mjerenje_temperature (kontrolna_tacka_id, pravilo_kontrole_id, vrijednost, izmjereno_at, izmjerio_korisnik_id, rezultat, napomena, skladiste_id, created_at)
-select '50000000-0000-0000-0000-000000000002', pk.id, v.vrijednost, v.vrijeme, '11000000-0000-0000-0000-000000000003', 'PASS', v.napomena, (select id from skladiste where naziv = 'Atelje'), v.vrijeme
-from pravilo_kontrole pk
-cross join (values
-  (3.2, (((select d from demo_dan) - 1 + time '08:05') at time zone 'Europe/Podgorica'), 'Frižider sa kremovima'),
-  (3.9, (((select d from demo_dan) - 1 + time '15:10') at time zone 'Europe/Podgorica'), 'Vitrina u prodavnici'),
-  (3.4, now() - interval '1 hour', 'Frižider sa kremovima')
-) as v (vrijednost, vrijeme, napomena)
-where pk.kontrolna_tacka_id = '50000000-0000-0000-0000-000000000002' and pk.artikal_id is null;
+select v.tacka::uuid, pk.id, v.vrijednost, v.vrijeme, '11000000-0000-0000-0000-000000000003', 'PASS', null, (select id from skladiste where naziv = 'Atelje'), v.vrijeme
+from (values
+  ('50000000-0000-0000-0000-000000000002', 3.2, (((select d from demo_dan) - 1 + time '08:05') at time zone 'Europe/Podgorica')),
+  ('50000000-0000-0000-0000-000000000004', 3.9, (((select d from demo_dan) - 1 + time '08:07') at time zone 'Europe/Podgorica')),
+  ('50000000-0000-0000-0000-000000000005', -19.5, (((select d from demo_dan) - 1 + time '08:09') at time zone 'Europe/Podgorica')),
+  ('50000000-0000-0000-0000-000000000002', 3.6, (((select d from demo_dan) - 1 + time '15:10') at time zone 'Europe/Podgorica')),
+  ('50000000-0000-0000-0000-000000000004', 4.0, (((select d from demo_dan) - 1 + time '15:12') at time zone 'Europe/Podgorica')),
+  ('50000000-0000-0000-0000-000000000005', -20.1, (((select d from demo_dan) - 1 + time '15:14') at time zone 'Europe/Podgorica')),
+  ('50000000-0000-0000-0000-000000000002', 3.4, now() - interval '1 hour'),
+  ('50000000-0000-0000-0000-000000000005', -19.0, now() - interval '55 minutes')
+) as v (tacka, vrijednost, vrijeme)
+join pravilo_kontrole pk on pk.kontrolna_tacka_id = v.tacka::uuid and pk.artikal_id is null;
 
 insert into neusaglasenost (id, broj, ozbiljnost, status, izvor_tip, izvor_id, opis, prijavio_korisnik_id, created_at) values
   ('90000000-0000-0000-0000-000000000001', 'NC-' || to_char((select d from demo_dan) - 2, 'YYMMDD') || '-001', 'VISOK', 'POTREBNA_MJERA', 'mjerenje_temperature', '80000000-0000-0000-0000-000000000001',

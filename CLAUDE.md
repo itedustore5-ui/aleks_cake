@@ -5,7 +5,7 @@ Ovdje je sve što se ne vidi iz koda: mapa aplikacije, zašto je nešto tako, š
 dirati, šta je poznato da ne valja, i na čemu se već izgubilo vrijeme.
 
 Ažurira se pri svakoj većoj izmjeni. Ako nešto naučiš na teži način — upiši ovdje.
-Posljednji pregled koda i usklađivanje ovog fajla: **26.10.2026.** (atelje: uklonjeni vozila, isporuke, direktor i vozač iz koda; uloge Konsultant / Vlasnica / Zaposleni; demo `99_demo_atelje`; testovi prepravljeni za atelje — 622 + 49 provjera. Ispod je distributerska istorija: 11.10.2026 — jednostavan Kontrolni centar direktora, provjera znanja samo za one koji rukuju hranom; „Stanje poslovanja“ — izvještaj direktoru mejlom, Izvještaji samo kod konsultanta; upitnik za početak i `uvoz-start`, kontrolne tačke na svakoj bazi; 04.10. inspekcijski paket i „Riješeno je“ za neusaglašenost; 01.10. dorada posle probe vlasnice; talas 6 30.09.; ranije inspekcija i talas 5 29.09., revizija 25.09. i talasi 1–4) (Ranija verzija ovog fajla
+Posljednji pregled koda i usklađivanje ovog fajla: **27.10.2026.** (P4 — prijem bez broja serije uz račun, dopuna 40; frižider, vitrina i zamrzivač kao posebne kontrolne tačke; skladište „Atelje“ na novoj bazi; stalni kupac u porudžbini; primjeri na ekranima za atelje; kontrolna lista za deploy u README; 26.10.2026 — atelje: uklonjeni vozila, isporuke, direktor i vozač iz koda; uloge Konsultant / Vlasnica / Zaposleni; demo `99_demo_atelje`; testovi prepravljeni za atelje — 622 + 49 provjera. Ispod je distributerska istorija: 11.10.2026 — jednostavan Kontrolni centar direktora, provjera znanja samo za one koji rukuju hranom; „Stanje poslovanja“ — izvještaj direktoru mejlom, Izvještaji samo kod konsultanta; upitnik za početak i `uvoz-start`, kontrolne tačke na svakoj bazi; 04.10. inspekcijski paket i „Riješeno je“ za neusaglašenost; 01.10. dorada posle probe vlasnice; talas 6 30.09.; ranije inspekcija i talas 5 29.09., revizija 25.09. i talasi 1–4) (Ranija verzija ovog fajla
 opisivala je staru aplikaciju — `zapisi.js`, `promet.html`, `veza.js` — koje u ovom kodu nema.)
 
 ---
@@ -72,7 +72,10 @@ smiju raditi u isto vrijeme.
 | Uklanjanje vozila, isporuka, direktora i vozača iz koda (rute, servisi, strane, meni; inspekcijski paket, Stanje poslovanja, Kontrolni centar i sledljivost preko torti) | ✓ 26.10.2026 |
 | Uloge i meni („Vlasnica“, „Zaposleni“) — `Uloga` u kodu ima tri vrijednosti; kartice „Torte (danas, sutra) bez potvrđenih alergena“ i „Torte danas“ | ✓ 26.10.2026 |
 | „Pregled ateljea“ (jutarnji pregled vlasnice — šta danas ide, šta fali) | — |
-| Lot pri prijemu nije obavezan, trag jeste (P4) | — |
+| Lot pri prijemu nije obavezan, trag jeste (P4) — dopuna 40, `lot.bez_broja`, forma prijema, test `atelje_prijem` | ✓ 27.10.2026 |
+| Frižider, vitrina i zamrzivač — svaki svoja kontrolna tačka sa svojom granicom (`KKT2`, `KKT2-V`, `KKT2-Z`; `prvi-korisnik`, osnovni plan, demo) | ✓ 27.10.2026 |
+| Skladište „Atelje“ umjesto „Glavni magacin“ na novoj bazi (`prvi-korisnik`; `uvoz-start` prepoznaje oba kao podrazumijevano) | ✓ 27.10.2026 |
+| Stalni kupac iz Šifarnika popunjava ime, telefon i adresu dostave u novoj porudžbini (samo forma — porudžbina čuva svoj tekst) | ✓ 27.10.2026 |
 | Obrazac „broj sa granicom“ (krem, hlađenje, vitrina — P3), QR naljepnice | — |
 | Nov demo (`99_demo_atelje` — vidi gore zašto 99), testovi za atelje (622 API + 49 ekrana) | ✓ 26.10.2026 |
 | Upitnik za početak (`upitnik-start/`, `uvoz-start`) za atelje — još distributerski (vozila, magacioneri, direktor) | — |
@@ -91,8 +94,15 @@ smiju raditi u isto vrijeme.
   null`), nikad u kodu. Dostava bez temperature se ne prima (`TEMPERATURA_OBAVEZNA`); bez pravila — temperatura se
   zapiše uz porudžbinu, ali se ne ocjenjuje (`bezGranice`). Mjerenje ide POSLIJE predaje (FAIL → neusaglašenost,
   predaja ostaje); takva neusaglašenost ne traži ponovno mjerenje (torta je kod kupca — `stoFaliZaZatvaranje`).
-- **P4. Lot pri prijemu nije obavezan, ali trag jeste** — dobavljač + datum + račun/otpremnica. *(još nije urađeno —
-  do tada važi #3: prijem bez lota se odbija)*
+- **P4. Lot pri prijemu nije obavezan, ali trag jeste** — dobavljač + datum + račun/otpremnica (27.10.2026,
+  `prijemService.kreirajPrijem`, dopuna 40). Stavka bez broja serije: bez broja računa/otpremnice se ne prima
+  (`TRAG_OBAVEZAN`); sa njim lot dobija oznaku `bez serije · <dokument> · <dd.mm.gggg.>` (`oznakaBezSerije`) i
+  `lot.bez_broja = true` — po oznaci se traži (sledljivost pretražuje i broj dokumenta), veže za tortu i povlači (serija =
+  dobavljač + artikal + oznaka, dakle po računu). **Artikal sa `zahtijeva_lot`** (jaja — oznaka sa jajeta ili kutije) bez
+  serije se ne prima (`LOT_OBAVEZAN`); za nov artikal serija je izbor (podrazumijevano `false` — i u bazi, dopuna 40, i u
+  Šifarnicima, i za nov artikal uz prijem). Isti artikal bez serije dvaput u prijemu → `SERIJA_DVAPUT`. Seriju je moguće
+  dopisati dok lot čeka odluku (`bez_broja` → false), obrisati ne (ostaje oznaka računa). Rok trajanja ostaje obavezan (#64).
+  Invarijanta #3 u ateljeu glasi: **prijem bez lota I bez traga se odbija**.
 - **P5. Porudžbine vide svi u ateljeu** (zaposleni, odgovorno lice, konsultant) — tortu pravi više ljudi, pa ovdje
   NE važi #26 („samo svoje“). Teren vidi od juče naprijed (`ogranicenjeDatuma` po danu preuzimanja) i sve još otvorene.
   Predaja u trenutku predaje odbija zadržan sastojak (`SASTOJAK_ZADRZAN`, kao #48); povlačenje zove kupce PREDATIH
@@ -131,7 +141,7 @@ pisano ne odredi ko je to, to je izvršni direktor. *(likely — iz teksta kazni
 | 4 | Upisuje sve zaposlene; kod onih koji rukuju hranom — rok sanitarne knjižice | `/ljudi` → Svi zaposleni |
 | 5 | Magacioneri (`operater`) i vozači (`vozac`) dobijaju naloge — **otvara ih sam**, odmah pri unosu zaposlenog, sa početnom lozinkom i ceduljicom za štampu | `/ljudi` → Novo lice / „Otvori nalog" |
 | 6 | Direktor dobija `uprava` — svoj Kontrolni centar (semafor, četiri broja, zapisi po danu), Za inspekciju i poruke, bez unosa (#95); „Stanje poslovanja“ mu konsultant šalje mejlom | otvara konsultant |
-| 7 | Konsultant podešava HACCP plan: „Predloži osnovni plan" pa prilagodi stvarnim komorama i vozilima, upiše termometre i tekst kontrolnih tačaka | `/haccp-plan` |
+| 7 | Konsultant podešava HACCP plan: granice za frižider (`KKT2`), vitrinu (`KKT2-V`), zamrzivač (`KKT2-Z`) i predaju torte (`KKT3`), dodatni frižider = nova tačka `KKT2-…`; pa „Predloži osnovni plan", termometri i tekst kontrolnih tačaka. Kontrolna lista za prvi deploy — README, „Prije prvog deploya ateljea“ | `/haccp-plan` |
 | 8 | Svako na SVOM telefonu uključi obavještenja (na iPhoneu prvo „Dodaj na početni ekran") i pošalje probno | `/moja` → „Obavještenja na telefon" |
 
 **Rješenje o imenovanju nije zakonski obrazac** i tako se i predstavlja — pisani trag ko
@@ -335,7 +345,7 @@ ispod su distributerska istorija — tih uloga u kodu nema (vrijednosti ostaju u
 | **KKT 1 — prijem** | stavke sa lotom (bez lota odbijeno) i rokom (osim artikla izuzetog od roka, #64); ista serija jednom po prijemu; temperatura **obavezna za robu pod režimom** (`TEMPERATURA_OBAVEZNA`), ocjena po `pravilo_kontrole` KKT1 artikla | mjerenje FAIL → neusaglašenost + zadatak + obavještenje `bzr` i uprava + **lot na HOLD**. Artikal sa NEPOTVRĐENOM granicom → samo WARNING i obavještenje `bzr`, bez HOLD-a (invarijanta #5) |
 | odluka o lotu | `bzr`: prihvati / HOLD / odbij (odbijanje traži razlog). **Istekao rok se ne prihvata i ne pušta** (`ROK_ISTEKAO`); pri prijemu takve robe `bzr` odmah dobija obavještenje | prihvaćeno → zaliha DOSTUPNO + kretanje PRIJEM; HOLD → KARANTIN + kretanje PRIJEM; magacioner dobija obavještenje |
 | **lot na HOLD-u** | `bzr`: **pusti** (razlog obavezan) ili **odbij** — na `/zalihe` i `/prijem` | pušteno iz karantina → DOSTUPNO, kretanje RELEASE 0; odbijeno → karantin 0, kretanje OTPIS. Zadržan pri prijemu (zaliha još ne postoji) → pušten = PRIJEM. **Ne pušta se dok je povlačenje U_TOKU**. Čim lot pređe na HOLD (mjerenje ili povlačenje), isporuke U_PRIPREMI sa njim dobijaju „Ne predajte lot“ (#53) |
-| **KKT 2 — skladištenje** | ručno mjerenje na `/haccp`; lot po granici SVOG artikla (#59), uz izabran termometar (#60) | kao KKT 1 (ako je vezano za lot — HOLD) |
+| **KKT 2 — skladištenje** | ručno mjerenje na `/haccp`; lot po granici SVOG artikla (#59), uz izabran termometar (#60). **Atelje:** svaki uređaj svoja tačka sa svojim opštim pravilom — `KKT2` frižider, `KKT2-V` vitrina, `KKT2-Z` zamrzivač (drugi frižider: `KKT2-F2`…). Šifra počinje sa `KKT2` → „Predloži osnovni plan“ pravi dnevno mjerenje 2× za svaki (`osnovniPlan`); jedna tačka za sve bi zamrzivač ocjenjivala granicom frižidera | kao KKT 1 (ako je vezano za lot — HOLD) |
 | obrasci P3–P10 | `zapis` iz `public/obrasci-cg.json`; da/ne bez podrazumijevanog odgovora; odstupanje slijedi i iz odgovora (`odstupanjeAko`, #58) i traži korektivnu mjeru; ispravka po #57 | neusaglašenost odmah u „čeka provjeru" — mjera iz obrasca je upisana kao urađena, potpisuje je ko je unio zapis; zadatak + obavještenje `bzr`. Ispravka zapisa ne otvara drugu |
 | **D1 — vozilo** | kontrola prije utovara (vidi samo vozač, invarijanta #24): čistoća, oprema, vrata + temperatura po granici rashladnog vozila (#55) | vozilo NIJE_SPREMNO → isporuka tim vozilom odbijena; neusaglašenost (temperatura → VISOK). „Spremno“ važi za dan kontrole; predaja traži današnju D1 |
 | **KKT 3 — isporuka** | priprema drži robu (rezervacija, #62); otkaz prije predaje uz razlog (#63); otpremnica za štampu ide uz robu (#65). Potvrda + temperatura pri predaji (obavezna za robu pod režimom; u formi jedna po grupi robe istog režima); ocjena SAMO po pravilu KKT3 artikla. U trenutku predaje server PONOVO provjerava lot i zalihu, sve stavke obavezne (#48) | FAIL → neusaglašenost; lot u magacinu se NE zadržava (problem je u prevozu). Nepredato i odbijeno → KARANTIN, `bzr` pušta ili otpisuje (#49) |
@@ -379,6 +389,7 @@ ispod su distributerska istorija — tih uloga u kodu nema (vrijednosti ostaju u
 | `27_talas2_cg` | `mjerenje_temperature.mjerni_uredjaj_id` (R-23); `kontrola_vozila` + `granica_min/max`, `temperatura_ok` (R-05); jedinstven `zapis.ispravlja_id` (R-07, u `do`-bloku — grananje na staroj bazi daje `notice`); pogledi za izvoz `v_izvoz_kontrole_vozila`, `v_izvoz_provjere_nc`, `v_izvoz_termometri`, `v_izvoz_verifikacija_sistema`, `v_izvoz_kretanja_zalihe` (R-20) |
 | `28_talas3_otkaz_cg` | samo `isporuka_status_t` + `OTKAZANA` — nova vrijednost enuma u svom fajlu (ne smije se koristiti u istoj transakciji) |
 | `38_alergeni_cg` | **poslastičarnica:** `artikal.alergeni` (14 šifara, CHECK — isti spisak kao `server/alergeni.ts`), `artikal.alergeni_upisani` |
+| `40_bez_serije_cg` | **poslastičarnica (P4):** `lot.bez_broja` (lot upisan bez broja serije — oznaka je račun/otpremnica); `artikal.zahtijeva_lot` podrazumijevano `false` |
 | `39_porudzbina_cg` | **poslastičarnica:** `porudzbina` (statusi tekst + CHECK, P1 u CHECK-u), `porudzbina_lot`, `povlacenje_kontakt.porudzbina_id`, izvor `porudzbina` u CHECK-ovima neusaglašenosti i obavještenja (#36), `v_sledljivost_porudzbine`, `v_izvoz_porudzbine` (alergeni nazivima), RLS |
 | `37_stanje_poslovanja_cg` | `firma.izvjestaj_primaoci` (kome ide „Stanje poslovanja“), `izvjestaj_poslat` (ko je, kad i kome poslao koji period; RLS) — #93 |
 | `36_kontrolne_tacke_cg` | KKT 1–3 za bazu koja već ima firmu, a nema tačke (na novoj ih pravi `prvi-korisnik`, na demo `13_demo_cg`) + pravila za artikle sa granicom bez pravila (#91) |
@@ -417,7 +428,9 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `npm run test:ci` | `TEST_DATABASE_URL` (mora biti localhost) — API testovi pa ekrani (`--sve`) | GitHub Actions (`.github/workflows/testovi.yml`) na svaki push na `main` |
 | `npm run test:e2e` | demo baza iz `.env`, server koji već radi | samo kad treba provjeriti baš demo bazu |
 
-**Atelje (26.10.2026): 26 testova, 622 provjere na čistoj bazi; ekrani 6 scenarija, 49 provjera.** Tri demo naloga
+**Atelje (27.10.2026): 27 testova, 636 provjera na čistoj bazi; ekrani 6 scenarija, 50 provjera.** `atelje_prijem` — P4 (bez
+traga odbijeno, jaja bez serije odbijena, isti artikal bez serije dvaput, oznaka „bez serije · račun · datum“, pretraga po
+računu, serija dopisana kasnije, lot bez serije u torti) i uređaji (−19 °C u zamrzivaču prolazi, osnovni plan po uređaju). Tri demo naloga
 (`NALOZI` u `testovi/pomoc.mjs`: konsultant, ana — vlasnica, marko — zaposleni); drugog zaposlenog test otvara sam
 (`drugiZaposleni()` / `obrisiZaposlenog()` — poruke među zaposlenima, „tuđe“ provjere, ko ne rukuje hranom). Testovi
 isporuka, D1 i karantina povrata su uklonjeni ili prepravljeni na tortu (`povlacenje`, `obavjestenja`, `talas1`, `talas3`,
@@ -501,6 +514,8 @@ pod svojim brojem sa oznakom „ukinuto", da se brojevi ne pomjere.
    provjera u ruti i u pregledaču. Neusaglašenost se zatvara samo iz „čeka provjeru" i samo uz
    urađenu mjeru (`ncService.verifikuj`).
 3. **Prijem bez broja lota se odbija** (zod + `prijemService`). Bez lota nema sledljivosti (čl. 27).
+   *Atelje (P4, 27.10.2026):* bez broja serije se prima uz broj računa/otpremnice (lot „bez serije · …“, `lot.bez_broja`);
+   bez serije I bez dokumenta — odbija se (`TRAG_OBAVEZAN`); artikal sa `zahtijeva_lot` (jaja) — uvijek sa serijom.
 4. **Kupac bez telefona se ne upisuje.** Povlačenje (čl. 28) počinje telefonom.
 5. **Automatska ocjena samo po POTVRĐENOJ granici** (`artikal.granica_potvrdio`). Nepotvrđena je
    pretpostavka konsultanta i po njoj se ne odbija roba. Sprovedeno na JEDNOM mjestu,
@@ -1166,6 +1181,8 @@ repozitorijuma. Ovdje samo stanje.
 | demo ateljea na broju 13 ne može da upiše porudžbine ni alergene (26.10.2026) | dopune idu redom po imenu fajla — `13_…` se primijeni prije 19 (skladište), 24 (termometri), 38–39 (alergeni, porudžbine) | demo je `99_demo_atelje.sql` i sam pravi firmu, KKT 1–3, pravila i skladište |
 | predaja torte bez mreže: „Sačuvano na telefonu“ se nikad nije pokazalo (26.10.2026) | u `Predaja` se prvo provjeravalo „čeka mrežu“ — upis je u tom trenutku već u redu, pa je potvrda bila sakrivena | prvo `naTelefonu`, pa „čeka mrežu“; našao ga je test ekrana `3_bez_mreze` |
 | Python izmjena kroz bash heredoc pukne sa `unexpected EOF while looking for matching` | navodnici i obrnuti apostrofi u tijelu skripte zbune bash | skriptu napisati u `.py` fajl (scratchpad) alatom za pisanje, pa `python fajl.py` iz PowerShell-a |
+| demo:lokalno posle zaustavljanja iz pregledača visi bez ijedne poruke (27.10.2026) | `preview_stop` ubije Node, a klaster ostane u „reinitializing“ (0xC0000142); oporavak pri sljedećem startu čeka 30 s na `log.txt` u folderu baze („sharing violation“) | posle zaustavljanja: `pg_ctl -D .testbaza -m fast stop`; ako je već zapelo — sačekati ~40 s, oporavak prođe sam |
+| izmjena stavke bi „bez serije · R-1 · …“ pretvorila u pravu seriju | prozor izmjene je slao postojeći `broj_lota` nazad, a server je svaki poslat broj smatrao novom serijom | polje je prazno za lot bez serije, šalje se samo upisano; server mijenja `bez_broja` samo kad se broj stvarno promijeni |
 
 ### Gdje se zapravo testira
 

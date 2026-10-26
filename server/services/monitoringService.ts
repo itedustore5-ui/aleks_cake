@@ -213,13 +213,15 @@ export async function pregledPlana(odDan: string, doDan: string) {
 export async function osnovniPlan(klijent: PoolClient, korisnikId: string): Promise<number> {
   const postoji = await klijent.query(`select 1 from plan_monitoringa where aktivan limit 1`);
   if (postoji.rows[0]) return 0;
-  const tacke = new Map(
-    (await klijent.query<{ sifra: string; id: string }>(`select sifra, id from kontrolna_tacka where aktivan`)).rows.map((r) => [r.sifra, r.id]),
-  );
+  const sveTacke = (await klijent.query<{ sifra: string; id: string; naziv: string }>(`select sifra, id, naziv from kontrolna_tacka where aktivan order by sifra`)).rows;
+  const tacke = new Map(sveTacke.map((r) => [r.sifra, r.id]));
   type Nova = { naziv: string; vrsta: VrstaPlana; kt?: string; obrazac?: string; ucestalost: Ucestalost; puta?: number; uloga: string; napomena?: string };
   const nove: Nova[] = [];
   if (tacke.get("KKT1")) nove.push({ naziv: "Temperatura sastojaka pri prijemu (KKT 1)", vrsta: "mjerenje", kt: tacke.get("KKT1"), ucestalost: "PO_DOGADJAJU", uloga: "operater", napomena: "Uz svaki prijem jaja, mliječnog i ostalog pod temperaturnim režimom — bez temperature se prijem ne snima." });
-  if (tacke.get("KKT2")) nove.push({ naziv: "Temperatura frižidera, vitrine i zamrzivača (KKT 2)", vrsta: "mjerenje", kt: tacke.get("KKT2"), ucestalost: "DNEVNO", puta: 2, uloga: "operater", napomena: "Jutro i popodne, svaki uređaj." });
+  // Čuvanje: svaki frižider, vitrina i zamrzivač je svoja tačka sa svojom granicom (šifra počinje sa KKT2).
+  for (const t of sveTacke.filter((x) => x.sifra.startsWith("KKT2"))) {
+    nove.push({ naziv: `Temperatura — ${t.naziv} (${t.sifra})`, vrsta: "mjerenje", kt: t.id, ucestalost: "DNEVNO", puta: 2, uloga: "operater", napomena: "Jutro i popodne." });
+  }
   if (tacke.get("KKT3")) nove.push({ naziv: "Temperatura torte pri predaji (KKT 3)", vrsta: "mjerenje", kt: tacke.get("KKT3"), ucestalost: "PO_DOGADJAJU", uloga: "operater", napomena: "Uz svaku dostavu — bez temperature se predaja ne prima." });
   nove.push(
     { naziv: "Čišćenje i dezinfekcija (P3)", vrsta: "obrazac", obrazac: "P3", ucestalost: "RADNIM_DANIMA", uloga: "operater" },

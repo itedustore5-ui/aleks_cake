@@ -178,7 +178,7 @@ function NoviZadatakModal({ izvrsioci, onClose, onSacuvano }: { izvrsioci: Izvrs
       footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={posalji} disabled={naslov.trim().length < 3}>Sačuvaj</button></>}
     >
       <div className="form-grid">
-        <label style={{ gridColumn: "1 / -1" }}>Šta treba uraditi<input value={naslov} onChange={(e) => setNaslov(e.target.value)} placeholder="npr. Očistiti rashladnu komoru 2" /></label>
+        <label style={{ gridColumn: "1 / -1" }}>Šta treba uraditi<input value={naslov} onChange={(e) => setNaslov(e.target.value)} placeholder="npr. Očistiti vitrinu i zaptivku vrata" /></label>
         <label style={{ gridColumn: "1 / -1" }}>Opis (opciono)<input value={opis} onChange={(e) => setOpis(e.target.value)} /></label>
         <label>
           Kome

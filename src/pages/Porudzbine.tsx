@@ -80,6 +80,8 @@ const prikazDana = (dan: string) => {
 const prikazRoka = (rok: string | null) => (rok ? rok.split("-").reverse().join(".") + "." : "bez roka");
 const telefonLink = (t: string) => `tel:${t.replace(/[^+\d]/g, "")}`;
 const greskaTekst = (e: unknown, opsta: string) => (e instanceof ApiGreska ? e.message : opsta);
+/** Stalni kupac iz Šifarnika (kafić, hotel, sala) — samo popunjava formu; porudžbina čuva svoje ime i telefon. */
+type StalniKupac = { id: string; naziv: string; telefon: string; adresa: string | null; adresa_isporuke: string | null; aktivan: boolean };
 
 const TABOVI = [
   { kod: "izrada", naziv: "Za izradu" },
@@ -205,6 +207,21 @@ function FormaPorudzbine({ postojeca, onClose, onSacuvano }: { postojeca?: Detal
   const [greska, setGreska] = useState("");
   const [kljuc] = useState(noviKljuc);
   const { radim, salji } = useSlanje();
+  const [stalni, setStalni] = useState<StalniKupac[]>([]);
+  useEffect(() => {
+    if (postojeca) return;
+    api<StalniKupac[]>("/kupci")
+      .then((l) => setStalni(l.filter((k) => k.aktivan !== false)))
+      .catch(() => setStalni([]));
+  }, []);
+  const izaberiStalnog = (id: string) => {
+    const k = stalni.find((x) => x.id === id);
+    if (!k) return;
+    setKupacIme(k.naziv);
+    setKupacTelefon(k.telefon);
+    const adresaDostave = k.adresa_isporuke || k.adresa;
+    if (adresaDostave) setAdresa(adresaDostave);
+  };
 
   // „Sačuvaj“ nikad sivo (#74) — klik kaže šta fali.
   const fali: string[] = [];
@@ -248,6 +265,15 @@ function FormaPorudzbine({ postojeca, onClose, onSacuvano }: { postojeca?: Detal
       footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={sacuvaj} disabled={radim}>Sačuvaj</button></>}
     >
       <div className="form-grid">
+        {stalni.length > 0 && (
+          <label style={{ gridColumn: "1 / -1" }}>
+            Stalni kupac (opciono)
+            <select value="" onChange={(e) => izaberiStalnog(e.target.value)}>
+              <option value="">— izaberite da se popune ime, telefon i adresa —</option>
+              {stalni.map((k) => <option key={k.id} value={k.id}>{k.naziv} · {k.telefon}</option>)}
+            </select>
+          </label>
+        )}
         <label>Ime kupca<input value={kupacIme} onChange={(e) => setKupacIme(e.target.value)} placeholder="npr. Marija Petrović" autoComplete="off" /></label>
         <label>
           Telefon kupca <ZakonskaOznaka clan="28" />

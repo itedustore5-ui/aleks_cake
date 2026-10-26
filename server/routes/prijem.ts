@@ -46,7 +46,7 @@ prijemRuter.get(
     const stavke = await upit(
       // Temperatura KKT 1 uz stavku: ocjena i granica po kojoj je ocijenjena (iz pravila — #39) i termometar.
       // Odgovorno lice odlučuje o lotu — mora vidjeti šta je izmjereno (ranije se nije vidjelo, 01.10.2026).
-      `select ps.*, l.broj_lota, l.status as lot_status, l.rok_trajanja, a.naziv as artikal_naziv, a.temp_kontrolisano,
+      `select ps.*, l.broj_lota, l.bez_broja, l.status as lot_status, l.rok_trajanja, a.naziv as artikal_naziv, a.temp_kontrolisano,
               m.rezultat as temp_rezultat, m.vrijednost as temp_izmjereno, pk.min_vrijednost as temp_min, pk.max_vrijednost as temp_max,
               u.naziv as temp_termometar
        from prijem_stavka ps join lot l on l.id = ps.lot_id join artikal a on a.id = ps.artikal_id

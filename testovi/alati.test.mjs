@@ -116,8 +116,14 @@ export async function pokreni({ provjeri }) {
         provjeri("…lozinke se ispišu jednom (dvije, po 14 znakova), šifra zaposlenog se ne ispisuje (#17)", (r.izlaz.match(/^\s+(odgovorno lice|konsultant)\s+\S+\s+\S{14}$/gm) ?? []).length === 2 && !/Šifra/.test(r.izlaz), r.izlaz.trim());
         const opet = await alat("alati/prvi-korisnik.ts", ["--konsultant", "drugi.konsultant"], { DATABASE_URL: nova });
         provjeri("…drugi konsultant u istoj bazi se odbija (jedan po bazi)", opet.kod === 1 && /već ima konsultantski nalog/.test(opet.izlaz), opet.izlaz.trim().slice(0, 160));
-        const tacke = (await k.query(`select sifra from kontrolna_tacka order by sifra`)).rows.map((x) => x.sifra).join(",");
-        provjeri("Nova baza posle prvi-korisnik ima kontrolne tačke KKT 1–3 (bez njih nema ocjene temperature)", tacke === "KKT1,KKT2,KKT3", tacke);
+        const tacke = (await k.query(`select sifra from kontrolna_tacka`)).rows.map((x) => x.sifra).sort().join(",");
+        provjeri(
+          "Nova baza posle prvi-korisnik ima kontrolne tačke KKT 1–3, a za čuvanje svaki uređaj svoju (frižider, vitrina, zamrzivač)",
+          tacke === "KKT1,KKT2,KKT2-V,KKT2-Z,KKT3",
+          tacke,
+        );
+        const skladista = (await k.query(`select naziv from skladiste`)).rows.map((x) => x.naziv).join(",");
+        provjeri("…i jedino, prazno skladište se zove „Atelje“ (ne „Glavni magacin“)", skladista === "Atelje", skladista);
 
         // ── uvoz-start ──
         const broj = async (sql) => (await k.query(sql)).rows[0].n;
@@ -134,7 +140,7 @@ export async function pokreni({ provjeri }) {
         const sladoled = (await k.query(`select temp_min::float as min, temp_max::float as max, granica_potvrdio from artikal where naziv = 'Sladoled vanila 1 l'`)).rows[0];
         const firma2 = (await k.query(`select pib, adresa, grad from firma`)).rows[0];
         provjeri(
-          "uvoz-start --upisi: prazni „Glavni magacin“ preimenovan + drugi magacin; vozila; Jelena dopunjena knjižicom, 2 nova zaposlena; firma dopunjena",
+          "uvoz-start --upisi: prazno podrazumijevano skladište („Atelje“) preimenovano + drugi magacin; vozila; Jelena dopunjena knjižicom, 2 nova zaposlena; firma dopunjena",
           upis.kod === 0 && /Upisano/.test(upis.izlaz) &&
             JSON.stringify(magacini) === JSON.stringify([{ naziv: "Magacin Bar", adresa: null }, { naziv: "Magacin Podgorica", adresa: "Cetinjski put bb" }]) &&
             (await broj(`select count(*)::int as n from vozilo`)) === 2 && (await broj(`select count(*)::int as n from vozilo where registarski_broj = 'PG XY-9' and temp_min = 0 and temp_max = 4`)) === 1 &&

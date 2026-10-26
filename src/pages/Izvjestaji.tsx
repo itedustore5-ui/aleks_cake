@@ -15,7 +15,6 @@ const ZAGLAVLJA: Record<string, string> = {
   naknadno_dana: "Naknadno (dana)",
   skladiste_naziv: "Magacin",
   datum_prijema: "Datum prijema",
-  datum_isporuke: "Datum isporuke",
   broj_lota: "Lot",
   rok_trajanja: "Rok trajanja",
   temperatura_predaje: "Temp. pri predaji (°C)",

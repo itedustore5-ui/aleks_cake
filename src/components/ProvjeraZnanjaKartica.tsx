@@ -238,7 +238,7 @@ export function ProvjeraZnanjaKartica({ verzija, onOsvjezi, pocetno }: { verzija
                   </tr>
                 ))}
                 {pitanja.length === 0 && (
-                  <tr><td colSpan={7} className="muted-text" style={{ padding: 20 }}>Još nema pitanja firme. Unesite pitanja o vašim procedurama — npr. „Na kojoj temperaturi se čuva jogurt u komori 2?"</td></tr>
+                  <tr><td colSpan={7} className="muted-text" style={{ padding: 20 }}>Još nema pitanja firme. Unesite pitanja o vašim procedurama — npr. „Na kojoj temperaturi se čuva torta sa maskarponeom?"</td></tr>
                 )}
               </tbody>
             </table>

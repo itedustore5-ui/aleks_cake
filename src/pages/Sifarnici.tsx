@@ -105,7 +105,7 @@ export function Sifarnici() {
                 {kupci.map((k) => (
                   <tr key={k.id}>
                     <td>{k.naziv}{k.pib && <div className="muted-text" style={{ fontSize: 10 }}>PIB {k.pib}</div>}</td>
-                    <td className="muted-text">{k.adresa ?? "—"}{k.adresa_isporuke && <div style={{ fontSize: 10 }}>isporuka: {k.adresa_isporuke}</div>}</td>
+                    <td className="muted-text">{k.adresa ?? "—"}{k.adresa_isporuke && <div style={{ fontSize: 10 }}>dostava: {k.adresa_isporuke}</div>}</td>
                     <td>{k.telefon}</td>
                     <td className="muted-text">{k.email ?? "—"}</td>
                     <td><button className="small-action" onClick={() => setModalIzmjenaKupac(k)}>Izmijeni</button></td>
@@ -187,8 +187,8 @@ export function Sifarnici() {
           <p className="muted-text" style={{ fontSize: 11, marginBottom: 14, maxWidth: 680 }}>
             Dok firma ima jedno aktivno skladište, izbor skladišta se nigdje ne prikazuje. Čim ih ima više,
             prijem i zalihe dobijaju izbor i kolonu „Magacin". Roba ostaje u skladištu u koje je
-            primljena i isporučuje se iz njega. Magacioner po potrebi radi i u drugom skladištu — bira ga pri
-            unosu; matično skladište naloga se podešava na Ljudi → Nalozi.
+            primljena. Zaposleni po potrebi radi i u drugom skladištu — bira ga pri unosu; matično
+            skladište naloga se podešava na Ljudi → Nalozi.
           </p>
           <div className="panel full-panel">
             <div className="data-table-wrap">
@@ -265,7 +265,7 @@ function KupacModal({ kupac, onClose, onSacuvano }: { kupac?: Kupac; onClose: ()
         <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} /></label>
         <label>PIB<input value={pib} inputMode="numeric" onChange={(e) => setPib(e.target.value)} placeholder="pravno lice: 8 cifara" /></label>
         <label style={{ gridColumn: "1 / -1" }}>Adresa (sjedište)<input value={adresa} onChange={(e) => setAdresa(e.target.value)} /></label>
-        <label style={{ gridColumn: "1 / -1" }}>Adresa isporuke (ako nije sjedište)<input value={adresaIsporuke} onChange={(e) => setAdresaIsporuke(e.target.value)} placeholder="ide na otpremnicu" /></label>
+        <label style={{ gridColumn: "1 / -1" }}>Adresa dostave (ako nije sjedište)<input value={adresaIsporuke} onChange={(e) => setAdresaIsporuke(e.target.value)} placeholder="nudi se pri porudžbini sa dostavom" /></label>
       </div>
     </Modal>
   );
@@ -442,7 +442,7 @@ function SkladisteModal({ skladiste, onClose, onSacuvano }: { skladiste?: Skladi
       footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={posalji} disabled={naziv.trim().length < 2}>Sačuvaj</button></>}
     >
       <div className="form-grid">
-        <label style={{ gridColumn: "1 / -1" }}>Naziv<input value={naziv} onChange={(e) => setNaziv(e.target.value)} placeholder="npr. Magacin Bar" /></label>
+        <label style={{ gridColumn: "1 / -1" }}>Naziv<input value={naziv} onChange={(e) => setNaziv(e.target.value)} placeholder="npr. Atelje — Bulevar" /></label>
         <label style={{ gridColumn: "1 / -1" }}>Adresa<input value={adresa} onChange={(e) => setAdresa(e.target.value)} /></label>
         {izmjena && (
           <label className="potvrda-red" style={{ gridColumn: "1 / -1" }}>

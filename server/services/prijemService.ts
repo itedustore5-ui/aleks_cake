@@ -403,7 +403,7 @@ export async function izmijeniStavku(lotId: string, ulaz: StavkaIzmjenaUlaz, kor
     await klijent.query(
       `update lot set
          broj_lota = coalesce($1, broj_lota),
-         bez_broja = case when $1::text is null then bez_broja else false end,
+         bez_broja = case when $1::text is null or $1::text = broj_lota then bez_broja else false end,
          proizvodni_datum = coalesce($2, proizvodni_datum),
          rok_trajanja = coalesce($3, rok_trajanja),
          primljena_kolicina = coalesce($4, primljena_kolicina),

@@ -34,6 +34,19 @@ export async function pokreni({ provjeri }) {
       trag.porudzbine.push(...nove.map((r) => r.id));
       await slikaj(t.strana, "7-zaposleni-porudzbina");
       provjeri("…i porudžbina se čuva, sa telefonom kupca", nove.length === 1 && nove[0].kupac_telefon === "067 321 654", JSON.stringify(nove));
+      // Stalni kupac iz Šifarnika (demo: kafić) popunjava ime i telefon jednim izborom. Posle čuvanja je otvoren
+      // detalj nove porudžbine — strana se otvara ponovo.
+      await otvori(t, "/porudzbine");
+      await t.strana.getByRole("button", { name: "Nova porudžbina" }).click();
+      const m2 = prozor(t.strana, "Nova porudžbina");
+      await m2.waitFor();
+      const izbor = m2.getByLabel("Stalni kupac (opciono)");
+      const kafic = await izbor.locator("option", { hasText: "Kafe Demo Centar" }).getAttribute("value");
+      await izbor.selectOption(kafic ?? "");
+      const ime = await m2.getByLabel("Ime kupca").inputValue();
+      const tel = await m2.getByLabel(/Telefon kupca/).inputValue();
+      provjeri("…stalni kupac iz Šifarnika popuni ime i telefon", ime === "Kafe Demo Centar" && tel === "+382 67 200 100", `${ime} · ${tel}`);
+      await m2.getByRole("button", { name: "Otkaži" }).click();
       provjeri("…bez greške u konzoli", t.greske.length === 0, t.greske.join(" | "));
     } finally {
       await t.zatvori();
