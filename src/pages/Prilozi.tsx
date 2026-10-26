@@ -11,7 +11,7 @@ type Evidencija = { ime: string; radno_mjesto: string | null; posljednja_provjer
 type Prilog = "resenje" | "prilog13" | "prilog14" | "haccp";
 
 type Granica = { min_vrijednost: string | null; max_vrijednost: string | null; artikal_naziv: string | null; granica_potvrdio: boolean | null };
-type StavkaPlana = { id: string; naziv: string; vrsta: string; obrazac_kod: string | null; vozilo_oznaka: string | null; ucestalost: string; puta: number; uloga: string | null };
+type StavkaPlana = { id: string; naziv: string; vrsta: string; obrazac_kod: string | null; ucestalost: string; puta: number; uloga: string | null };
 type HaccpPlanPodaci = {
   datum: string;
   kontrolneTacke: {
@@ -92,7 +92,7 @@ function ResenjeOImenovanju({ firma }: { firma: Firma | null }) {
       <Zaglavlje firma={firma} naslov="Rješenje o imenovanju odgovornog lica za bezbjednost hrane" />
       <p style={{ fontSize: 12, lineHeight: 1.8 }}>
         Na osnovu obaveza koje za privredno društvo proizilaze iz Zakona o bezbjednosti hrane
-        ("Sl. list CG", br. 59/2026), direktor društva <strong>{firma?.naziv ?? "___________________"}</strong> donosi
+        ("Sl. list CG", br. 59/2026), osnivač, odnosno direktor <strong>{firma?.naziv ?? "___________________"}</strong> donosi
       </p>
       <h3 style={{ textAlign: "center", margin: "24px 0", fontSize: 13 }}>RJEŠENJE</h3>
       <ol style={{ fontSize: 12, lineHeight: 2 }}>
@@ -104,7 +104,7 @@ function ResenjeOImenovanju({ firma }: { firma: Firma | null }) {
       </ol>
       <div style={{ marginTop: 60, display: "flex", justifyContent: "space-between", fontSize: 12, gap: 20, flexWrap: "wrap" }}>
         <div>Mjesto i datum: ______________________</div>
-        <div>Direktor: ______________________</div>
+        <div>Osnivač / direktor: ______________________</div>
       </div>
     </div>
   );
@@ -173,9 +173,9 @@ const UCESTALOST: Record<string, string> = {
   RADNIM_DANIMA: "radnim danima",
   SEDMICNO: "sedmično",
   MJESECNO: "mjesečno",
-  PO_DOGADJAJU: "uz svaki prijem / isporuku",
+  PO_DOGADJAJU: "uz svaki prijem / predaju torte",
 };
-const ULOGA: Record<string, string> = { operater: "magacioner", vozac: "vozač", bzr: "odgovorno lice" };
+const ULOGA: Record<string, string> = { operater: "zaposleni", bzr: "vlasnica (odgovorno lice)" };
 const STANJE: Record<string, string> = { VAZI: "važi", USKORO: "uskoro", ISTEKLA: "istekla", NEISPRAVAN: "neispravan", KASNI: "kasni", NIJE_RADJENO: "nije rađeno" };
 const dat = (s: string | null | undefined) => (s ? `${s.split("-").reverse().join(".")}.` : "—");
 const opsegTekst = (g: Granica | null) => {
@@ -240,7 +240,7 @@ function HaccpPlanStampa({ plan, firma }: { plan: HaccpPlanPodaci | null; firma:
               <td style={celija}>{m.naziv}</td>
               <td style={celija}>{UCESTALOST[m.ucestalost] ?? m.ucestalost}{m.puta > 1 ? `, ${m.puta}×` : ""}</td>
               <td style={celija}>{m.uloga ? ULOGA[m.uloga] ?? m.uloga : "bilo ko"}</td>
-              <td style={celija}>{m.vrsta === "obrazac" ? `Obrazac ${m.obrazac_kod}` : m.vrsta === "kontrola_vozila" ? `Kontrola vozila ${m.vozilo_oznaka} (D1)` : "Mjerenje"}</td>
+              <td style={celija}>{m.vrsta === "obrazac" ? `Obrazac ${m.obrazac_kod}` : "Mjerenje"}</td>
             </tr>
           ))}
         </tbody>
@@ -281,7 +281,7 @@ function HaccpPlanStampa({ plan, firma }: { plan: HaccpPlanPodaci | null; firma:
       </table></div>
 
       <p style={{ fontSize: 10, marginTop: 14, color: "#556774" }}>
-        Obrasci dnevnih zapisa i kontrole vozila su radni obrasci firme, ne zvanični obrasci. Plan se revidira najmanje jednom godišnje i
+        Obrasci dnevnih zapisa su radni obrasci firme, ne zvanični obrasci. Plan se revidira najmanje jednom godišnje i
         uvijek kad se promijeni proizvod ili postupak (čl. 36).
       </p>
       <div style={{ marginTop: 40, display: "flex", justifyContent: "space-between", fontSize: 12, gap: 20, flexWrap: "wrap" }}>

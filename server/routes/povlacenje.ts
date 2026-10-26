@@ -14,7 +14,7 @@ export const povlacenjeRuter = Router();
 
 povlacenjeRuter.get(
   "/povlacenja",
-  requireUloga("bzr", "izvodjac", "uprava"),
+  requireUloga("bzr", "izvodjac"),
   asyncRuta(async (_request, response) => {
     const rezultat = await upit(
       `select p.*, l.broj_lota, a.naziv as artikal_naziv,
@@ -29,7 +29,7 @@ povlacenjeRuter.get(
 
 povlacenjeRuter.get(
   "/povlacenja/:id",
-  requireUloga("bzr", "izvodjac", "uprava"),
+  requireUloga("bzr", "izvodjac"),
   asyncRuta(async (request, response) => {
     const povlacenje = await upit(
       `select p.*, l.broj_lota, a.naziv as artikal_naziv from povlacenje p join lot l on l.id = p.lot_id join artikal a on a.id = l.artikal_id where p.id = $1`,

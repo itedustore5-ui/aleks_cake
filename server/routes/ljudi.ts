@@ -24,7 +24,7 @@ ljudiRuter.get(
   }),
 );
 
-const ULOGE = ["bzr", "operater", "vozac", "uprava", "izvodjac"] as const;
+const ULOGE = ["bzr", "operater", "izvodjac"] as const;
 const lozinkaPolje = z.string().optional();
 
 const noviNalogPodaci = z.object({
@@ -63,14 +63,6 @@ ljudiRuter.patch(
   }),
 );
 
-ljudiRuter.get(
-  "/vozaci",
-  requireUloga("operater", "vozac", "bzr", "izvodjac"),
-  asyncRuta(async (_request, response) => {
-    response.json(await ljudi.vozaci());
-  }),
-);
-
 // Godišnji plan obuke — Prilog 13.
 ljudiRuter.get(
   "/plan-obuke",
@@ -106,7 +98,7 @@ ljudiRuter.patch(
   }),
 );
 
-// Nalozi za prijavu — bzr otvara samo operater/vozac (invarijanta #13).
+// Nalozi za prijavu — vlasnica (bzr) otvara samo naloge zaposlenih (invarijanta #13).
 ljudiRuter.get(
   "/nalozi",
   requireUloga("bzr", "izvodjac"),

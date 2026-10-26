@@ -18,8 +18,6 @@ type Lot = {
   rok_trajanja: string | null;
   status: string;
   dostupno: string;
-  /** Drže isporuke u pripremi (R-14). */
-  rezervisano?: string;
   karantin: string;
   prijem_id: string;
   primljena_kolicina: string;
@@ -60,7 +58,6 @@ export function Zalihe() {
   const [lotovi, setLotovi] = useState<Lot[]>([]);
   const [otpisLot, setOtpisLot] = useState<Lot | null>(null);
   const [holdOdluka, setHoldOdluka] = useState<{ lot: Lot; odluka: "PRIHVATI" | "ODBIJI" } | null>(null);
-  const [karantinOdluka, setKarantinOdluka] = useState<{ lot: Lot; odluka: "PUSTI" | "OTPISI" } | null>(null);
   const odlucuje = korisnik?.uloga === "bzr" || korisnik?.uloga === "izvodjac";
 
   // Sa Kontrolnog centra ("Lotovi na HOLD-u", "Rok robe") stiže sa već izabranim statusom ili rokom.
@@ -151,7 +148,7 @@ export function Zalihe() {
         title="Zalihe"
         description={
           <>
-            Količina se mijenja samo kroz prijem, isporuku ili otpis — nikad ručnim unosom <ZakonskaOznaka clan="27" />.
+            Količina se mijenja samo kroz prijem ili otpis — nikad ručnim unosom <ZakonskaOznaka clan="27" />.
           </>
         }
         action={
@@ -262,20 +259,12 @@ export function Zalihe() {
                     <td>
                       {Number(l.dostupno)}
                       {Number(l.karantin) > 0 && <span className="rok-oznaka istekao">karantin {Number(l.karantin)}</span>}
-                      {Number(l.rezervisano ?? 0) > 0 && <span className="rok-oznaka" title="Drže isporuke u pripremi — slobodno je ostatak">rezervisano {Number(l.rezervisano)}</span>}
                     </td>
                     <td><StatusBadge status={l.status} /></td>
                     <td className="no-print">
                       <div style={{ display: "flex", gap: 6 }}>
                         {mozeOtpisati && Number(l.dostupno) > 0 && (
                           <button className="small-action" onClick={() => setOtpisLot(l)}>Otpiši</button>
-                        )}
-                        {/* Roba vraćena sa isporuke čeka pregled u karantinu prihvaćenog lota (R-03). */}
-                        {odlucuje && l.status === "PRIHVACEN" && Number(l.karantin) > 0 && (
-                          <>
-                            <button className="small-action" onClick={() => setKarantinOdluka({ lot: l, odluka: "PUSTI" })}>Iz karantina: pusti</button>
-                            <button className="small-action odstupanje-dugme" onClick={() => setKarantinOdluka({ lot: l, odluka: "OTPISI" })}>Iz karantina: otpiši</button>
-                          </>
                         )}
                         {odlucuje && l.status === "HOLD" && (
                           <>
@@ -300,17 +289,6 @@ export function Zalihe() {
           onClose={() => setHoldOdluka(null)}
           onSacuvano={() => {
             setHoldOdluka(null);
-            ucitaj();
-          }}
-        />
-      )}
-      {karantinOdluka && (
-        <KarantinModal
-          lot={karantinOdluka.lot}
-          odluka={karantinOdluka.odluka}
-          onClose={() => setKarantinOdluka(null)}
-          onSacuvano={() => {
-            setKarantinOdluka(null);
             ucitaj();
           }}
         />
@@ -397,59 +375,12 @@ function HoldOdlukaModal({ lot, odluka, onClose, onSacuvano }: { lot: Lot; odluk
       <div className="form-grid" style={{ gridTemplateColumns: "1fr" }}>
         <p className="muted-text" style={{ fontSize: 11, margin: 0 }}>
           {pusti
-            ? "Roba prelazi iz karantina u slobodnu zalihu i može u isporuku. Upišite na osnovu čega — ponovljeno mjerenje, nalaz laboratorije, izjava dobavljača."
+            ? "Roba prelazi iz karantina u slobodnu zalihu i smije u tortu. Upišite na osnovu čega — ponovljeno mjerenje, nalaz laboratorije, izjava dobavljača."
             : "Roba izlazi iz magacina (povrat dobavljaču ili uništenje) i upisuje se u dnevnik kretanja zalihe."}
         </p>
         <label>
           Razlog <ZakonskaOznaka clan="36" />
           <textarea rows={3} value={razlog} onChange={(e) => setRazlog(e.target.value)} placeholder={pusti ? "npr. ponovljeno mjerenje 3,8 °C, roba ispravna" : "npr. povrat dobavljaču — prekid hladnog lanca"} />
-        </label>
-      </div>
-    </Modal>
-  );
-}
-
-/** Roba vraćena sa isporuke (odbijena ili nepredata) stoji u karantinu dok je odgovorno lice ne
- * pregleda (nalaz R-03): vraća se u prodaju ili otpisuje — uvijek sa onim što je pregledano. */
-function KarantinModal({ lot, odluka, onClose, onSacuvano }: { lot: Lot; odluka: "PUSTI" | "OTPISI"; onClose: () => void; onSacuvano: () => void }) {
-  const [kolicina, setKolicina] = useState(String(Number(lot.karantin)));
-  const [razlog, setRazlog] = useState("");
-  const [greska, setGreska] = useState("");
-  const pusti = odluka === "PUSTI";
-
-  const { radim, salji } = useSlanje();
-  const posalji = async () => {
-    try {
-      await api(`/lotovi/${lot.id}/karantin`, { telo: { odluka, kolicina: Number(kolicina), razlog: razlog.trim() } });
-      onSacuvano();
-    } catch (e) {
-      setGreska(e instanceof ApiGreska ? e.message : "Odluka nije sačuvana.");
-    }
-  };
-
-  const validno = Number(kolicina) > 0 && Number(kolicina) <= Number(lot.karantin) && razlog.trim().length >= 3;
-
-  return (
-    <Modal
-      naslov={pusti ? `Iz karantina u prodaju — ${lot.broj_lota}` : `Otpis iz karantina — ${lot.broj_lota}`}
-      podnaslov={`${lot.artikal_naziv} · ${Number(lot.karantin)} u karantinu (povrat sa isporuke)`}
-      onClose={onClose}
-      greska={greska}
-      footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={() => salji(posalji)} disabled={radim || !validno}>{pusti ? "Vrati u prodaju" : "Otpiši"}</button></>}
-    >
-      <div className="form-grid" style={{ gridTemplateColumns: "1fr" }}>
-        <p className="muted-text" style={{ fontSize: 11, margin: 0 }}>
-          {pusti
-            ? "Roba je bila van magacina. Vratite je u prodaju samo ako je pregledana: temperatura, ambalaža, rok."
-            : "Roba izlazi iz magacina (uništenje ili povrat dobavljaču) i upisuje se u dnevnik kretanja zalihe."}
-        </p>
-        <label>
-          Količina
-          <input type="number" step="0.001" max={lot.karantin} value={kolicina} onChange={(e) => setKolicina(e.target.value)} />
-        </label>
-        <label>
-          Šta je pregledano <ZakonskaOznaka clan="36" />
-          <textarea rows={3} value={razlog} onChange={(e) => setRazlog(e.target.value)} placeholder={pusti ? "npr. 3,6 °C, ambalaža čitava, rok 12.10." : "npr. prekid hladnog lanca, oštećena ambalaža"} />
         </label>
       </div>
     </Modal>

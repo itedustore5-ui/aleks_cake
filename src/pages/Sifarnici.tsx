@@ -186,7 +186,7 @@ export function Sifarnici() {
         <>
           <p className="muted-text" style={{ fontSize: 11, marginBottom: 14, maxWidth: 680 }}>
             Dok firma ima jedno aktivno skladište, izbor skladišta se nigdje ne prikazuje. Čim ih ima više,
-            prijem, isporuka i zalihe dobijaju izbor i kolonu „Magacin". Roba ostaje u skladištu u koje je
+            prijem i zalihe dobijaju izbor i kolonu „Magacin". Roba ostaje u skladištu u koje je
             primljena i isporučuje se iz njega. Magacioner po potrebi radi i u drugom skladištu — bira ga pri
             unosu; matično skladište naloga se podešava na Ljudi → Nalozi.
           </p>

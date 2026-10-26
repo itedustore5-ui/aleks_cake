@@ -6,11 +6,11 @@ import { sljedeciBrojNc } from "./brojeviService.js";
 import { zatvoriZadatkeIzvora, kreirajObavjestenje, kreirajZadatak, obavijestiUlogu } from "./zadaciService.js";
 import { vrijemeVanMreze } from "../vanMreze.js";
 
-/** Prijava sa terena (ručno ili sa isporuke). Isto kao automatska NC: nedodijeljen zadatak i
- * obavještenje odgovornom licu — ranije ručna prijava nije javljala nikome, pa je magacioner
- * prijavio problem u prazno. Visoku ozbiljnost vidi i uprava. */
+/** Prijava sa terena (ručno ili sa porudžbine — reklamacija). Isto kao automatska NC: nedodijeljen
+ * zadatak i obavještenje odgovornom licu — ranije ručna prijava nije javljala nikome, pa je zaposleni
+ * prijavio problem u prazno. */
 export async function kreirajRucnuNeusaglasenost(
-  ulaz: { ozbiljnost?: string; opis: string; izvorTip?: "rucno" | "isporuka" | "porudzbina"; izvorId?: string },
+  ulaz: { ozbiljnost?: string; opis: string; izvorTip?: "rucno" | "porudzbina"; izvorId?: string },
   korisnikId: string,
 ) {
   let izvorOpis = "";
@@ -19,15 +19,6 @@ export async function kreirajRucnuNeusaglasenost(
     const p = await upit<{ broj: string; kupac_ime: string }>(`select broj, kupac_ime from porudzbina where id = $1`, [ulaz.izvorId]);
     if (!p.rows[0]) throw new ApiGreska(404, "PORUDZBINA_NE_POSTOJI", "Porudžbina nije pronađena.");
     izvorOpis = ` (porudžbina ${p.rows[0].broj}, ${p.rows[0].kupac_ime})`;
-  }
-  if (ulaz.izvorTip === "isporuka") {
-    if (!ulaz.izvorId) throw new ApiGreska(400, "ISPORUKA_OBAVEZNA", "Izaberite isporuku na koju se odstupanje odnosi.");
-    const isp = await upit<{ broj: string; kupac: string }>(
-      `select i.broj, k.naziv as kupac from isporuka i join kupac k on k.id = i.kupac_id where i.id = $1`,
-      [ulaz.izvorId],
-    );
-    if (!isp.rows[0]) throw new ApiGreska(404, "ISPORUKA_NE_POSTOJI", "Isporuka nije pronađena.");
-    izvorOpis = ` (isporuka ${isp.rows[0].broj}, ${isp.rows[0].kupac})`;
   }
   const ozbiljnost = ulaz.ozbiljnost ?? "SREDNJI";
   return transakcija(async (klijent) => {
@@ -54,7 +45,6 @@ export async function kreirajRucnuNeusaglasenost(
       izvorId: id,
     };
     await obavijestiUlogu(klijent, "bzr", obavjestenje);
-    if (ozbiljnost === "VISOK") await obavijestiUlogu(klijent, "uprava", obavjestenje);
     return { id, broj };
   });
 }
@@ -132,36 +122,22 @@ export async function zavrsiKorektivnuMjeru(mjeraId: string, rezultat: string | 
 
 /** Neusaglašenost nastala iz KONTROLE zatvara se tek kad ponovna kontrola prođe (nalaz R-22):
  * urađena mjera bez novog mjerenja ne dokazuje da je problem otklonjen. Vraća šta još treba, ili null.
- * - mjerenje pri predaji (KKT 3) → nova D1 tog vozila, prošla;
- * - mjerenje lota koji je još u magacinu → novo mjerenje tog lota u granici (odbijen/prodat lot — ne treba);
- * - mjerenje bez lota (komora, prostor) → novo mjerenje na istoj tački u granici;
- * - D1 → nova D1 tog vozila, prošla (vozilo isključeno iz upotrebe — ne treba);
+ * - temperatura torte pri predaji (porudžbina) → ne treba, torta je kod kupca;
+ * - mjerenje lota koji je još na zalihi → novo mjerenje tog lota u granici (odbijen/potrošen lot — ne treba);
+ * - mjerenje bez lota (frižider, vitrina) → novo mjerenje na istoj tački u granici;
  * - termometar → nova ispravna provjera ili kalibracija (isključen iz upotrebe — ne treba). */
 async function stoFaliZaZatvaranje(klijent: PoolClient, nc: { izvor_tip: string; izvor_id: string | null; created_at: string }): Promise<string | null> {
   if (!nc.izvor_id) return null;
-  const vozilo = async (voziloId: string) => {
-    const v = (
-      await klijent.query<{ registarski_broj: string; aktivan: boolean; prosla: boolean }>(
-        `select v.registarski_broj, v.aktivan,
-                exists (select 1 from kontrola_vozila kv where kv.vozilo_id = v.id and kv.ukupan_status = 'PROSAO' and kv.izvrseno_at > $2) as prosla
-         from vozilo v where v.id = $1`,
-        [voziloId, nc.created_at],
-      )
-    ).rows[0];
-    if (!v || !v.aktivan || v.prosla) return null;
-    return `Prije zatvaranja vozilo ${v.registarski_broj} mora proći novu kontrolu (D1) — to je dokaz da je problem otklonjen.`;
-  };
 
   if (nc.izvor_tip === "mjerenje_temperature") {
     const m = (
-      await klijent.query<{ kontrolna_tacka_id: string; lot_id: string | null; vozilo_id: string | null; sifra: string; tacka: string }>(
-        `select m.kontrolna_tacka_id, m.lot_id, m.vozilo_id, kt.sifra, kt.naziv as tacka
+      await klijent.query<{ kontrolna_tacka_id: string; lot_id: string | null; sifra: string; tacka: string }>(
+        `select m.kontrolna_tacka_id, m.lot_id, kt.sifra, kt.naziv as tacka
          from mjerenje_temperature m join kontrolna_tacka kt on kt.id = m.kontrolna_tacka_id where m.id = $1`,
         [nc.izvor_id],
       )
     ).rows[0];
     if (!m) return null;
-    if (m.sifra === "KKT3" && m.vozilo_id) return vozilo(m.vozilo_id);
     // Temperatura torte pri predaji (porudžbina, dopuna 39): torta je već kod kupca — nema šta ponovo izmjeriti;
     // dokaz je korektivna mjera (prevoz, rashladna kutija), ne novo mjerenje.
     if ((await klijent.query(`select 1 from porudzbina where mjerenje_id = $1`, [nc.izvor_id])).rows[0]) return null;
@@ -181,16 +157,11 @@ async function stoFaliZaZatvaranje(klijent: PoolClient, nc: { izvor_tip: string;
     const izmjereno = (
       await klijent.query<{ ima: boolean }>(
         `select exists (select 1 from mjerenje_temperature n where n.kontrolna_tacka_id = $1 and n.lot_id is null
-                        and n.vozilo_id is not distinct from $2 and n.rezultat <> 'FAIL' and n.izmjereno_at > $3) as ima`,
-        [m.kontrolna_tacka_id, m.vozilo_id, nc.created_at],
+                        and n.rezultat <> 'FAIL' and n.izmjereno_at > $2) as ima`,
+        [m.kontrolna_tacka_id, nc.created_at],
       )
     ).rows[0].ima;
     return izmjereno ? null : `Prije zatvaranja izmjerite ponovo na tački „${m.tacka}“ — nova temperatura mora biti u granici.`;
-  }
-
-  if (nc.izvor_tip === "kontrola_vozila") {
-    const kv = (await klijent.query<{ vozilo_id: string }>(`select vozilo_id from kontrola_vozila where id = $1`, [nc.izvor_id])).rows[0];
-    return kv ? vozilo(kv.vozilo_id) : null;
   }
 
   if (nc.izvor_tip === "mjerni_uredjaj") {
@@ -228,7 +199,7 @@ export type StanjeProvjere = {
   /** Šta mora postojati prije zatvaranja (ponovna kontrola, R-22) — null kad ništa ne fali. */
   fali: string | null;
   /** Gdje se to radi u aplikaciji. */
-  faliGdje: "/haccp" | "/vozila" | "/haccp-plan" | "/sledljivost" | null;
+  faliGdje: "/haccp" | "/haccp-plan" | "/sledljivost" | null;
   /** Povlačenje iz kog je neusaglašenost — ekran ga otvara direktno. */
   povlacenjeId: string | null;
   /** Mjeru je uradio onaj ko gleda — četiri oka (#15a). Samo dok neusaglašenost čeka provjeru. */
@@ -247,7 +218,6 @@ const DRUGO_ODGOVORNO_LICE = `select k.id, coalesce(l.ime, k.korisnicko_ime) as 
 function gdjeSeRadi(fali: string | null, izvorTip: string): StanjeProvjere["faliGdje"] {
   if (!fali) return null;
   if (izvorTip === "povlacenje") return "/sledljivost";
-  if (fali.includes("(D1)")) return "/vozila";
   return izvorTip === "mjerni_uredjaj" ? "/haccp-plan" : "/haccp";
 }
 

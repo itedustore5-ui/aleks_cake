@@ -12,10 +12,9 @@ import { listaUredjaja, zabiljeziProvjeru, stanjeVerifikacije, zabiljeziVerifika
 // sistema, HACCP plan za štampu. Svaka ruta nosi svoje uloge (invarijanta #26).
 export const haccpPlanRuter = Router();
 const VODSTVO = ["bzr", "izvodjac"] as const;
-const VODSTVO_I_UPRAVA = ["bzr", "izvodjac", "uprava"] as const;
 
 // ─── Šta danas fali ──────────────────────────────────────────────────────────────────────────────
-// Magacioner i vozač vide svoje stavke (po ulozi i matičnom magacinu); ostali sve.
+// Zaposleni vidi svoje stavke (po ulozi i matičnom magacinu); vodstvo sve.
 haccpPlanRuter.get(
   "/monitoring/danas",
   sviPrijavljeni(),
@@ -24,8 +23,7 @@ haccpPlanRuter.get(
     let filter = {};
     if (NA_TERENU.includes(uloga)) {
       const k = await upit<{ skladiste_id: string | null }>(`select skladiste_id from korisnik where id = $1`, [id]);
-      // Vozaču D1 samo za vozila sa NJEGOVIH današnjih isporuka (monitoringService.daniVoznje).
-      filter = { uloga, skladisteId: k.rows[0]?.skladiste_id ?? null, korisnikId: uloga === "vozac" ? id : null };
+      filter = { uloga, skladisteId: k.rows[0]?.skladiste_id ?? null };
     }
     response.json(await stanjeDanas(filter));
   }),
@@ -33,7 +31,7 @@ haccpPlanRuter.get(
 
 haccpPlanRuter.get(
   "/monitoring/pregled",
-  requireUloga(...VODSTVO_I_UPRAVA),
+  requireUloga(...VODSTVO),
   asyncRuta(async (request, response) => {
     const dana = Math.min(Math.max(Number(request.query.dana) || 30, 7), 180);
     response.json(await pregledRupa(dana));
@@ -43,29 +41,27 @@ haccpPlanRuter.get(
 // ─── Plan monitoringa ────────────────────────────────────────────────────────────────────────────
 haccpPlanRuter.get(
   "/plan-monitoringa",
-  requireUloga(...VODSTVO_I_UPRAVA),
+  requireUloga(...VODSTVO),
   asyncRuta(async (_request, response) => {
     response.json(await stavkePlana(false));
   }),
 );
 
 const planSchema = z.object({
-  naziv: z.string().trim().min(3, "Upišite šta se radi (npr. „Temperatura komore K-02\")."),
-  vrsta: z.enum(["mjerenje", "obrazac", "kontrola_vozila"]),
+  naziv: z.string().trim().min(3, "Upišite šta se radi (npr. „Temperatura vitrine\")."),
+  vrsta: z.enum(["mjerenje", "obrazac"]),
   kontrolnaTackaId: z.string().uuid().nullable().optional(),
   obrazacKod: z.string().trim().min(1).nullable().optional(),
-  voziloId: z.string().uuid().nullable().optional(),
   ucestalost: z.enum(UCESTALOSTI),
   puta: z.number().int().min(1).max(12).default(1),
-  uloga: z.enum(["operater", "vozac", "bzr"]).nullable().optional(),
+  uloga: z.enum(["operater", "bzr"]).nullable().optional(),
   skladisteId: z.string().uuid().nullable().optional(),
   napomena: z.string().optional(),
 });
 
-function provjeriVezu(u: { vrsta: string; kontrolnaTackaId?: string | null; obrazacKod?: string | null; voziloId?: string | null }) {
+function provjeriVezu(u: { vrsta: string; kontrolnaTackaId?: string | null; obrazacKod?: string | null }) {
   if (u.vrsta === "mjerenje" && !u.kontrolnaTackaId) throw new ApiGreska(400, "KONTROLNA_TACKA_OBAVEZNA", "Izaberite kontrolnu tačku na kojoj se mjeri.");
   if (u.vrsta === "obrazac" && !u.obrazacKod) throw new ApiGreska(400, "OBRAZAC_OBAVEZAN", "Izaberite obrazac.");
-  if (u.vrsta === "kontrola_vozila" && !u.voziloId) throw new ApiGreska(400, "VOZILO_OBAVEZNO", "Izaberite vozilo.");
 }
 
 haccpPlanRuter.post(
@@ -76,13 +72,12 @@ haccpPlanRuter.post(
     provjeriVezu(u);
     const id = await transakcija(async (klijent) => {
       const r = await klijent.query<{ id: string }>(
-        `insert into plan_monitoringa (naziv, vrsta, kontrolna_tacka_id, obrazac_kod, vozilo_id, ucestalost, puta, uloga, skladiste_id, napomena, created_by)
-         values ($1, $2, $3, $4, $5, $6, $7, $8::uloga_t, $9, $10, $11) returning id`,
+        `insert into plan_monitoringa (naziv, vrsta, kontrolna_tacka_id, obrazac_kod, ucestalost, puta, uloga, skladiste_id, napomena, created_by)
+         values ($1, $2, $3, $4, $5, $6, $7::uloga_t, $8, $9, $10) returning id`,
         [
           u.naziv, u.vrsta,
           u.vrsta === "mjerenje" ? u.kontrolnaTackaId : null,
           u.vrsta === "obrazac" ? u.obrazacKod : null,
-          u.vrsta === "kontrola_vozila" ? u.voziloId : null,
           u.ucestalost, u.puta, u.uloga ?? null, u.skladisteId ?? null, u.napomena?.trim() || null, request.korisnik!.id,
         ],
       );
@@ -145,7 +140,7 @@ const tackaSchema = z.object({
   korektivnaMjera: z.string().optional(),
   verifikacija: z.string().optional(),
 });
-const NEZAMJENJIVE = ["KKT1", "KKT3"]; // na njih se oslanjaju prijem i isporuka
+const NEZAMJENJIVE = ["KKT1", "KKT3"]; // na njih se oslanjaju prijem i predaja torte
 
 haccpPlanRuter.post(
   "/kontrolne-tacke",
@@ -179,7 +174,7 @@ haccpPlanRuter.patch(
       const t = (await stanjeReda(klijent, "kontrolna_tacka", id, true)) as { sifra: string } | null;
       if (!t) throw new ApiGreska(404, "TACKA_NE_POSTOJI", "Kontrolna tačka nije pronađena.");
       if (u.aktivan === false && NEZAMJENJIVE.includes(t.sifra)) {
-        throw new ApiGreska(409, "TACKA_NEZAMJENJIVA", `${t.sifra} koriste prijem i isporuka — ne može se isključiti.`);
+        throw new ApiGreska(409, "TACKA_NEZAMJENJIVA", `${t.sifra} koriste prijem i predaja torte — ne može se isključiti.`);
       }
       await klijent.query(
         `update kontrolna_tacka set naziv = coalesce($1, naziv), opis = coalesce($2, opis), opasnost = coalesce($3, opasnost),
@@ -194,7 +189,7 @@ haccpPlanRuter.patch(
 );
 
 // ─── Mjerni uređaji ──────────────────────────────────────────────────────────────────────────────
-// Izbor termometra pri mjerenju (R-23) — svako ko mjeri (i vozač pri predaji) vidi samo naziv i stanje.
+// Izbor termometra pri mjerenju (R-23) — svako ko mjeri (i pri predaji torte) vidi samo naziv i stanje.
 haccpPlanRuter.get(
   "/termometri",
   sviPrijavljeni(),
@@ -205,7 +200,7 @@ haccpPlanRuter.get(
 
 haccpPlanRuter.get(
   "/mjerni-uredjaji",
-  requireUloga("operater", "bzr", "izvodjac", "uprava"),
+  requireUloga("operater", "bzr", "izvodjac"),
   asyncRuta(async (_request, response) => {
     response.json(await listaUredjaja());
   }),
@@ -261,7 +256,7 @@ haccpPlanRuter.patch(
 
 haccpPlanRuter.get(
   "/mjerni-uredjaji/:id/provjere",
-  requireUloga("operater", "bzr", "izvodjac", "uprava"),
+  requireUloga("operater", "bzr", "izvodjac"),
   asyncRuta(async (request, response) => {
     const r = await upit(
       `select id, to_char(datum, 'YYYY-MM-DD') as datum, vrsta, referentna, izmjereno, dozvoljeno_odstupanje, rezultat, broj_sertifikata, izvrsilac, napomena, created_at
@@ -298,7 +293,7 @@ haccpPlanRuter.post(
 // ─── Verifikacija sistema ────────────────────────────────────────────────────────────────────────
 haccpPlanRuter.get(
   "/verifikacija-sistema",
-  requireUloga(...VODSTVO_I_UPRAVA),
+  requireUloga(...VODSTVO),
   asyncRuta(async (_request, response) => {
     const [stanje, zapisi] = await Promise.all([
       stanjeVerifikacije(),
@@ -332,7 +327,7 @@ haccpPlanRuter.post(
 // ─── HACCP plan za štampu ────────────────────────────────────────────────────────────────────────
 haccpPlanRuter.get(
   "/haccp-plan",
-  requireUloga(...VODSTVO_I_UPRAVA),
+  requireUloga(...VODSTVO),
   asyncRuta(async (_request, response) => {
     response.json(await haccpPlan());
   }),

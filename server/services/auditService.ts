@@ -42,8 +42,8 @@ export const logIzmjena = (klijent: PoolClient | typeof pool, ulaz: Omit<Zabilje
 
 // Tabele čiji se red čita za audit. Spisak je zatvoren — naziv tabele ide u SQL.
 const TABELE_AUDITA = [
-  "artikal", "dobavljac", "kupac", "skladiste", "vozilo", "lice", "korisnik", "firma", "zadatak", "plan_obuke",
-  "plan_monitoringa", "kontrolna_tacka", "mjerni_uredjaj", "pitanje", "sesija_znanja", "isporuka", "lot", "prijem_stavka",
+  "artikal", "dobavljac", "kupac", "skladiste", "lice", "korisnik", "firma", "zadatak", "plan_obuke",
+  "plan_monitoringa", "kontrolna_tacka", "mjerni_uredjaj", "pitanje", "sesija_znanja", "lot", "prijem_stavka",
   "porudzbina",
 ] as const;
 export type TabelaAudita = (typeof TABELE_AUDITA)[number];

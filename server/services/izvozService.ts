@@ -7,13 +7,11 @@ export const IZVORI_IZVOZA = [
   { kod: "plan_obuke", naziv: "Plan obuke", izvor: "v_plan_obuke" },
   { kod: "prijemi", naziv: "Prijemi", izvor: "v_izvoz_prijemi" },
   { kod: "lotovi", naziv: "Lotovi", izvor: "lot" },
-  { kod: "isporuke", naziv: "Isporuke", izvor: "v_izvoz_isporuke" },
-  { kod: "isporuke_stavke", naziv: "Stavke isporuka", izvor: "isporuka_stavka" },
   // Poslastičarnica (dopuna 39): torta → kupac sa telefonom, potvrđeni alergeni, serije sastojaka, predaja.
+  // (Isporuke i kontrole vozila distributera su skinute sa spiska — PLAN.md 8.3; pogledi ostaju u bazi.)
   { kod: "porudzbine", naziv: "Porudžbine torti", izvor: "v_izvoz_porudzbine" },
-  // Nalaz R-20: bez ovih izvora inspektor nije dobijao D1, provjere mjera, termometre, verifikaciju
+  // Nalaz R-20: bez ovih izvora inspektor nije dobijao provjere mjera, termometre, verifikaciju
   // sistema ni dnevnik kretanja zaliha — sve je bilo u bazi, ali ne i u izvozu.
-  { kod: "kontrole_vozila", naziv: "Kontrole vozila (D1)", izvor: "v_izvoz_kontrole_vozila" },
   { kod: "kretanja_zalihe", naziv: "Kretanja zaliha", izvor: "v_izvoz_kretanja_zalihe" },
   { kod: "neusaglasenosti", naziv: "Neusaglašenosti", izvor: "neusaglasenost" },
   { kod: "korektivne_mjere", naziv: "Korektivne mjere", izvor: "korektivna_mjera" },

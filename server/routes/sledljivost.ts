@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncRuta, ApiGreska } from "../greske.js";
 import { requireUloga } from "../auth.js";
-import { pretraziSledljivost, lanacNaprijedZaLot, lanacNazadZaIsporuku } from "../services/sledljivostService.js";
+import { pretraziSledljivost, lanacNaprijedZaLot } from "../services/sledljivostService.js";
 import { str } from "../validacija.js";
 
 export const sledljivostRuter = Router();
@@ -11,7 +11,7 @@ export const sledljivostRuter = Router();
 
 sledljivostRuter.get(
   "/sledljivost/pretraga",
-  requireUloga("bzr", "izvodjac", "uprava"),
+  requireUloga("bzr", "izvodjac"),
   asyncRuta(async (request, response) => {
     const q = typeof request.query.q === "string" ? request.query.q.trim() : "";
     if (q.length < 2) {
@@ -24,20 +24,11 @@ sledljivostRuter.get(
 
 sledljivostRuter.get(
   "/sledljivost/lot/:id",
-  requireUloga("bzr", "izvodjac", "uprava"),
+  requireUloga("bzr", "izvodjac"),
   asyncRuta(async (request, response) => {
     const lanac = await lanacNaprijedZaLot(str(request.params.id));
     if (lanac.length === 0) throw new ApiGreska(404, "LOT_NE_POSTOJI", "Lot nije pronađen ili nema podataka o sledljivosti.");
     response.json(lanac);
   }),
 );
-
-sledljivostRuter.get(
-  "/sledljivost/isporuka/:id",
-  requireUloga("bzr", "izvodjac", "uprava"),
-  asyncRuta(async (request, response) => {
-    const lanac = await lanacNazadZaIsporuku(str(request.params.id));
-    if (lanac.length === 0) throw new ApiGreska(404, "ISPORUKA_NE_POSTOJI", "Isporuka nije pronađena ili nema podataka o sledljivosti.");
-    response.json(lanac);
-  }),
-);
+// Torte serije: /sledljivost/lot/:id/porudzbine (routes/porudzbine.ts). Lanac unazad za isporuku je uklonjen sa isporukama.

@@ -13,11 +13,10 @@ type Ucestalost = "DNEVNO" | "RADNIM_DANIMA" | "SEDMICNO" | "MJESECNO" | "PO_DOG
 type StavkaPlana = {
   id: string;
   naziv: string;
-  vrsta: "mjerenje" | "obrazac" | "kontrola_vozila";
+  vrsta: "mjerenje" | "obrazac";
   kontrolna_tacka_id: string | null;
   kontrolna_tacka_naziv: string | null;
   obrazac_kod: string | null;
-  vozilo_oznaka: string | null;
   ucestalost: Ucestalost;
   puta: number;
   uloga: string | null;
@@ -60,16 +59,15 @@ type Provjera = { id: string; datum: string; vrsta: string; referentna: string |
 type StanjeVerifikacije = { vrsta: string; naziv: string; posljednja: string | null; zakljucak: string | null; izvrsilac: string | null; sljedecaDo: string | null; stanje: string };
 type ZapisVerifikacije = { id: string; vrsta: string; datum: string; izvrsilac: string; nalaz: string; zakljucak: string; sljedeca_do: string | null };
 type Obrazac = { kod: string; naziv: string };
-type Vozilo = { id: string; registarski_broj: string };
 
 const UCESTALOST: Record<Ucestalost, string> = {
   DNEVNO: "svaki dan",
   RADNIM_DANIMA: "radnim danima (pon–sub)",
   SEDMICNO: "jednom sedmično",
   MJESECNO: "jednom mjesečno",
-  PO_DOGADJAJU: "uz svaki prijem / isporuku",
+  PO_DOGADJAJU: "uz svaki prijem / predaju",
 };
-const ULOGA: Record<string, string> = { operater: "magacioner", vozac: "vozač", bzr: "odgovorno lice" };
+const ULOGA: Record<string, string> = { operater: "zaposleni", bzr: "vlasnica" };
 const VRSTA_VERIFIKACIJE: Record<string, string> = {
   REVIZIJA_PLANA: "Godišnja revizija HACCP plana",
   INTERNI_AUDIT: "Interni audit",
@@ -83,27 +81,28 @@ const granica = (g: Granica | null | undefined) => {
   return min !== null && max !== null ? `${min} do ${max} °C` : max !== null ? `najviše ${max} °C` : min !== null ? `najmanje ${min} °C` : "—";
 };
 
-// Predlog teksta za HACCP plan — konsultant ga prilagodi firmi. Tri osnovne tačke distributera.
+// Predlog teksta za HACCP plan — konsultant ga prilagodi ateljeu (PLAN.md, dio 4). Granice se NE pišu ovdje:
+// dolaze iz pravila kontrole (P3), po Vodiču UBH.
 const PREDLOG: Record<string, { opasnost: string; korektivnaMjera: string; verifikacija: string }> = {
   KKT1: {
-    opasnost: "Umnožavanje patogenih mikroorganizama (Listeria, Salmonella) ako roba stigne toplija od granice; kontaminacija kroz oštećenu ambalažu.",
-    korektivnaMjera: "Roba van granice se ne prima u slobodnu zalihu — zadržava se (HOLD) do odluke odgovornog lica; dobavljač se obavještava; odluka i razlog se upisuju.",
+    opasnost: "Salmonela iz jaja; umnožavanje Listerije i drugih mikroorganizama ako mliječni sastojci stignu topliji od granice; kontaminacija kroz oštećenu ambalažu ili napukla jaja.",
+    korektivnaMjera: "Sastojak van granice se ne koristi — zadržava se (HOLD) do odluke odgovornog lica; dobavljač se obavještava; odluka i razlog se upisuju.",
     verifikacija: "Odgovorno lice sedmično pregleda zapise prijema; termometar se provjerava mjesečno (ledena voda 0 °C) i kalibriše godišnje.",
   },
   KKT2: {
-    opasnost: "Umnožavanje mikroorganizama kad je temperatura komore iznad granice.",
-    korektivnaMjera: "Robu premjestiti u ispravnu komoru, pozvati servis, procijeniti koliko je roba bila van granice i odlučiti o zadržavanju.",
-    verifikacija: "Dnevni pregled mjerenja; odgovorno lice sedmično pregleda zapise i provjerava da nema propuštenih dana.",
+    opasnost: "Umnožavanje mikroorganizama (Listeria, stafilokok) u kremovima, šlagu i mliječnim filovima kad je temperatura frižidera ili vitrine iznad granice.",
+    korektivnaMjera: "Proizvode premjestiti u ispravan frižider, pozvati servis, procijeniti koliko dugo su bili van granice i odlučiti o otpisu; upisati šta je urađeno.",
+    verifikacija: "Mjerenja dva puta dnevno; odgovorno lice sedmično pregleda zapise i provjerava da nema propuštenih dana.",
   },
   KKT3: {
-    opasnost: "Prekid hladnog lanca tokom prevoza do kupca.",
-    korektivnaMjera: "Stavka van granice se ne predaje ili se vraća; otvara se neusaglašenost; vozilo se provjerava prije sljedećeg utovara.",
-    verifikacija: "Pregled temperatura pri predaji i kontrole vozila (D1) prije utovara.",
+    opasnost: "Prekid hladnog lanca tokom dostave torte do kupca (sala, hotel).",
+    korektivnaMjera: "Torta van granice se ne predaje bez procjene odgovornog lica; otvara se neusaglašenost; prevoz (rashladna kutija, vrijeme) se mijenja prije sljedeće dostave.",
+    verifikacija: "Pregled temperatura pri predaji uz porudžbine; odgovorno lice provjerava da svaka dostava ima temperaturu.",
   },
 };
 const PREDLOG_OPSTI = {
   opasnost: "Umnožavanje mikroorganizama pri temperaturi van granice.",
-  korektivnaMjera: "Utvrditi uzrok, zaštititi robu (premjestiti ili zadržati), otvoriti neusaglašenost i upisati šta je urađeno.",
+  korektivnaMjera: "Utvrditi uzrok, zaštititi proizvode (premjestiti ili zadržati), otvoriti neusaglašenost i upisati šta je urađeno.",
   verifikacija: "Odgovorno lice sedmično pregleda zapise.",
 };
 
@@ -195,9 +194,9 @@ function PlanMonitoringa({ mijenja, setGreska }: { mijenja: boolean; setGreska: 
   return (
     <>
       <p className="muted-text" style={{ fontSize: 11, maxWidth: 760, marginBottom: 12 }}>
-        „Danas" se broji iz stvarnih unosa (mjerenja, obrasci, kontrole vozila). „Propušteno" su završeni dani i sedmice u posljednjih 30
-        dana u kojima nije urađeno koliko plan traži — to je rupa koju inspektor vidi. Stavke „uz svaki prijem / isporuku" se ne broje ovdje:
-        bez temperature se prijem i isporuka ne mogu ni snimiti.
+        „Danas" se broji iz stvarnih unosa (mjerenja i obrasci). „Propušteno" su završeni dani i sedmice u posljednjih 30
+        dana u kojima nije urađeno koliko plan traži — to je rupa koju inspektor vidi. Stavke „uz svaki prijem / predaju" se ne broje ovdje:
+        bez temperature se prijem i dostava torte ne mogu ni snimiti.
       </p>
       {mijenja && (
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
@@ -226,7 +225,7 @@ function PlanMonitoringa({ mijenja, setGreska }: { mijenja: boolean; setGreska: 
                       <td>
                         {s.naziv}
                         <div className="muted-text" style={{ fontSize: 10 }}>
-                          {s.vrsta === "mjerenje" ? `mjerenje · ${s.kontrolna_tacka_naziv}` : s.vrsta === "obrazac" ? `obrazac ${s.obrazac_kod}` : `vozilo ${s.vozilo_oznaka}`}
+                          {s.vrsta === "mjerenje" ? `mjerenje · ${s.kontrolna_tacka_naziv}` : s.vrsta === "obrazac" ? `obrazac ${s.obrazac_kod}` : ""}
                           {s.skladiste_naziv ? ` · ${s.skladiste_naziv}` : ""}
                           {s.napomena ? ` · ${s.napomena}` : ""}
                         </div>
@@ -303,14 +302,12 @@ function StavkaPlanaModal({ stavka, onClose, onSacuvano }: { stavka: StavkaPlana
   const [napomena, setNapomena] = useState(stavka?.napomena ?? "");
   const [tacke, setTacke] = useState<{ id: string; sifra: string; naziv: string }[]>([]);
   const [obrasci, setObrasci] = useState<Obrazac[]>([]);
-  const [vozila, setVozila] = useState<Vozilo[]>([]);
   const [greska, setGreska] = useState("");
 
   useEffect(() => {
     if (stavka) return;
     api<{ id: string; sifra: string; naziv: string }[]>("/kontrolne-tacke").then(setTacke);
     fetch("/obrasci-cg.json").then((r) => r.json()).then(setObrasci);
-    api<Vozilo[]>("/vozila").then(setVozila);
   }, [stavka]);
 
   const posalji = async () => {
@@ -324,7 +321,6 @@ function StavkaPlanaModal({ stavka, onClose, onSacuvano }: { stavka: StavkaPlana
             vrsta,
             kontrolnaTackaId: vrsta === "mjerenje" ? veza : undefined,
             obrazacKod: vrsta === "obrazac" ? veza : undefined,
-            voziloId: vrsta === "kontrola_vozila" ? veza : undefined,
           },
         });
       onSacuvano();
@@ -338,7 +334,7 @@ function StavkaPlanaModal({ stavka, onClose, onSacuvano }: { stavka: StavkaPlana
     <Modal naslov={stavka ? `Izmjena — ${stavka.naziv}` : "Nova stavka plana"} podnaslov="Plan monitoringa" onClose={onClose} greska={greska}
       footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={posalji} disabled={naziv.trim().length < 3 || (!stavka && !veza)}>Sačuvaj</button></>}>
       <div className="form-grid">
-        <label style={{ gridColumn: "1 / -1" }}>Šta se radi<input value={naziv} onChange={(e) => setNaziv(e.target.value)} placeholder="npr. Temperatura komore K-02" /></label>
+        <label style={{ gridColumn: "1 / -1" }}>Šta se radi<input value={naziv} onChange={(e) => setNaziv(e.target.value)} placeholder="npr. Temperatura vitrine" /></label>
         {!stavka && (
           <>
             <label>
@@ -346,16 +342,14 @@ function StavkaPlanaModal({ stavka, onClose, onSacuvano }: { stavka: StavkaPlana
               <select value={vrsta} onChange={(e) => { setVrsta(e.target.value as StavkaPlana["vrsta"]); setVeza(""); }}>
                 <option value="mjerenje">Mjerenje temperature</option>
                 <option value="obrazac">Dnevni obrazac</option>
-                <option value="kontrola_vozila">Kontrola vozila (D1)</option>
               </select>
             </label>
             <label>
-              {vrsta === "mjerenje" ? "Kontrolna tačka" : vrsta === "obrazac" ? "Obrazac" : "Vozilo"}
+              {vrsta === "mjerenje" ? "Kontrolna tačka" : "Obrazac"}
               <select value={veza} onChange={(e) => setVeza(e.target.value)}>
                 <option value="">— izaberite —</option>
                 {vrsta === "mjerenje" && tacke.map((t) => <option key={t.id} value={t.id}>{t.sifra} · {t.naziv}</option>)}
                 {vrsta === "obrazac" && obrasci.map((o) => <option key={o.kod} value={o.kod}>{o.kod} · {o.naziv}</option>)}
-                {vrsta === "kontrola_vozila" && vozila.map((v) => <option key={v.id} value={v.id}>{v.registarski_broj}</option>)}
               </select>
             </label>
           </>
@@ -370,9 +364,8 @@ function StavkaPlanaModal({ stavka, onClose, onSacuvano }: { stavka: StavkaPlana
         <label>
           Ko radi
           <select value={uloga} onChange={(e) => setUloga(e.target.value)}>
-            <option value="operater">Magacioner</option>
-            <option value="vozac">Vozač</option>
-            <option value="bzr">Odgovorno lice</option>
+            <option value="operater">Zaposleni</option>
+            <option value="bzr">Vlasnica (odgovorno lice)</option>
             <option value="">Bilo ko</option>
           </select>
         </label>

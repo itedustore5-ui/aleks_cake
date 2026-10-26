@@ -11,7 +11,7 @@ const tekst = (v: unknown) => (typeof v === "string" && v.length <= 20 ? v : und
 
 // Inspekcijski paket samo čita. Pravi ga odgovorno lice ili konsultant; direktor (odgovorno lice u
 // pravnom licu, čl. 82) ga može izvući i sam kad je on taj koji dočekuje inspektora.
-const ULOGE = ["bzr", "izvodjac", "uprava"] as const;
+const ULOGE = ["bzr", "izvodjac"] as const;
 
 inspekcijaRuter.get(
   "/inspekcija",

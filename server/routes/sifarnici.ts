@@ -79,7 +79,7 @@ const kupacSchema = z.object({
   adresaIsporuke: z.string().optional(),
 });
 
-sifarniciRuter.get("/kupci", requireUloga("operater", "vozac", "bzr", "izvodjac"), asyncRuta(async (_request, response) => {
+sifarniciRuter.get("/kupci", requireUloga("operater", "bzr", "izvodjac"), asyncRuta(async (_request, response) => {
   response.json((await upit(`select * from kupac where aktivan order by naziv`)).rows);
 }));
 

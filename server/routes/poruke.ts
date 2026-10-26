@@ -23,7 +23,7 @@ const porukaSchema = z.object({
   vazno: z.boolean().default(false),
   primaoci: z.discriminatedUnion("nacin", [
     z.object({ nacin: z.literal("svi") }),
-    z.object({ nacin: z.literal("uloge"), uloge: z.array(z.enum(["operater", "vozac", "bzr", "uprava", "izvodjac"])).min(1, "Izaberite bar jednu grupu.") }),
+    z.object({ nacin: z.literal("uloge"), uloge: z.array(z.enum(["operater", "bzr", "izvodjac"])).min(1, "Izaberite bar jednu grupu.") }),
     z.object({ nacin: z.literal("pojedinacno"), korisnici: z.array(z.string().uuid()).min(1, "Izaberite bar jednu osobu.") }),
   ]),
 });

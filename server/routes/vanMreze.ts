@@ -22,7 +22,7 @@ const odbijenoSchema = z.object({
 
 vanMrezeRuter.post(
   "/van-mreze/odbijeno",
-  requireUloga("operater", "vozac", "bzr", "izvodjac"),
+  requireUloga("operater", "bzr", "izvodjac"),
   asyncRuta(async (request: AuthZahtjev, response) => {
     const u = tijelo(odbijenoSchema, request.body);
     const k = request.korisnik!;

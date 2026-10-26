@@ -54,7 +54,7 @@ export function Ljudi() {
   const { korisnik } = useAuth();
   // Isto pravilo kao smijeDodijelitiUlogu na serveru — dugme se ne nudi tamo gdje bi server odbio.
   const smijeDirnutiNalog = (uloga: string) =>
-    korisnik?.uloga === "izvodjac" ? uloga !== "izvodjac" : korisnik?.uloga === "bzr" && (uloga === "operater" || uloga === "vozac");
+    korisnik?.uloga === "izvodjac" ? uloga !== "izvodjac" : korisnik?.uloga === "bzr" && uloga === "operater";
   // Ulaz sa drugih strana (HACCP plan → „Plan obuke“ / „Pitanja za provjeru znanja“) otvara pravu karticu.
   const ulaz = useLocation().state as { tab?: (typeof TABOVI)[number]["kod"]; pod?: "rezultati" | "pitanja" } | null;
   const [tab, setTab] = useState<(typeof TABOVI)[number]["kod"]>(ulaz?.tab ?? "zaposleni");
@@ -226,8 +226,8 @@ export function Ljudi() {
       {tab === "nalozi" && (
         <>
           <p className="muted-text" style={{ fontSize: 11, marginBottom: 14, maxWidth: 640 }}>
-            Nalog je za prijavu u aplikaciju — magacioner i vozač njime vide svoju tablu na terenu.
-            {skladista.vise && " Matično skladište je samo podrazumijevani izbor pri unosu — magacioner po potrebi bira i drugo."}
+            Nalog je za prijavu u aplikaciju — zaposleni njime upisuje temperature, prijem, obrasce i porudžbine sa svog telefona.
+            {skladista.vise && " Matično skladište je samo podrazumijevani izbor pri unosu — zaposleni po potrebi bira i drugo."}
             Istim nalogom zaposleni radi i provjeru znanja — prije početka upisuje svoju lozinku.
           </p>
           <div className="panel full-panel">
@@ -304,7 +304,7 @@ function NoviLiceModal({ mozeNalog, onClose, onCreated }: { mozeNalog: boolean; 
   const [knjizicaBroj, setKnjizicaBroj] = useState("");
   const [knjizicaRok, setKnjizicaRok] = useState("");
   const [saNalogom, setSaNalogom] = useState(false);
-  const nalog = useNalogPolja(ime, radnoMjesto);
+  const nalog = useNalogPolja(ime);
   const [pristup, setPristup] = useState<Pristup | null>(null);
   const [greska, setGreska] = useState("");
 
@@ -330,7 +330,7 @@ function NoviLiceModal({ mozeNalog, onClose, onCreated }: { mozeNalog: boolean; 
     <Modal naslov="Novo lice" podnaslov="Spisak zaposlenih" onClose={onClose} greska={greska} footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={posalji} disabled={!ime || (saNalogom && !nalog.ispravno)}>Sačuvaj</button></>}>
       <div className="form-grid">
         <label>Ime i prezime<input value={ime} onChange={(e) => setIme(e.target.value)} /></label>
-        <label>Radno mjesto<input value={radnoMjesto} onChange={(e) => setRadnoMjesto(e.target.value)} placeholder="npr. magacioner, vozač" /></label>
+        <label>Radno mjesto<input value={radnoMjesto} onChange={(e) => setRadnoMjesto(e.target.value)} placeholder="npr. poslastičar, prodavačica" /></label>
         <label>
           Rukuje hranom
           <select value={rukujeHranom ? "da" : "ne"} onChange={(e) => setRukujeHranom(e.target.value === "da")}>
@@ -345,7 +345,7 @@ function NoviLiceModal({ mozeNalog, onClose, onCreated }: { mozeNalog: boolean; 
           <div style={{ gridColumn: "1 / -1", border: "1px solid var(--linija, #dfe6ec)", borderRadius: 8, padding: 12 }}>
             <label style={{ flexDirection: "row", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input type="checkbox" checked={saNalogom} onChange={(e) => setSaNalogom(e.target.checked)} style={{ width: "auto", height: "auto" }} />
-              <span style={{ fontSize: 12 }}><b>Otvori i nalog za prijavu</b> — za magacionera i vozača koji rade u aplikaciji</span>
+              <span style={{ fontSize: 12 }}><b>Otvori i nalog za prijavu</b> — za zaposlene koji upisuju u aplikaciji</span>
             </label>
             {saNalogom && <NalogPolja polja={nalog} />}
           </div>
@@ -396,14 +396,15 @@ function IzmjenaLiceModal({ lice, onClose, onSacuvano }: { lice: Lice; onClose: 
   );
 }
 
-// Teme koje distributer najčešće planira — predlog, ne obaveza (upisuje se i bilo šta drugo).
+// Teme koje poslastičarnica najčešće planira — predlog, ne obaveza (upisuje se i bilo šta drugo).
 const TEME_OBUKE = [
   "Dobra higijenska praksa — osnovno",
   "HACCP — kritične kontrolne tačke i granice",
-  "Prijem robe: lot, rok i temperatura",
-  "Skladištenje i hladni lanac",
-  "Transport i kontrola vozila (D1)",
-  "Sledljivost i povlačenje robe",
+  "Prijem sastojaka: lot, rok i temperatura",
+  "Frižideri, vitrina i hladni lanac",
+  "Kremovi, jaja i hlađenje poslije pečenja",
+  "Alergeni — 14 alergena i potvrda prije predaje",
+  "Sledljivost i povlačenje serije",
   "Lična higijena i zdravstveno stanje",
   "Čišćenje i dezinfekcija",
 ];
@@ -482,7 +483,7 @@ function NoviNalogModal({ lica, pocetnoLice, onClose, onCreated }: { lica: Lice[
   const bezNaloga = lica.filter((l) => l.aktivan && !l.ima_nalog);
   const [liceId, setLiceId] = useState(pocetnoLice?.id ?? "");
   const lice = lica.find((l) => l.id === liceId) ?? null;
-  const nalog = useNalogPolja(lice?.ime ?? "", lice?.radno_mjesto ?? "");
+  const nalog = useNalogPolja(lice?.ime ?? "");
   const [pristup, setPristup] = useState<Pristup | null>(null);
   const [greska, setGreska] = useState("");
 
@@ -501,7 +502,7 @@ function NoviNalogModal({ lica, pocetnoLice, onClose, onCreated }: { lica: Lice[
   if (pristup) return <PristupModal pristup={pristup} onClose={onClose} />;
 
   return (
-    <Modal naslov="Novi nalog za prijavu" podnaslov="Magacioner ili vozač — nalog se veže za lice sa spiska" onClose={onClose} greska={greska} footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={posalji} disabled={!nalog.ispravno}>Kreiraj</button></>}>
+    <Modal naslov="Novi nalog za prijavu" podnaslov="Zaposleni — nalog se veže za lice sa spiska" onClose={onClose} greska={greska} footer={<><button className="secondary-button" onClick={onClose}>Otkaži</button><button className="primary-button" onClick={posalji} disabled={!nalog.ispravno}>Kreiraj</button></>}>
       <div className="form-grid">
         <label style={{ gridColumn: "1 / -1" }}>
           Zaposleni
@@ -567,19 +568,17 @@ function predloziKorisnickoIme(ime: string) {
   return prvo ? `${bezKvacica(prvo)}${prezime ? `.${bezKvacica(prezime).slice(0, 1)}` : ""}` : "";
 }
 
-/** Radno mjesto nije uloga (invarijanta #27) — samo predlog, koji se može promijeniti. */
-const predloziUlogu = (radnoMjesto: string) => (/voza[čc]|vozi|dostav/i.test(radnoMjesto) ? "vozac" : "operater");
 
 type Pristup = { ime: string | null; sifra: string | null; korisnickoIme: string; privremenaLozinka: string };
 
-function useNalogPolja(ime: string, radnoMjesto: string) {
+/** Ateljeu treba jedna uloga za zaposlene — „Zaposleni“ (`operater`); radno mjesto nije uloga (invarijanta #27). */
+function useNalogPolja(ime: string) {
   const [korisnickoImeRucno, setKorisnickoIme] = useState<string | null>(null);
-  const [ulogaRucno, setUloga] = useState<string | null>(null);
   const [lozinka, setLozinka] = useState(predloziLozinku);
   const korisnickoIme = korisnickoImeRucno ?? predloziKorisnickoIme(ime);
-  const uloga = ulogaRucno ?? predloziUlogu(radnoMjesto);
+  const uloga = "operater";
   return {
-    korisnickoIme, setKorisnickoIme, uloga, setUloga, lozinka, setLozinka,
+    korisnickoIme, setKorisnickoIme, uloga, lozinka, setLozinka,
     ispravno: korisnickoIme.length >= 3 && lozinka.length >= MIN_LOZINKA,
   };
 }
@@ -589,10 +588,7 @@ function NalogPolja({ polja }: { polja: ReturnType<typeof useNalogPolja> }) {
     <div className="form-grid" style={{ marginTop: 10 }}>
       <label>
         Uloga
-        <select value={polja.uloga} onChange={(e) => polja.setUloga(e.target.value)}>
-          <option value="operater">Magacioner</option>
-          <option value="vozac">Vozač</option>
-        </select>
+        <input value="Zaposleni" readOnly />
       </label>
       <label>
         Korisničko ime

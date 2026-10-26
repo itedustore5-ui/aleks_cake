@@ -51,7 +51,6 @@ type StanjeProvjere = {
 type NcDetalj = Nc & { zatvorio: string | null; zatvoreno_at: string | null; korektivneMjere: Mjera[]; verifikacije: Verifikacija[]; provjera?: StanjeProvjere | null };
 const GDJE: Record<string, string> = {
   "/haccp": "Novo mjerenje (HACCP / DHP)",
-  "/vozila": "Kontrola vozila (D1)",
   "/haccp-plan": "Termometri (HACCP plan)",
   "/sledljivost": "Otvori povlačenje",
 };
@@ -320,7 +319,7 @@ function NcDetaljModal({ detalj, vodiSistem, mojId, onClose, onOsvjezi }: { deta
       return `Čeka da ${otvorenaMjera?.dodijeljeno ?? "odgovorno lice"} uradi mjeru${otvorenaMjera?.rok ? ` (rok ${datum(otvorenaMjera.rok)})` : ""}.`;
     }
     // Iz kontrole se zatvara tek kad ponovna kontrola prođe (R-22) — server to provjerava i kaže šta fali.
-    const ponovo = detalj.izvor_tip === "mjerenje_temperature" ? " Prije zatvaranja mora postojati novo mjerenje u granici." : detalj.izvor_tip === "kontrola_vozila" ? " Prije zatvaranja nova kontrola vozila (D1) mora proći." : detalj.izvor_tip === "mjerni_uredjaj" ? " Prije zatvaranja termometar mora proći novu provjeru." : "";
+    const ponovo = detalj.izvor_tip === "mjerenje_temperature" ? " Prije zatvaranja mora postojati novo mjerenje u granici." : detalj.izvor_tip === "mjerni_uredjaj" ? " Prije zatvaranja termometar mora proći novu provjeru." : "";
     if (!vodiSistem) return `Mjera je urađena — čeka provjeru odgovornog lica.${ponovo}`;
     if (detalj.provjera?.izuzetakMoguc) return `Mjera je urađena. Uradili ste je vi, a drugog odgovornog lica nema — zatvarate sami: ispod označite kvačicu, upišite šta ste pregledali i „Provjereno — zatvori“.${ponovo}`;
     if (detalj.provjera?.svojaMjera) return `Mjera je urađena. Uradili ste je vi — provjerava i zatvara ${detalj.provjera.drugoLice ?? "drugo odgovorno lice"} (četiri oka).${ponovo}`;

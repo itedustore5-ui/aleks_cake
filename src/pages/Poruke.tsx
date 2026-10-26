@@ -36,12 +36,10 @@ type Prikaz = "sve" | "primljene" | "poslate";
 type Citalac = { ime: string; uloga: Uloga; procitano_at: string | null };
 type Nacin = "svi" | "uloge" | "pojedinacno";
 
-// Redoslijed kojim se grupe nude — prvo teren, kome se poruke najčešće i šalju.
+// Redoslijed kojim se grupe nude — prvo zaposleni, kojima se poruke najčešće i šalju.
 const GRUPE: { uloga: Uloga; naziv: string }[] = [
-  { uloga: "operater", naziv: "Magacioneri" },
-  { uloga: "vozac", naziv: "Vozači" },
-  { uloga: "bzr", naziv: "Odgovorno lice" },
-  { uloga: "uprava", naziv: "Uprava" },
+  { uloga: "operater", naziv: "Zaposleni" },
+  { uloga: "bzr", naziv: "Vlasnica" },
   { uloga: "izvodjac", naziv: "Konsultant" },
 ];
 
@@ -50,7 +48,7 @@ const vrijeme = (iso: string) =>
 
 export function Poruke() {
   const { korisnik } = useAuth();
-  const naTerenu = korisnik?.uloga === "operater" || korisnik?.uloga === "vozac";
+  const naTerenu = korisnik?.uloga === "operater";
   // „Odgovori" iz obavještenja: poruka ide pošiljaocu, naslov sa „Odg:".
   const odgovor = (useLocation().state as { odgovor?: { korisnikId: string; naslov: string } } | null)?.odgovor;
   const [primaoci, setPrimaoci] = useState<Primalac[]>([]);
@@ -60,9 +58,9 @@ export function Poruke() {
   const [otvorena, setOtvorena] = useState<string | null>(null);
   const [citaoci, setCitaoci] = useState<Record<string, Citalac[]>>({});
 
-  // Na terenu se najčešće piše jednoj osobi (kolegi, vozaču, odgovornom licu), a vodstvo grupama.
+  // Zaposleni najčešće piše jednoj osobi (kolegi, vlasnici), a vodstvo grupama.
   const [nacin, setNacin] = useState<Nacin>(odgovor || naTerenu ? "pojedinacno" : "uloge");
-  const [uloge, setUloge] = useState<Set<Uloga>>(new Set(["operater", "vozac"]));
+  const [uloge, setUloge] = useState<Set<Uloga>>(new Set(["operater"]));
   const [korisnici, setKorisnici] = useState<Set<string>>(new Set(odgovor ? [odgovor.korisnikId] : []));
   const [naslov, setNaslov] = useState(odgovor ? (odgovor.naslov.startsWith("Odg:") ? odgovor.naslov : `Odg: ${odgovor.naslov}`).slice(0, 200) : "");
   const [tekst, setTekst] = useState("");
@@ -149,7 +147,7 @@ export function Poruke() {
     <>
       <PageHeader
         title="Poruke"
-        description="Poruka kolegi, vozaču, odgovornom licu ili grupi — stiže na zvonce, na Moju stranu i na telefon. Ovdje se vidi ko je pročitao vaše poruke."
+        description="Poruka kolegi, vlasnici ili grupi — stiže na zvonce, na Moju stranu i na telefon. Ovdje se vidi ko je pročitao vaše poruke."
       />
       <div className="dashboard-columns">
         <div className="panel" style={{ minHeight: "auto" }}>

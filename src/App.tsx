@@ -15,9 +15,6 @@ const Zalihe = lazy(() => import("./pages/Zalihe").then((m) => ({ default: m.Zal
 const Haccp = lazy(() => import("./pages/Haccp").then((m) => ({ default: m.Haccp })));
 const HaccpPlan = lazy(() => import("./pages/HaccpPlan").then((m) => ({ default: m.HaccpPlan })));
 const Neusaglasenosti = lazy(() => import("./pages/Neusaglasenosti").then((m) => ({ default: m.Neusaglasenosti })));
-const Vozila = lazy(() => import("./pages/Vozila").then((m) => ({ default: m.Vozila })));
-const Isporuka = lazy(() => import("./pages/Isporuka").then((m) => ({ default: m.Isporuka })));
-const OtpremnicaStampa = lazy(() => import("./pages/OtpremnicaStampa").then((m) => ({ default: m.OtpremnicaStampa })));
 const Moja = lazy(() => import("./pages/Moja").then((m) => ({ default: m.Moja })));
 const Poruke = lazy(() => import("./pages/Poruke").then((m) => ({ default: m.Poruke })));
 const Sledljivost = lazy(() => import("./pages/Sledljivost").then((m) => ({ default: m.Sledljivost })));
@@ -56,7 +53,7 @@ function PocetnaPreusmjeri() {
   const { korisnik, ucitavanje } = useAuth();
   if (ucitavanje) return <Ucitavanje />;
   if (!korisnik) return <Navigate to="/prijava" replace />;
-  const cilj = korisnik.uloga === "bzr" || korisnik.uloga === "izvodjac" || korisnik.uloga === "uprava" ? "/tabla" : "/moja";
+  const cilj = korisnik.uloga === "bzr" || korisnik.uloga === "izvodjac" ? "/tabla" : "/moja";
   return <Navigate to={cilj} replace />;
 }
 
@@ -68,9 +65,9 @@ function Rute() {
       <Route path="/prijava" element={ucitavanje ? <Ucitavanje /> : korisnik ? <Navigate to="/" replace /> : <Prijava />} />
       <Route path="/provjera-znanja" element={<SamoPrijavljen><ProvjeraZnanja /></SamoPrijavljen>} />
       <Route path="/" element={<PocetnaPreusmjeri />} />
-      <Route path="/tabla" element={<Zasticeno uloge={["bzr", "izvodjac", "uprava"]}><Tabla /></Zasticeno>} />
+      <Route path="/tabla" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Tabla /></Zasticeno>} />
       <Route path="/moja" element={<Zasticeno><Moja /></Zasticeno>} />
-      <Route path="/poruke" element={<Zasticeno uloge={["operater", "vozac", "bzr", "izvodjac", "uprava"]}><Poruke /></Zasticeno>} />
+      <Route path="/poruke" element={<Zasticeno uloge={["operater", "bzr", "izvodjac"]}><Poruke /></Zasticeno>} />
       <Route path="/ljudi" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Ljudi /></Zasticeno>} />
       <Route path="/sifarnici" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Sifarnici /></Zasticeno>} />
       <Route path="/porudzbine" element={<Zasticeno uloge={["operater", "bzr", "izvodjac"]}><Porudzbine /></Zasticeno>} />
@@ -78,15 +75,12 @@ function Rute() {
       <Route path="/zalihe" element={<Zasticeno uloge={["operater", "bzr", "izvodjac"]}><Zalihe /></Zasticeno>} />
       <Route path="/haccp" element={<Zasticeno uloge={["operater", "bzr", "izvodjac"]}><Haccp /></Zasticeno>} />
       <Route path="/haccp-plan" element={<Zasticeno uloge={["bzr", "izvodjac"]}><HaccpPlan /></Zasticeno>} />
-      <Route path="/neusaglasenosti" element={<Zasticeno uloge={["operater", "vozac", "bzr", "izvodjac"]}><Neusaglasenosti /></Zasticeno>} />
-      <Route path="/vozila" element={<Zasticeno uloge={["vozac", "bzr", "izvodjac"]}><Vozila /></Zasticeno>} />
-      <Route path="/isporuka" element={<Zasticeno uloge={["vozac", "operater", "bzr", "izvodjac"]}><Isporuka /></Zasticeno>} />
-      <Route path="/isporuka/:id/otpremnica" element={<Zasticeno uloge={["vozac", "operater", "bzr", "izvodjac"]}><OtpremnicaStampa /></Zasticeno>} />
+      <Route path="/neusaglasenosti" element={<Zasticeno uloge={["operater", "bzr", "izvodjac"]}><Neusaglasenosti /></Zasticeno>} />
       <Route path="/sledljivost" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Sledljivost /></Zasticeno>} />
       <Route path="/prilozi" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Prilozi /></Zasticeno>} />
       <Route path="/izvjestaji" element={<Zasticeno uloge={["izvodjac"]}><Izvjestaji /></Zasticeno>} />
       <Route path="/stanje" element={<Zasticeno uloge={["izvodjac"]}><StanjePoslovanja /></Zasticeno>} />
-      <Route path="/inspekcija" element={<Zasticeno uloge={["bzr", "izvodjac", "uprava"]}><Inspekcija /></Zasticeno>} />
+      <Route path="/inspekcija" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Inspekcija /></Zasticeno>} />
       <Route path="/audit" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Audit /></Zasticeno>} />
       <Route path="/admin" element={<Zasticeno uloge={["izvodjac"]}><Admin /></Zasticeno>} />
       <Route path="*" element={<Navigate to="/" replace />} />

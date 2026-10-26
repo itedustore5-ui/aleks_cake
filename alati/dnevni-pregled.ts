@@ -37,10 +37,11 @@ async function provjeriKlijenta(naziv: string, url: string): Promise<boolean> {
   const pool = new Pool({ connectionString: url, ssl: url.includes("localhost") ? undefined : { rejectUnauthorized: false } });
   try {
     const zadnjiZapis = await pool.query<{ max: string | null }>(`select max(created_at) from zapis`);
-    const zadnjaIsporuka = await pool.query<{ max: string | null }>(`select max(created_at) from isporuka`);
+    // Poslastičarnica: posljednji zapis ili porudžbina (stara baza bez dopune 39 — samo zapisi).
+    const zadnjaPorudzbina = await pool.query<{ max: string | null }>(`select max(created_at) from porudzbina`).catch(() => ({ rows: [{ max: null }] }));
     const otvoreneNc = await pool.query<{ broj: string }>(`select count(*) as broj from neusaglasenost where status not in ('ZATVORENA')`);
 
-    const poslednja = [zadnjiZapis.rows[0].max, zadnjaIsporuka.rows[0].max].filter(Boolean).sort().pop();
+    const poslednja = [zadnjiZapis.rows[0].max, zadnjaPorudzbina.rows[0].max].filter(Boolean).sort().pop();
     const danaOdZadnjeg = poslednja ? Math.floor((Date.now() - new Date(poslednja).getTime()) / 86400000) : null;
     const uZastoju = danaOdZadnjeg === null || danaOdZadnjeg > 2;
 

@@ -46,7 +46,7 @@ export function TrakaVanMreze({ naMrezi }: { naMrezi: boolean }) {
         <div className="upozorenje-traka" role="status">
           <WifiOff size={16} />
           <span>
-            Nema interneta. D1, predaja, mjerenje, dnevni zapis i prijava problema čuvaju se na telefonu i šalju sami kad se vrati signal;
+            Nema interneta. Mjerenje, dnevni zapis i prijava problema čuvaju se na telefonu i šalju sami kad se vrati signal;
             ostalo sačekajte.{sacuvanoAt ? ` Prikazani podaci su od ${sat(sacuvanoAt)}.` : ""}
           </span>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { KeyRound, BookOpen, CheckCircle2, ArrowDownToLine, PackageCheck, Truck, Phone, ChevronRight, AlertTriangle } from "lucide-react";
+import { KeyRound, BookOpen, CheckCircle2, ArrowDownToLine, Cake, ChevronRight, AlertTriangle } from "lucide-react";
 import { api, ApiGreska } from "../lib/api";
 import { PageHeader } from "../components/Zajednicko";
 import { StatusBadge } from "../components/StatusBadge";
@@ -10,7 +10,6 @@ import { lokalniDatum } from "../lib/vrijeme";
 import { ProvjeraZnanjaUlaz } from "../components/ProvjeraZnanjaUlaz";
 import { PushObavjestenja } from "../components/PushObavjestenja";
 import { DvaKoraka } from "../components/DvaKoraka";
-import { useIzlaz, IZLAZ_POSLAT } from "../lib/izlaz";
 
 type Lice = { id: string; ime: string; sifra: string; sanitarna_knjizica_rok: string | null; knjizica_status: string | null; rukuje_hranom: boolean };
 
@@ -19,7 +18,7 @@ export function Moja() {
   const navigate = useNavigate();
   const [lice, setLice] = useState<Lice | null>(null);
   const [brojPrijema, setBrojPrijema] = useState<number | null>(null);
-  const [brojIsporuka, setBrojIsporuka] = useState<number | null>(null);
+  const [torteDanas, setTorteDanas] = useState<{ ukupno: number; zaIzradu: number } | null>(null);
 
   useEffect(() => {
     if (korisnik?.lice_id) {
@@ -27,13 +26,15 @@ export function Moja() {
     }
     if (korisnik?.uloga === "operater") {
       api<unknown[]>("/prijem").then((r) => setBrojPrijema(r.length));
-    }
-    if (korisnik?.uloga === "operater") {
-      api<unknown[]>("/isporuke").then((r) => setBrojIsporuka(r.length));
+      // Torte za danas — preuzimanje danas, još nisu predate (P5: zaposleni vidi sve porudžbine ateljea).
+      api<{ dan: string; status: string }[]>("/porudzbine").then((r) => {
+        const danas = r.filter((p) => p.dan === lokalniDatum() && p.status !== "OTKAZANA");
+        setTorteDanas({ ukupno: danas.length, zaIzradu: danas.filter((p) => p.status === "PRIMLJENA" || p.status === "U_IZRADI").length });
+      }).catch(() => undefined);
     }
   }, [korisnik?.lice_id, korisnik?.uloga]);
 
-  const terenskaUloga = korisnik?.uloga === "operater" || korisnik?.uloga === "vozac";
+  const terenskaUloga = korisnik?.uloga === "operater";
   const knjizicaTrazi = terenskaUloga && lice && lice.rukuje_hranom && (lice.knjizica_status === "ISTEKLA" || lice.knjizica_status === "USKORO");
 
   return (
@@ -54,34 +55,28 @@ export function Moja() {
 
       {terenskaUloga && <DanasPoPlanu />}
 
-      {korisnik?.uloga === "vozac" && <VozacDanas />}
-
       {korisnik?.uloga === "operater" && (
         <>
           <div className="section-heading">
             <div><h2>Moj rad</h2></div>
           </div>
           <div className="stats-grid" style={{ marginBottom: 24 }}>
-            {korisnik?.uloga === "operater" && (
-              <button className="stat-card" style={{ textAlign: "left" }} onClick={() => navigate("/prijem")}>
-                <div className="stat-icon blue"><ArrowDownToLine size={18} /></div>
-                <div className="stat-copy">
-                  <span>Prijemi (posljednji dan)</span>
-                  <strong>{brojPrijema ?? "…"}</strong>
-                  <small>Otvori prijem robe</small>
-                </div>
-              </button>
-            )}
-            {korisnik?.uloga === "operater" && (
-              <button className="stat-card" style={{ textAlign: "left" }} onClick={() => navigate("/isporuka")}>
-                <div className="stat-icon green"><PackageCheck size={18} /></div>
-                <div className="stat-copy">
-                  <span>Isporuke (posljednji dan)</span>
-                  <strong>{brojIsporuka ?? "…"}</strong>
-                  <small>Otvori isporuku</small>
-                </div>
-              </button>
-            )}
+            <button className="stat-card" style={{ textAlign: "left" }} onClick={() => navigate("/porudzbine")}>
+              <div className="stat-icon green"><Cake size={18} /></div>
+              <div className="stat-copy">
+                <span>Torte danas</span>
+                <strong>{torteDanas ? torteDanas.ukupno : "…"}</strong>
+                <small>{torteDanas && torteDanas.zaIzradu > 0 ? `još za predaju: ${torteDanas.zaIzradu}` : "Otvori porudžbine"}</small>
+              </div>
+            </button>
+            <button className="stat-card" style={{ textAlign: "left" }} onClick={() => navigate("/prijem")}>
+              <div className="stat-icon blue"><ArrowDownToLine size={18} /></div>
+              <div className="stat-copy">
+                <span>Prijemi (posljednji dan)</span>
+                <strong>{brojPrijema ?? "…"}</strong>
+                <small>Otvori prijem robe</small>
+              </div>
+            </button>
             <button className="stat-card" style={{ textAlign: "left" }} onClick={() => navigate("/haccp")}>
               <div className="stat-icon orange"><CheckCircle2 size={18} /></div>
               <div className="stat-copy">
@@ -98,7 +93,7 @@ export function Moja() {
         <div><h2>Zadaci i obavještenja</h2></div>
       </div>
       <div className="dashboard-columns">
-        {korisnik?.uloga !== "uprava" && <ListaZadataka samoMoji />}
+        <ListaZadataka samoMoji />
         <ListaObavjestenja />
       </div>
 
@@ -124,135 +119,6 @@ export function Moja() {
         <PromjenaLozinke />
         <DvaKoraka />
         <PushObavjestenja />
-      </div>
-    </>
-  );
-}
-
-type IsporukaVozaca = {
-  id: string;
-  broj: string;
-  kupac_naziv: string;
-  kupac_telefon: string | null;
-  datum_isporuke: string;
-  status: string;
-  vozilo_id: string | null;
-  registarski_broj: string | null;
-  skladiste_naziv: string | null;
-};
-type VoziloStanje = { id: string; registarski_broj: string; status: string; aktivan?: boolean };
-type KontrolaVozila = { vozilo_id: string; datum: string; izvrseno_at: string; ukupan_status: string; izvrsio: string | null };
-
-/** Vozačeva tabla odgovara na dva pitanja prije polaska: je li vozilo spremno i pregledano
- * danas (D1), i šta danas vozim i kome. Brojke bez konteksta ("Isporuke: 1", "D1") mu ne govore ništa. */
-function VozacDanas() {
-  const navigate = useNavigate();
-  const [isporuke, setIsporuke] = useState<IsporukaVozaca[] | null>(null);
-  const [vozila, setVozila] = useState<VoziloStanje[]>([]);
-  const [kontrole, setKontrole] = useState<KontrolaVozila[]>([]);
-  const danas = lokalniDatum();
-  const izlaz = useIzlaz();
-
-  useEffect(() => {
-    const ucitaj = () => {
-      api<IsporukaVozaca[]>("/isporuke").then(setIsporuke);
-      api<VoziloStanje[]>("/vozila").then(setVozila);
-      api<KontrolaVozila[]>("/kontrole-vozila").then(setKontrole);
-    };
-    ucitaj();
-    // D1 koja je čekala na telefonu je stigla — crveno se skida samo.
-    window.addEventListener(IZLAZ_POSLAT, ucitaj);
-    return () => window.removeEventListener(IZLAZ_POSLAT, ucitaj);
-  }, []);
-
-  const zaIsporuku = (isporuke ?? []).filter((i) => i.status === "U_PRIPREMI").sort((a, b) => a.datum_isporuke.localeCompare(b.datum_isporuke));
-  const danasIsporuceno = (isporuke ?? []).filter((i) => i.status !== "U_PRIPREMI" && i.datum_isporuke === danas).length;
-  // D1 je prije utovara (01.10.2026): traži se samo za vozilo kojim DANAS vozim. Vozilo bez današnje
-  // isporuke nije crveno — ranije su stajala crvena sva vozila iz evidencije i poslije kontrole svog.
-  const idVozila = new Set(
-    (isporuke ?? []).filter((i) => i.datum_isporuke === danas && i.status !== "OTKAZANA").map((i) => i.vozilo_id).filter(Boolean),
-  );
-  const kontrolaDanas = (voziloId: string) => kontrole.find((k) => k.vozilo_id === voziloId && k.datum === danas);
-  // Vozilo na kom sam danas već uradio kontrolu ostaje na spisku (zeleno), i kad nema isporuke.
-  const mojaVozila = vozila.filter((v) => idVozila.has(v.id) || kontrolaDanas(v.id));
-  const opisDatuma = (datum: string) => (datum === danas ? "danas" : datum);
-
-  return (
-    <>
-      <div className="section-heading">
-        <div>
-          <h2>Danas</h2>
-          <span>{new Date().toLocaleDateString("sr-Latn-ME", { weekday: "long", day: "numeric", month: "long" })}</span>
-        </div>
-      </div>
-      <div className="dashboard-columns" style={{ marginBottom: 24 }}>
-        <div className="panel" style={{ minHeight: "auto" }}>
-          <div className="panel-header">
-            <h2><Truck size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />Vozilo i kontrola (D1)</h2>
-          </div>
-          <div className="danas-lista">
-            {isporuke !== null && mojaVozila.length === 0 && (
-              <p className="muted-text" style={{ fontSize: 11 }}>
-                Danas nemate isporuka — kontrola vozila danas nije potrebna. Kad vam dodijele isporuku za danas, vozilo se pojavi ovdje.
-              </p>
-            )}
-            {mojaVozila.map((v) => {
-              const k = kontrolaDanas(v.id);
-              const naTelefonu = izlaz.ceka(`vozilo:${v.id}`);
-              return (
-                <div key={v.id} className="danas-red">
-                  <div>
-                    <strong>{v.registarski_broj} <StatusBadge status={v.status} /></strong>
-                    {k ? (
-                      <span className={k.ukupan_status === "PROSAO" ? "danas-ok" : "danas-fali"}>
-                        Kontrola danas u {new Date(k.izvrseno_at).toLocaleTimeString("sr-Latn-ME", { hour: "2-digit", minute: "2-digit" })} —{" "}
-                        {k.ukupan_status === "PROSAO" ? "prošao" : "nije prošao"}
-                      </span>
-                    ) : naTelefonu ? (
-                      <span className="ceka-mrezu">Kontrola je na telefonu — čeka mrežu</span>
-                    ) : (
-                      <span className="danas-fali">Prije utovara: kontrola danas nije urađena</span>
-                    )}
-                  </div>
-                  {!k && !naTelefonu && (
-                    <button className="small-action" onClick={() => navigate("/vozila")}>Uradi kontrolu</button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="panel" style={{ minHeight: "auto" }}>
-          <div className="panel-header">
-            <h2><PackageCheck size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />Moje isporuke</h2>
-            <button className="small-action" onClick={() => navigate("/isporuka")}>Sve isporuke</button>
-          </div>
-          <div className="danas-lista">
-            {isporuke !== null && zaIsporuku.length === 0 && (
-              <p className="muted-text" style={{ fontSize: 11 }}>Nema isporuka koje čekaju — kad vam dodijele novu, stići će obavještenje.</p>
-            )}
-            {zaIsporuku.map((i) => (
-              <div key={i.id} className="danas-red klikabilno" role="button" tabIndex={0} onClick={() => navigate("/isporuka")} onKeyDown={(e) => e.key === "Enter" && navigate("/isporuka")}>
-                <div>
-                  <strong>{i.kupac_naziv}</strong>
-                  <span>
-                    {i.broj} · {opisDatuma(i.datum_isporuke)}
-                    {i.registarski_broj ? ` · ${i.registarski_broj}` : " · bez vozila"}
-                    {i.skladiste_naziv ? ` · iz: ${i.skladiste_naziv}` : ""}
-                  </span>
-                </div>
-                {i.kupac_telefon && (
-                  <a className="row-action" href={`tel:${i.kupac_telefon.replace(/\s/g, "")}`} onClick={(e) => e.stopPropagation()} aria-label={`Pozovi ${i.kupac_naziv}`}>
-                    <Phone size={14} />
-                  </a>
-                )}
-                <ChevronRight size={16} className="muted-icon" />
-              </div>
-            ))}
-            {danasIsporuceno > 0 && <p className="danas-ok" style={{ fontSize: 11, marginTop: 8 }}>Danas isporučeno: {danasIsporuceno}</p>}
-          </div>
-        </div>
       </div>
     </>
   );
@@ -297,7 +163,7 @@ function PromjenaLozinke() {
 type StavkaDanas = {
   id: string;
   naziv: string;
-  vrsta: "mjerenje" | "obrazac" | "kontrola_vozila";
+  vrsta: "mjerenje" | "obrazac";
   kontrolna_tacka_id: string | null;
   obrazac_kod: string | null;
   puta: number;
@@ -339,9 +205,7 @@ function DanasPoPlanu() {
   const upisi = (s: StavkaDanas) =>
     s.vrsta === "obrazac"
       ? navigate("/haccp", { state: { obrazac: s.obrazac_kod, skladiste: s.skladiste_id } })
-      : s.vrsta === "mjerenje"
-        ? navigate("/haccp", { state: { mjerenje: s.kontrolna_tacka_id, skladiste: s.skladiste_id } })
-        : navigate("/vozila");
+      : navigate("/haccp", { state: { mjerenje: s.kontrolna_tacka_id, skladiste: s.skladiste_id } });
   const fali = stanje.stavke.filter((s) => s.fali > 0).length;
   return (
     <>

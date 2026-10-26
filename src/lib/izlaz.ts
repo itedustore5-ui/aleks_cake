@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { api, ApiGreska } from "./api";
 
-// Rad bez interneta (talas 6, invarijanta #85). Vozač u podrumu kupca i magacioner u hladnjači nemaju
-// signal — upis (D1, predaja, mjerenje, dnevni zapis, prijava problema) se tada čuva NA TELEFONU i šalje
-// sam čim se mreža vrati: redom kojim je urađen (D1 prije predaje), sa vremenom kad je stvarno urađen
+// Rad bez interneta (talas 6, invarijanta #85). Zaposleni u hladnoj komori ili na dostavi torte
+// nema signal — upis (mjerenje, dnevni zapis, prijava problema) se tada čuva NA TELEFONU i šalje
+// sam čim se mreža vrati: redom kojim je urađen, sa vremenom kad je stvarno urađen
 // (`x-uradjeno-at`) i istim ključem zahtjeva (server ga ne upisuje dvaput). Ono što server tada odbije
 // ne briše se tiho: prijavi se odgovornom licu (`/van-mreze/odbijeno`) i ostaje na telefonu dok ga
 // radnik ne ukloni.
@@ -12,10 +12,10 @@ export type StavkaIzlaza = {
   kljuc: string;
   putanja: string;
   telo: unknown;
-  /** Za ljude: „D1 — PG 123 AB“, „Predaja IS-2026-0012“. */
+  /** Za ljude: „Mjerenje — vitrina“, „Obrazac P3“. */
   opis: string;
   uradjenoAt: string;
-  /** Na šta se odnosi, da lista pokaže „čeka mrežu“: `isporuka:<id>`, `vozilo:<id>`, `obrazac:<kod>`. */
+  /** Na šta se odnosi, da lista pokaže „čeka mrežu“: `obrazac:<kod>`, `tacka:<id>`. */
   vezano?: string;
   pokusaji: number;
   stanje: "ceka" | "odbijeno";
@@ -170,7 +170,7 @@ export function useIzlaz() {
     cekaju: sve.filter((s) => s.stanje === "ceka"),
     odbijeno: sve.filter((s) => s.stanje === "odbijeno"),
     saljem,
-    /** Upis vezan za ovo (npr. `isporuka:<id>`) čeka na telefonu. */
+    /** Upis vezan za ovo (npr. `obrazac:<kod>`) čeka na telefonu. */
     ceka: (vezano: string) => sve.some((s) => s.stanje === "ceka" && s.vezano === vezano),
     /** …ili je upravo poslat, a lista se još nije osvježila. */
     upravoPoslato: (vezano: string) => Date.now() - (nedavnoPoslato.get(vezano) ?? 0) < NEDAVNO_MS,

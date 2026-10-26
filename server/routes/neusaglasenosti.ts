@@ -11,7 +11,7 @@ import { vanMreze } from "../vanMreze.js";
 export const ncRuter = Router();
 ncRuter.get(
   "/neusaglasenosti",
-  requireUloga("operater", "vozac", "bzr", "izvodjac"),
+  requireUloga("operater", "bzr", "izvodjac"),
   asyncRuta(async (request: AuthZahtjev, response) => {
     const status = typeof request.query.status === "string" ? request.query.status : undefined;
     const rezultat = await upit(
@@ -30,7 +30,7 @@ ncRuter.get(
 
 ncRuter.get(
   "/neusaglasenosti/:id",
-  requireUloga("operater", "vozac", "bzr", "izvodjac"),
+  requireUloga("operater", "bzr", "izvodjac"),
   asyncRuta(async (request: AuthZahtjev, response) => {
     const naTerenu = NA_TERENU.includes(request.korisnik!.uloga);
     const nc = await upit(
@@ -57,14 +57,14 @@ const rucnaSchema = z.object({
   ozbiljnost: z.enum(["NIZAK", "SREDNJI", "VISOK"]).default("SREDNJI"),
   opis: z.string().trim().min(3, "Opišite šta se desilo."),
   // „porudzbina“ — reklamacija ili problem na torti (dopuna 39).
-  izvorTip: z.enum(["rucno", "isporuka", "porudzbina"]).default("rucno"),
+  izvorTip: z.enum(["rucno", "porudzbina"]).default("rucno"),
   izvorId: z.string().uuid().optional(),
 });
 
 // Prijaviti smije svako — i vozač i magacioner (to je poenta: problem se upisuje tamo gdje nastane).
 ncRuter.post(
   "/neusaglasenosti",
-  requireUloga("izvodjac", "bzr", "operater", "vozac"),
+  requireUloga("izvodjac", "bzr", "operater"),
   vanMreze("prijava_problema"),
   asyncRuta(async (request: AuthZahtjev, response) => {
     const ulaz = tijelo(rucnaSchema, request.body);
@@ -91,7 +91,7 @@ ncRuter.post(
 
 ncRuter.post(
   "/korektivne-mjere/:id/zavrsi",
-  requireUloga("bzr", "operater", "vozac", "izvodjac"),
+  requireUloga("bzr", "operater", "izvodjac"),
   asyncRuta(async (request: AuthZahtjev, response) => {
     const rezultat = typeof request.body?.rezultat === "string" ? request.body.rezultat : undefined;
     const neusaglasenostId = await zavrsiKorektivnuMjeru(str(request.params.id), rezultat, request.korisnik!.id, request.korisnik!.uloga);

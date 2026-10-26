@@ -29,15 +29,17 @@ const HITNO = ["ISTEKLA", "NEISPRAVAN", "KASNI", "NIJE_RADJENO"];
 export async function pregledTable() {
   const danas = danasCG();
   const [monitoring, rokovi, robaRok] = await Promise.all([stanjeDanas(), haccpRokovi(), brojPoRoku()]);
-  const [nc, temp, vozila, lotovi, zadaci, zadaciOtvoreni, prijemi, isporuke, knjizice, povlacenja, zapisi] = await Promise.all([
+  const [nc, temp, bezAlergena, lotovi, zadaci, zadaciOtvoreni, prijemi, porudzbine, knjizice, povlacenja, zapisi] = await Promise.all([
     upit(`select ozbiljnost, count(*)::int as broj from neusaglasenost where status not in ('ZATVORENA') group by ozbiljnost`),
     upit(`select count(*)::int as broj from mjerenje_temperature where rezultat = 'FAIL' and izmjereno_at > now() - interval '24 hours'`),
-    upit(`select count(*)::int as broj from vozilo where status = 'NIJE_SPREMNO' and aktivan`),
+    // Torte za danas i sutra kojima alergeni još nisu potvrđeni (P1) — da se ne otkrije tek na vratima.
+    upit(`select count(*)::int as broj from porudzbina where status in ('PRIMLJENA', 'U_IZRADI') and alergeni_potvrdjeno_at is null
+          and (preuzimanje_at at time zone 'Europe/Podgorica')::date <= $1::date + 1`, [danas]),
     upit(`select count(*)::int as broj from lot where status = 'HOLD'`),
     upit(`select count(*)::int as broj from zadatak where status not in ('ZAVRSEN', 'OTKAZAN') and rok_at is not null and rok_at < now()`),
     upit(`select count(*)::int as broj from zadatak where status not in ('ZAVRSEN', 'OTKAZAN')`),
     upit(`select count(*)::int as broj from prijem where datum_prijema = $1`, [danas]),
-    upit(`select count(*)::int as broj from isporuka where datum_isporuke = $1 and status <> 'OTKAZANA'`, [danas]),
+    upit(`select count(*)::int as broj from porudzbina where (preuzimanje_at at time zone 'Europe/Podgorica')::date = $1 and status <> 'OTKAZANA'`, [danas]),
     upit(`select count(*)::int as broj from v_lica where knjizica_status in ('ISTEKLA', 'USKORO')`),
     upit(`select count(*)::int as broj from povlacenje where status = 'U_TOKU'`),
     upit(`select count(*)::int as broj from zapis where datum = $1`, [danas]),
@@ -48,7 +50,7 @@ export async function pregledTable() {
       neusaglasenostiVisoke: Number(nc.rows.find((r) => r.ozbiljnost === "VISOK")?.broj ?? 0),
       neusaglasenostiOtvorene: nc.rows.reduce((zbir, r) => zbir + Number(r.broj), 0),
       temperatureVanOpsega: temp.rows[0]?.broj ?? 0,
-      vozilaNijeSpremno: vozila.rows[0]?.broj ?? 0,
+      porudzbineBezAlergena: bezAlergena.rows[0]?.broj ?? 0,
       lotoviNaHoldu: lotovi.rows[0]?.broj ?? 0,
       zadaciZakasnili: zadaci.rows[0]?.broj ?? 0,
       zadaciOtvoreni: zadaciOtvoreni.rows[0]?.broj ?? 0,
@@ -58,21 +60,21 @@ export async function pregledTable() {
       monitoringFali: monitoring.stavke.filter((s) => s.fali > 0).length,
       monitoringJuce: monitoring.juce.length,
       haccpRokovi: rokovi.filter((r) => HITNO.includes(r.stanje)).length,
-      // Rok robe na slobodnoj zalihi (R-02): isteklo se ne isporučuje, uskoro = narednih 7 dana.
+      // Rok sastojka na zalihi (R-02): istekao ne ide u tortu, uskoro = narednih 7 dana.
       robaIstekao: robaRok.istekao,
       robaUskoro: robaRok.uskoro,
     },
     operativno: {
       prijemiDanas: prijemi.rows[0]?.broj ?? 0,
-      isporukeDanas: isporuke.rows[0]?.broj ?? 0,
+      porudzbineDanas: porudzbine.rows[0]?.broj ?? 0,
       zapisiDanas: zapisi.rows[0]?.broj ?? 0,
     },
   };
 }
 
-// "Aktivnost uživo" — šta se u firmi dešava, iz samih zapisa (ne iz posebnog dnevnika koji bi se
-// mogao razići sa njima). Uprava ovo gleda umjesto da dobija obavještenje za svaki unos: 50 poruka
-// dnevno bi zatrpalo onih nekoliko važnih (temperatura, povlačenje, vozilo) koje i dalje stižu na zvonce.
+// "Aktivnost uživo" — šta se u ateljeu dešava, iz samih zapisa (ne iz posebnog dnevnika koji bi se
+// mogao razići sa njima). Vlasnica ovo gleda umjesto da dobija obavještenje za svaki unos: 50 poruka
+// dnevno bi zatrpalo onih nekoliko važnih (temperatura, povlačenje) koje i dalje stižu na zvonce.
 const AKTIVNOST = `
 with ime as (select k.id, coalesce(l.ime, k.korisnicko_ime) as ime from korisnik k left join lice l on l.id = k.lice_id)
 select * from (
@@ -86,18 +88,16 @@ select * from (
          case when p.status::text in ('ODBIJEN', 'DJELIMICNO_PRIHVACEN') then 'upozorenje' else 'info' end, '/prijem'
     from prijem p join dobavljac d on d.id = p.dobavljac_id where p.odluka_at > now() - $1::interval
   union all
-  select i.created_at, 'isporuka', (select ime from ime where id = i.uneo_korisnik_id), 'Isporuka pripremljena — ' || i.broj || ' → ' || k.naziv, 'info', '/isporuka'
-    from isporuka i join kupac k on k.id = i.kupac_id where i.created_at > now() - $1::interval
+  select p.created_at, 'porudzbina', (select ime from ime where id = p.uneo_korisnik_id),
+         'Porudžbina ' || p.broj || ' — ' || p.kupac_ime || ', ' || to_char(p.preuzimanje_at at time zone 'Europe/Podgorica', 'DD.MM. HH24:MI'), 'info', '/porudzbine'
+    from porudzbina p where p.created_at > now() - $1::interval
   union all
-  select i.potvrdjeno_at, 'isporuka', (select ime from ime where id = i.potvrdio_korisnik_id),
-         'Isporuka ' || case i.status::text when 'POTVRDJENA' then 'predata' when 'DJELIMICNA' then 'djelimično predata' when 'ODBIJENA' then 'odbijena'
-           else lower(i.status::text) end || ' — ' || i.broj || ' · ' || k.naziv,
-         case when i.status::text in ('DJELIMICNA', 'ODBIJENA') then 'upozorenje' else 'info' end, '/isporuka'
-    from isporuka i join kupac k on k.id = i.kupac_id where i.potvrdjeno_at > now() - $1::interval
+  select p.predato_at, 'porudzbina', (select ime from ime where id = p.predao_korisnik_id), 'Torta predata — ' || p.broj || ' · ' || p.kupac_ime, 'info', '/porudzbine'
+    from porudzbina p where p.predato_at > now() - $1::interval
   union all
-  select i.otkazano_at, 'isporuka', (select ime from ime where id = i.otkazao_korisnik_id),
-         'Isporuka otkazana — ' || i.broj || ' · ' || k.naziv || ': ' || coalesce(i.razlog_otkaza, ''), 'upozorenje', '/isporuka'
-    from isporuka i join kupac k on k.id = i.kupac_id where i.otkazano_at > now() - $1::interval
+  select p.otkazano_at, 'porudzbina', (select ime from ime where id = p.otkazao_korisnik_id),
+         'Porudžbina otkazana — ' || p.broj || ' · ' || p.kupac_ime || ': ' || coalesce(p.razlog_otkaza, ''), 'upozorenje', '/porudzbine'
+    from porudzbina p where p.otkazano_at > now() - $1::interval
   union all
   select nc.created_at, 'neusaglasenost', (select ime from ime where id = nc.prijavio_korisnik_id), 'Neusaglašenost ' || nc.broj || ' — ' || nc.opis,
          case when nc.ozbiljnost::text = 'VISOK' then 'problem' else 'upozorenje' end, '/neusaglasenosti'
@@ -110,11 +110,6 @@ select * from (
          'Temperatura van opsega — ' || kt.naziv || ': ' || m.vrijednost || ' °C', 'problem', '/haccp'
     from mjerenje_temperature m join kontrolna_tacka kt on kt.id = m.kontrolna_tacka_id
     where m.rezultat::text = 'FAIL' and m.izmjereno_at > now() - $1::interval
-  union all
-  select kv.izvrseno_at, 'vozilo', (select ime from ime where id = kv.izvrsio_korisnik_id),
-         'Kontrola vozila ' || v.registarski_broj || ' — ' || case when kv.ukupan_status::text = 'PROSAO' then 'prošao' else 'NIJE prošao' end,
-         case when kv.ukupan_status::text = 'PROSAO' then 'info' else 'problem' end, '/vozila'
-    from kontrola_vozila kv join vozilo v on v.id = kv.vozilo_id where kv.izvrseno_at > now() - $1::interval
   union all
   select z.created_at, 'zapis', coalesce((select ime from ime where id = z.uneo_korisnik_id), z.izvrsilac),
          'Dnevni obrazac ' || z.obrazac_kod || case when z.odstupanje then ' — sa odstupanjem' else '' end,
@@ -137,9 +132,8 @@ export async function aktivnost(dana: number) {
   return (await upit(AKTIVNOST, [`${d} days`, 60])).rows;
 }
 
-// Šta stoji iza broja na kartici — lista samo za čitanje. Uprava ne ulazi na operativne strane
-// (prijem, HACCP, neusaglašenosti…), pa joj je klik na karticu ranije radio ništa. Uslovi su ISTI
-// kao u brojanju iznad — broj na kartici i dužina liste se ne smiju razići.
+// Šta stoji iza broja na kartici — lista samo za čitanje. Uslovi su ISTI kao u brojanju iznad —
+// broj na kartici i dužina liste se ne smiju razići.
 type Kolona = { kljuc: string; naziv: string; vrsta?: "status" };
 const VRIJEME = (kolona: string) => `to_char(${kolona} at time zone 'Europe/Podgorica', 'DD.MM. HH24:MI')`;
 const DETALJ: Record<string, { naslov: string; kolone: Kolona[]; sql: string; saDanom?: boolean; prazno?: string }> = {
@@ -161,29 +155,28 @@ const DETALJ: Record<string, { naslov: string; kolone: Kolona[]; sql: string; sa
     naslov: "Temperature van opsega — posljednja 24 sata",
     kolone: [
       { kljuc: "vrijeme", naziv: "Kad" }, { kljuc: "tacka", naziv: "Kontrolna tačka" }, { kljuc: "vrijednost", naziv: "°C" },
-      { kljuc: "roba", naziv: "Roba / vozilo" }, { kljuc: "izmjerio", naziv: "Izmjerio" }, { kljuc: "napomena", naziv: "Napomena" },
+      { kljuc: "roba", naziv: "Sastojak / torta" }, { kljuc: "izmjerio", naziv: "Izmjerio" }, { kljuc: "napomena", naziv: "Napomena" },
     ],
     sql: `select ${VRIJEME("m.izmjereno_at")} as vrijeme, kt.naziv as tacka, m.vrijednost::text as vrijednost,
-                 coalesce(a.naziv || ' · lot ' || l.broj_lota, 'vozilo ' || v.registarski_broj) as roba,
+                 coalesce(a.naziv || ' · lot ' || l.broj_lota, (select 'torta ' || p.broj from porudzbina p where p.mjerenje_id = m.id), '—') as roba,
                  ${IME("m.izmjerio_korisnik_id")} as izmjerio, m.napomena
           from mjerenje_temperature m join kontrolna_tacka kt on kt.id = m.kontrolna_tacka_id
-          left join lot l on l.id = m.lot_id left join artikal a on a.id = l.artikal_id left join vozilo v on v.id = m.vozilo_id
+          left join lot l on l.id = m.lot_id left join artikal a on a.id = l.artikal_id
           where m.rezultat = 'FAIL' and m.izmjereno_at > now() - interval '24 hours'
           order by m.izmjereno_at desc`,
   },
-  vozila: {
-    naslov: "Vozila koja nisu spremna",
+  "porudzbine-alergeni": {
+    naslov: "Torte za danas i sutra — alergeni nisu potvrđeni",
+    prazno: "Sve torte za danas i sutra imaju potvrđene alergene.",
+    saDanom: true,
     kolone: [
-      { kljuc: "vozilo", naziv: "Vozilo" }, { kljuc: "kontrola", naziv: "Posljednja kontrola" }, { kljuc: "ko", naziv: "Ko" },
-      { kljuc: "nije_proslo", naziv: "Šta nije prošlo" }, { kljuc: "napomena", naziv: "Napomena" },
+      { kljuc: "broj", naziv: "Broj" }, { kljuc: "preuzimanje", naziv: "Preuzimanje" }, { kljuc: "kupac", naziv: "Kupac" },
+      { kljuc: "opis", naziv: "Torta" }, { kljuc: "status", naziv: "Stanje", vrsta: "status" },
     ],
-    sql: `select v.registarski_broj as vozilo, ${VRIJEME("kv.izvrseno_at")} as kontrola, ${IME("kv.izvrsio_korisnik_id")} as ko,
-                 concat_ws(', ', case when kv.cistoca = false then 'čistoća' end, case when kv.oprema_ok = false then 'oprema' end,
-                   case when kv.vrata_ok = false then 'vrata' end) as nije_proslo, kv.napomena
-          from vozilo v
-          left join lateral (select * from kontrola_vozila k where k.vozilo_id = v.id order by k.izvrseno_at desc limit 1) kv on true
-          where v.status = 'NIJE_SPREMNO' and v.aktivan
-          order by v.registarski_broj`,
+    sql: `select p.broj, ${VRIJEME("p.preuzimanje_at")} as preuzimanje, p.kupac_ime || ' · ' || p.kupac_telefon as kupac, p.opis, p.status
+          from porudzbina p where p.status in ('PRIMLJENA', 'U_IZRADI') and p.alergeni_potvrdjeno_at is null
+            and (p.preuzimanje_at at time zone 'Europe/Podgorica')::date <= $1::date + 1
+          order by p.preuzimanje_at`,
   },
   knjizice: {
     naslov: "Sanitarne knjižice — ističu ili su istekle",
@@ -206,21 +199,22 @@ const DETALJ: Record<string, { naslov: string; kolone: Kolona[]; sql: string; sa
                  (select count(*) from prijem_stavka s where s.prijem_id = p.id)::text as stavki, p.status, ${IME("p.primio_korisnik_id")} as primio
           from prijem p join dobavljac d on d.id = p.dobavljac_id where p.datum_prijema = $1 order by p.created_at desc`,
   },
-  isporuke: {
-    naslov: "Isporuke danas",
+  porudzbine: {
+    naslov: "Torte danas",
     saDanom: true,
-    prazno: "Danas još nema unosa.",
+    prazno: "Danas nema torti za preuzimanje.",
     kolone: [
-      { kljuc: "broj", naziv: "Broj" }, { kljuc: "kupac", naziv: "Kupac" }, { kljuc: "status", naziv: "Stanje", vrsta: "status" },
-      { kljuc: "vozac", naziv: "Vozač" }, { kljuc: "vozilo", naziv: "Vozilo" }, { kljuc: "predato", naziv: "Predato" },
+      { kljuc: "broj", naziv: "Broj" }, { kljuc: "vrijeme", naziv: "Preuzimanje" }, { kljuc: "kupac", naziv: "Kupac" },
+      { kljuc: "status", naziv: "Stanje", vrsta: "status" }, { kljuc: "predao", naziv: "Predao" }, { kljuc: "predato", naziv: "Predato" },
     ],
-    sql: `select i.broj, k.naziv as kupac, i.status, ${IME("i.vozac_korisnik_id")} as vozac, v.registarski_broj as vozilo, ${VRIJEME("i.potvrdjeno_at")} as predato
-          from isporuka i join kupac k on k.id = i.kupac_id left join vozilo v on v.id = i.vozilo_id
-          where i.datum_isporuke = $1 order by i.created_at desc`,
+    sql: `select p.broj, to_char(p.preuzimanje_at at time zone 'Europe/Podgorica', 'HH24:MI') as vrijeme, p.kupac_ime as kupac, p.status,
+                 ${IME("p.predao_korisnik_id")} as predao, ${VRIJEME("p.predato_at")} as predato
+          from porudzbina p where (p.preuzimanje_at at time zone 'Europe/Podgorica')::date = $1 and p.status <> 'OTKAZANA'
+          order by p.preuzimanje_at`,
   },
   "rok-robe": {
-    naslov: "Rok trajanja robe na zalihi — istekao ili ističe za 7 dana",
-    prazno: "Nema robe kojoj rok ističe.",
+    naslov: "Rok trajanja sastojaka na zalihi — istekao ili ističe za 7 dana",
+    prazno: "Nema sastojaka kojima rok ističe.",
     kolone: [
       { kljuc: "artikal", naziv: "Artikal" }, { kljuc: "lot", naziv: "Lot" }, { kljuc: "dobavljac", naziv: "Dobavljač" }, { kljuc: "magacin", naziv: "Magacin" },
       { kljuc: "rok", naziv: "Rok" }, { kljuc: "dostupno", naziv: "Na zalihi" }, { kljuc: "stanje", naziv: "Stanje", vrsta: "status" },

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldAlert, AlertTriangle, Thermometer, Truck, PackageX, Clock3, BookOpen, ArrowDownToLine, PackageCheck, PhoneCall, ClipboardList, DatabaseBackup, ClipboardCheck, Gauge, CalendarX } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Thermometer, PackageX, Clock3, BookOpen, ArrowDownToLine, Cake, PhoneCall, ClipboardList, DatabaseBackup, ClipboardCheck, Gauge, CalendarX } from "lucide-react";
 import { api, ApiGreska, preuzmiFajl } from "../lib/api";
 import { lokalniDatum } from "../lib/vrijeme";
 import { PageHeader, Modal } from "../components/Zajednicko";
@@ -10,7 +10,6 @@ import { AktivnostUzivo } from "../components/Aktivnost";
 import { ProvjeraZnanjaUlaz } from "../components/ProvjeraZnanjaUlaz";
 import { mozeNa } from "../components/Layout";
 import { useAuth } from "../lib/auth";
-import { DirektorPregled } from "./DirektorPregled";
 
 type BekapMeta = { id: string; tip: string; broj_tabela: number; broj_redova: number; velicina_bajtova: number | string | null; created_at: string };
 
@@ -21,7 +20,7 @@ type TablaPodaci = {
     neusaglasenostiVisoke: number;
     neusaglasenostiOtvorene: number;
     temperatureVanOpsega: number;
-    vozilaNijeSpremno: number;
+    porudzbineBezAlergena: number;
     lotoviNaHoldu: number;
     zadaciZakasnili: number;
     zadaciOtvoreni: number;
@@ -33,16 +32,11 @@ type TablaPodaci = {
     robaIstekao: number;
     robaUskoro: number;
   };
-  operativno: { prijemiDanas: number; isporukeDanas: number; zapisiDanas: number };
+  operativno: { prijemiDanas: number; porudzbineDanas: number; zapisiDanas: number };
 };
 
-/** Direktor (uprava) ima svoj, jednostavniji Kontrolni centar — DirektorPregled (11.10.2026). */
+/** Kontrolni centar vlasnice i konsultanta (direktorov pregled je uklonjen — PLAN.md 8.3). */
 export function Tabla() {
-  const { korisnik } = useAuth();
-  return korisnik?.uloga === "uprava" ? <DirektorPregled /> : <TablaVodstva />;
-}
-
-function TablaVodstva() {
   const { korisnik } = useAuth();
   const [podaci, setPodaci] = useState<TablaPodaci | null>(null);
   const [bekap, setBekap] = useState<BekapMeta | null | undefined>(undefined);
@@ -52,8 +46,6 @@ function TablaVodstva() {
   const navigate = useNavigate();
 
   const mozeBekap = korisnik?.uloga === "bzr" || korisnik?.uloga === "izvodjac";
-  // Uprava nadgleda: ne rješava zadatke i ne ulazi na operativne strane — vidi stanje i aktivnost.
-  const jeUprava = korisnik?.uloga === "uprava";
 
   useEffect(() => {
     api<TablaPodaci>("/tabla").then(setPodaci);
@@ -81,18 +73,18 @@ function TablaVodstva() {
     { naslov: "Povlačenja u toku", vrijednost: k.povlacenjaUToku, ikonica: <PhoneCall size={18} />, putanja: "/sledljivost", tona: "danger" },
     { naslov: "Otvorene neusaglašenosti", vrijednost: k.neusaglasenostiOtvorene, ikonica: <AlertTriangle size={18} />, putanja: "/neusaglasenosti", detalj: "neusaglasenosti", tona: k.neusaglasenostiVisoke > 0 ? "danger" : "warning" },
     { naslov: "Temperature van opsega (24h)", vrijednost: k.temperatureVanOpsega, ikonica: <Thermometer size={18} />, putanja: "/haccp", detalj: "temperature", tona: k.temperatureVanOpsega > 0 ? "danger" : "warning" },
-    { naslov: "Vozila nisu spremna", vrijednost: k.vozilaNijeSpremno, ikonica: <Truck size={18} />, putanja: "/vozila", detalj: "vozila", tona: k.vozilaNijeSpremno > 0 ? "danger" : "warning" },
+    // P1: torta za danas ili sutra kojoj alergeni još nisu potvrđeni — ne smije se otkriti tek na vratima.
+    { naslov: "Torte (danas, sutra) bez potvrđenih alergena", vrijednost: k.porudzbineBezAlergena, ikonica: <Cake size={18} />, putanja: "/porudzbine", detalj: "porudzbine-alergeni", tona: k.porudzbineBezAlergena > 0 ? "danger" : "warning" },
     { naslov: "Lotovi na HOLD-u", vrijednost: k.lotoviNaHoldu, ikonica: <PackageX size={18} />, putanja: "/zalihe", stanje: { status: "HOLD" }, tona: k.lotoviNaHoldu > 0 ? "danger" : "warning" },
-    // Rok robe (R-02): istekla roba se ne isporučuje, a stoji u zalihama dok je neko ne otpiše.
-    { naslov: `Rok robe: isteklo ${k.robaIstekao} · ističe za 7 dana ${k.robaUskoro}`, vrijednost: k.robaIstekao + k.robaUskoro, ikonica: <CalendarX size={18} />, putanja: "/zalihe", stanje: { status: "PRIHVACEN", rok: k.robaIstekao > 0 ? "istekao" : "uskoro" }, detalj: "rok-robe", tona: k.robaIstekao > 0 ? "danger" : "warning" },
+    // Rok sastojka (R-02): istekao ne ide u tortu, a stoji u zalihama dok ga neko ne otpiše.
+    { naslov: `Rok sastojaka: isteklo ${k.robaIstekao} · ističe za 7 dana ${k.robaUskoro}`, vrijednost: k.robaIstekao + k.robaUskoro, ikonica: <CalendarX size={18} />, putanja: "/zalihe", stanje: { status: "PRIHVACEN", rok: k.robaIstekao > 0 ? "istekao" : "uskoro" }, detalj: "rok-robe", tona: k.robaIstekao > 0 ? "danger" : "warning" },
     { naslov: "Zakašnjeli zadaci", vrijednost: k.zadaciZakasnili, ikonica: <Clock3 size={18} />, putanja: "#zadaci", tona: k.zadaciZakasnili > 0 ? "danger" : "warning" },
     { naslov: "Knjižice ističu/istekle", vrijednost: k.knjizicIstice, ikonica: <BookOpen size={18} />, putanja: "/ljudi", detalj: "knjizice", tona: k.knjizicIstice > 0 ? "danger" : "warning" },
     // Plan monitoringa (faza 3): šta danas još nije urađeno; juče propušteno je već rupa u zapisima.
     { naslov: `Danas fali po planu${k.monitoringJuce ? ` · juče propušteno ${k.monitoringJuce}` : ""}`, vrijednost: k.monitoringFali, ikonica: <ClipboardCheck size={18} />, putanja: "/haccp-plan", stanje: { kartica: "plan" }, detalj: "monitoring", tona: k.monitoringJuce > 0 ? "danger" : "warning" },
     { naslov: "HACCP rokovi (termometri, revizija)", vrijednost: k.haccpRokovi, ikonica: <Gauge size={18} />, putanja: "/haccp-plan", stanje: { kartica: "termometri" }, detalj: "rokovi", tona: k.haccpRokovi > 0 ? "danger" : "warning" },
-  ].filter((kartica) => !(jeUprava && kartica.putanja === "#zadaci"));
-  // Ko smije na stranu — ide na nju. Uprava ne ulazi na operativne strane, pa dobija listu iza
-  // broja, samo za čitanje (ranije je klik kod direktora radio ništa).
+  ];
+  // Ko smije na stranu — ide na nju; inače dobija listu iza broja, samo za čitanje.
   const otvori = (putanja: string, kartica?: string, stanje?: unknown) => {
     if (putanja.startsWith("#")) document.getElementById(putanja.slice(1))?.scrollIntoView({ behavior: "smooth" });
     else if (korisnik && mozeNa(korisnik.uloga, putanja)) navigate(putanja, stanje ? { state: stanje } : undefined);
@@ -143,13 +135,13 @@ function TablaVodstva() {
             <strong>{podaci.operativno.prijemiDanas}</strong>
           </div>
         </button>
-        <button className="stat-card" onClick={() => otvori("/isporuka", "isporuke")} style={{ textAlign: "left" }}>
+        <button className="stat-card" onClick={() => otvori("/porudzbine", "porudzbine")} style={{ textAlign: "left" }}>
           <div className="stat-icon green">
-            <PackageCheck size={18} />
+            <Cake size={18} />
           </div>
           <div className="stat-copy">
-            <span>Isporuke danas</span>
-            <strong>{podaci.operativno.isporukeDanas}</strong>
+            <span>Torte danas</span>
+            <strong>{podaci.operativno.porudzbineDanas}</strong>
           </div>
         </button>
         <button className="stat-card" onClick={() => otvori("/haccp", "zapisi")} style={{ textAlign: "left" }}>
@@ -167,7 +159,7 @@ function TablaVodstva() {
       <div className="section-heading" style={{ marginTop: 26 }}>
         <div>
           <h2>Šta se dešava</h2>
-          <span>Svaki prijem, isporuka, obrazac, kontrola i problem — ko je i kada. Temperatura van opsega, povlačenje i nespremno vozilo stižu i na zvonce.</span>
+          <span>Svaki prijem, porudžbina, predata torta, obrazac i problem — ko je i kada. Temperatura van opsega i povlačenje stižu i na zvonce.</span>
         </div>
       </div>
       <AktivnostUzivo />
@@ -195,21 +187,13 @@ function TablaVodstva() {
         </Modal>
       )}
 
-      {!jeUprava && (
-      <>
       <div className="section-heading" id="zadaci" style={{ marginTop: 26 }}>
         <div>
           <h2>Otvoreni zadaci ({k.zadaciOtvoreni})</h2>
-          <span>
-            {mozeBekap
-              ? "Nastaju sami iz neusaglašenosti, povlačenja i kontrole vozila. Dodijelite zadatak nekome — dobiće obavještenje. Zatvara se sam kad se zatvori ono iz čega je nastao."
-              : "Nastaju sami iz neusaglašenosti, povlačenja i kontrole vozila."}
-          </span>
+          <span>Nastaju sami iz neusaglašenosti i povlačenja. Dodijelite zadatak nekome — dobiće obavještenje. Zatvara se sam kad se zatvori ono iz čega je nastao.</span>
         </div>
       </div>
       <ListaZadataka samoMoji={false} naslov="Svi otvoreni zadaci" />
-      </>
-      )}
 
       {mozeBekap && (
         <>

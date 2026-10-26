@@ -1,5 +1,5 @@
-// „Stanje poslovanja“ — izvještaj za direktora (11.10.2026). Konsultant bira period (dan, sedmica, mjesec, kvartal,
-// polugodište, godina) i šalje ga mejlom. Direktor za pet minuta treba da vidi: radi li firma (promet), vode li se
+// „Stanje poslovanja“ — izvještaj za vlasnicu (11.10.2026; u poslastičarnici vlasnica je i odgovorno lice). Konsultant
+// bira period (dan, sedmica, mjesec, kvartal, polugodište, godina) i šalje ga mejlom. Za pet minuta se vidi: radi li atelje (torte), vode li se
 // zapisi svaki dan i na vrijeme, ima li problema sa temperaturom, otvorenih neusaglašenosti, povlačenja, isteklih
 // knjižica — i šta treba uraditi. Svaki broj se poredi sa prethodnim periodom iste vrste.
 //
@@ -90,24 +90,23 @@ export type Pokazatelji = Awaited<ReturnType<typeof pokazatelji>>;
 
 async function pokazatelji(od: string, doDan: string) {
   const p = [od, doDan];
-  const [promet, zapisi, temp, nc, pov, d1, ljudi] = await Promise.all([
-    upit<{ prijemi: number; lotovi: number; odbijeni_lotovi: number; isporuke: number; odbijene_isporuke: number; kupci: number; otpisi: number }>(
+  const [promet, zapisi, temp, nc, pov, ljudi] = await Promise.all([
+    upit<{ prijemi: number; lotovi: number; odbijeni_lotovi: number; torte: number; otkazane: number; kupci: number; otpisi: number }>(
       `select
          (select count(*) from prijem where datum_prijema between $1 and $2)::int as prijemi,
          (select count(*) from lot l join prijem pr on pr.id = l.prijem_id where pr.datum_prijema between $1 and $2)::int as lotovi,
          (select count(*) from lot l join prijem pr on pr.id = l.prijem_id where pr.datum_prijema between $1 and $2 and l.status::text = 'ODBIJEN')::int as odbijeni_lotovi,
-         (select count(*) from isporuka where datum_isporuke between $1 and $2 and status::text in ('POTVRDJENA', 'DJELIMICNA'))::int as isporuke,
-         (select count(*) from isporuka where datum_isporuke between $1 and $2 and status::text = 'ODBIJENA')::int as odbijene_isporuke,
-         (select count(distinct kupac_id) from isporuka where datum_isporuke between $1 and $2 and status::text in ('POTVRDJENA', 'DJELIMICNA'))::int as kupci,
+         (select count(*) from porudzbina where status = 'PREDATA' and ${PG("predato_at")}::date between $1 and $2)::int as torte,
+         (select count(*) from porudzbina where status = 'OTKAZANA' and ${PG("otkazano_at")}::date between $1 and $2)::int as otkazane,
+         (select count(distinct kupac_telefon) from porudzbina where status = 'PREDATA' and ${PG("predato_at")}::date between $1 and $2)::int as kupci,
          (select count(*) from kretanje_zalihe where tip::text = 'OTPIS' and ${PG("created_at")}::date between $1 and $2)::int as otpisi`,
       p,
     ),
-    // Zapisi (dnevni obrasci — prvi unos, mjerenja, D1, prijemi): koliko ih je i koliko upisano naknadno (#10).
+    // Zapisi (dnevni obrasci — prvi unos, mjerenja, prijemi): koliko ih je i koliko upisano naknadno (#10).
     upit<{ ukupno: number; naknadno: number; osoba: number }>(
       `select count(*)::int as ukupno, count(*) filter (where naknadno > 0)::int as naknadno, count(distinct ko)::int as osoba from (
          select (${PG("z.created_at")}::date - z.datum) as naknadno, z.uneo_korisnik_id as ko from zapis z where z.ispravlja_id is null and z.datum between $1 and $2
          union all select (${PG("m.created_at")}::date - ${PG("m.izmjereno_at")}::date), m.izmjerio_korisnik_id from mjerenje_temperature m where ${PG("m.izmjereno_at")}::date between $1 and $2
-         union all select (${PG("k.created_at")}::date - ${PG("k.izvrseno_at")}::date), k.izvrsio_korisnik_id from kontrola_vozila k where ${PG("k.izvrseno_at")}::date between $1 and $2
          union all select (${PG("pr.created_at")}::date - pr.datum_prijema), pr.primio_korisnik_id from prijem pr where pr.datum_prijema between $1 and $2
        ) x`,
       p,
@@ -132,10 +131,6 @@ async function pokazatelji(od: string, doDan: string) {
       `select count(*) filter (where ${PG("pokrenuto_at")}::date between $1 and $2)::int as pokrenuta,
               count(*) filter (where ${PG("pokrenuto_at")}::date <= $2 and (zavrseno_at is null or ${PG("zavrseno_at")}::date > $2))::int as u_toku
        from povlacenje`,
-      p,
-    ),
-    upit<{ kontrola: number; palo: number }>(
-      `select count(*)::int as kontrola, count(*) filter (where ukupan_status <> 'PROSAO')::int as palo from kontrola_vozila where ${PG("izvrseno_at")}::date between $1 and $2`,
       p,
     ),
     // Knjižice na KRAJ perioda (Zakon o zaštiti stanovništva od zaraznih bolesti, čl. 31) i obuka koja kasni.
@@ -164,23 +159,21 @@ async function pokazatelji(od: string, doDan: string) {
     temperatura: { ...t, posto: t.mjerenja ? Math.round((1000 * (t.mjerenja - t.van)) / t.mjerenja) / 10 : null },
     nc: { ...nc.rows[0], dana: nc.rows[0].dana === null ? null : Number(nc.rows[0].dana) },
     povlacenja: pov.rows[0],
-    d1: d1.rows[0],
     ljudi: ljudi.rows[0],
   };
 }
 
 // ─── Serije za grafikone ────────────────────────────────────────────────────────────────────────
-type Stub = { oznaka: string; od: string; do: string; isporuke: number; mjerenja: number; obrasci: number; d1: number; ncNove: number; ncZatvorene: number; radniBezZapisa: number };
+type Stub = { oznaka: string; od: string; do: string; torte: number; mjerenja: number; obrasci: number; ncNove: number; ncZatvorene: number; radniBezZapisa: number };
 
 async function serije(vrsta: Vrsta, od: string, doDan: string): Promise<{ naslov: string; stubovi: Stub[] }> {
   // Dan sam za sebe ne pokazuje trend — za dnevni izvještaj grafikon je posljednjih 14 dana.
   const sOd = vrsta === "dan" ? dodajDane(doDan, -13) : od;
-  const dani = (await upit<{ dan: string; dow: number; isporuke: number; mjerenja: number; obrasci: number; d1: number; prijemi: number; nc_nove: number; nc_zatvorene: number }>(
+  const dani = (await upit<{ dan: string; dow: number; torte: number; mjerenja: number; obrasci: number; prijemi: number; nc_nove: number; nc_zatvorene: number }>(
     `select to_char(d.dan, 'YYYY-MM-DD') as dan, extract(isodow from d.dan)::int as dow,
-            (select count(*) from isporuka i where i.datum_isporuke = d.dan and i.status::text in ('POTVRDJENA', 'DJELIMICNA'))::int as isporuke,
+            (select count(*) from porudzbina po where po.status = 'PREDATA' and ${PG("po.predato_at")}::date = d.dan)::int as torte,
             (select count(*) from mjerenje_temperature m where ${PG("m.izmjereno_at")}::date = d.dan)::int as mjerenja,
             (select count(*) from zapis z where z.datum = d.dan and z.ispravlja_id is null)::int as obrasci,
-            (select count(*) from kontrola_vozila k where ${PG("k.izvrseno_at")}::date = d.dan)::int as d1,
             (select count(*) from prijem pr where pr.datum_prijema = d.dan)::int as prijemi,
             (select count(*) from neusaglasenost n where ${PG("n.created_at")}::date = d.dan)::int as nc_nove,
             (select count(*) from neusaglasenost n where n.zatvoreno_at is not null and ${PG("n.zatvoreno_at")}::date = d.dan)::int as nc_zatvorene
@@ -194,17 +187,16 @@ async function serije(vrsta: Vrsta, od: string, doDan: string): Promise<{ naslov
     let s = stubovi[stubovi.length - 1];
     if (!s || s.od !== (grupa === "mjesec" ? `${kljuc}-01` : kljuc)) {
       const oznaka = grupa === "dan" ? d.dan.slice(8, 10).replace(/^0/, "") : grupa === "sedmica" ? kratko(kljuc) : MJESECI[Number(kljuc.slice(5, 7)) - 1].slice(0, 3);
-      s = { oznaka, od: grupa === "mjesec" ? `${kljuc}-01` : kljuc, do: d.dan, isporuke: 0, mjerenja: 0, obrasci: 0, d1: 0, ncNove: 0, ncZatvorene: 0, radniBezZapisa: 0 };
+      s = { oznaka, od: grupa === "mjesec" ? `${kljuc}-01` : kljuc, do: d.dan, torte: 0, mjerenja: 0, obrasci: 0, ncNove: 0, ncZatvorene: 0, radniBezZapisa: 0 };
       stubovi.push(s);
     }
     s.do = d.dan;
-    s.isporuke += d.isporuke;
+    s.torte += d.torte;
     s.mjerenja += d.mjerenja;
     s.obrasci += d.obrasci;
-    s.d1 += d.d1;
     s.ncNove += d.nc_nove;
     s.ncZatvorene += d.nc_zatvorene;
-    if (d.dow !== 7 && d.mjerenja + d.obrasci + d.d1 + d.prijemi === 0) s.radniBezZapisa += 1;
+    if (d.dow !== 7 && d.mjerenja + d.obrasci + d.prijemi === 0) s.radniBezZapisa += 1;
   }
   const naslov = vrsta === "dan" ? "posljednjih 14 dana" : grupa === "dan" ? "po danu" : grupa === "sedmica" ? "po sedmici" : "po mjesecu";
   return { naslov, stubovi };
@@ -222,7 +214,7 @@ const oblik = (n: number, jedan: string, dva: string, pet: string) => {
 
 function ocjena(k: Pokazatelji, termometri: { neispravni: number; istekli: number }) {
   const stavke: { nivo: Nivo; tekst: string }[] = [];
-  if (k.povlacenja.u_toku) stavke.push({ nivo: "crveno", tekst: `Povlačenje robe je u toku (${k.povlacenja.u_toku}) — svi kupci moraju biti obaviješteni, pa povlačenje zatvoreno.` });
+  if (k.povlacenja.u_toku) stavke.push({ nivo: "crveno", tekst: `Povlačenje je u toku (${k.povlacenja.u_toku}) — svi kupci moraju biti obaviješteni, pa povlačenje zatvoreno.` });
   if (k.nc.otvorene_visok) stavke.push({ nivo: "crveno", tekst: `${mn(k.nc.otvorene_visok, "neusaglašenost visoke ozbiljnosti je otvorena", "neusaglašenosti visoke ozbiljnosti su otvorene")} — tražiti rok za korektivnu mjeru.` });
   if (k.ljudi.istekla) stavke.push({ nivo: "crveno", tekst: `${mn(k.ljudi.istekla, "zaposleni radi", "zaposlenih radi")} sa hranom sa isteklom sanitarnom knjižicom — obnoviti odmah (kazna 2.500–20.000 €).` });
   if (termometri.neispravni) stavke.push({ nivo: "crveno", tekst: `${mn(termometri.neispravni, "termometar je neispravan", "termometra su neispravna")} — zamijeniti; mjerenja njime nisu pouzdana.` });
@@ -234,7 +226,6 @@ function ocjena(k: Pokazatelji, termometri: { neispravni: number; istekli: numbe
   if (k.ljudi.istice) stavke.push({ nivo: "zuto", tekst: `${mn(k.ljudi.istice, "sanitarna knjižica ističe", "sanitarnih knjižica ističe")} u narednih 30 dana — zakazati pregled.` });
   if (termometri.istekli) stavke.push({ nivo: "zuto", tekst: `${mn(termometri.istekli, "termometru je istekla", "termometrima je istekla")} provjera ili kalibracija.` });
   if (k.ljudi.obuka_kasni) stavke.push({ nivo: "zuto", tekst: `Obuka po godišnjem planu kasni (${k.ljudi.obuka_kasni}) — zakazati.` });
-  if (k.d1.palo) stavke.push({ nivo: "zuto", tekst: `${mn(k.d1.palo, "kontrola vozila nije prošla", "kontrole vozila nisu prošle")} prije utovara.` });
   const red: Record<Nivo, number> = { crveno: 0, zuto: 1, zeleno: 2 };
   stavke.sort((a, b) => red[a.nivo] - red[b.nivo]);
   const nivo: Nivo = stavke.some((s) => s.nivo === "crveno") ? "crveno" : stavke.length ? "zuto" : "zeleno";
@@ -266,45 +257,6 @@ export async function izvjestaj(vrsta: Vrsta, dan?: string) {
     termometri,
     grafikon,
     html: htmlIzvjestaja(f?.naziv ?? "Firma", per, sada, prije, o, grafikon, termometri),
-  };
-}
-
-// ─── Pregled za direktora (Kontrolni centar uprave, 11.10.2026) ─────────────────────────────────
-/** Direktoru ne trebaju operativne kartice odgovornog lica — treba mu odgovor „jesmo li u redu i šta traži moju
- * odluku“. Isti semafor i pokazatelji kao „Stanje poslovanja“ (#93), za posljednjih 7 dana (sa danas) prema
- * prethodnih 7; grafikon zapisa za 14 dana; povlačenja u toku sa brojem obaviještenih kupaca. Samo čita. */
-export async function pregledDirektora() {
-  const danas = danasCG();
-  const od = dodajDane(danas, -6);
-  const [sada, prije, grafikon, uredjaji, povlacenja, firma, posljednji] = await Promise.all([
-    pokazatelji(od, danas),
-    pokazatelji(dodajDane(danas, -13), dodajDane(danas, -7)),
-    serije("dan", danas, danas),
-    listaUredjaja(true),
-    upit<{ id: string; broj: string; artikal: string; broj_lota: string; pokrenuto_at: string; kupaca: number; obavijesteno: number }>(
-      `select p.id, p.broj, a.naziv as artikal, l.broj_lota, p.pokrenuto_at,
-              count(k.id)::int as kupaca, count(k.id) filter (where k.kontaktiran)::int as obavijesteno
-       from povlacenje p join lot l on l.id = p.lot_id join artikal a on a.id = l.artikal_id
-       left join povlacenje_kontakt k on k.povlacenje_id = p.id
-       where p.status = 'U_TOKU' group by p.id, a.naziv, l.broj_lota order by p.pokrenuto_at`,
-    ),
-    upit<{ odgovorno_lice_ime: string | null }>(`select odgovorno_lice_ime from firma limit 1`),
-    upit<{ vrsta: Vrsta; od: string; do: string; created_at: string }>(
-      `select vrsta, to_char(period_od, 'YYYY-MM-DD') as od, to_char(period_do, 'YYYY-MM-DD') as do, created_at
-       from izvjestaj_poslat order by created_at desc limit 1`,
-    ),
-  ]);
-  const termometri = { neispravni: uredjaji.filter((u) => u.stanje === "NEISPRAVAN").length, istekli: uredjaji.filter((u) => u.stanje === "ISTEKLA").length };
-  const p = posljednji.rows[0];
-  return {
-    period: { od, do: danas },
-    ocjena: ocjena(sada, termometri),
-    pokazatelji: sada,
-    prethodni: prije,
-    grafikon,
-    povlacenja: povlacenja.rows,
-    odgovornoLice: firma.rows[0]?.odgovorno_lice_ime ?? null,
-    posljednjiIzvjestaj: p ? { naziv: nazivPerioda(p.vrsta, p.od, p.do), poslat: p.created_at } : null,
   };
 }
 
@@ -417,9 +369,9 @@ function htmlIzvjestaja(firma: string, per: ReturnType<typeof period>, k: Pokaza
 
   ${naslovOdjeljka("Poslovanje")}
   ${red([
-    kartica("Isporuke kupcima", broj(k.promet.isporuke), `${broj(k.promet.kupci)} ${oblik(k.promet.kupci, "kupac", "kupca", "kupaca")}${k.promet.odbijene_isporuke ? ` · odbijeno ${k.promet.odbijene_isporuke}` : ""}`, trend(k.promet.isporuke, p.promet.isporuke, "neutralno")),
-    kartica("Prijemi robe", broj(k.promet.prijemi), `${broj(k.promet.lotovi)} ${oblik(k.promet.lotovi, "lot", "lota", "lotova")}${k.promet.odbijeni_lotovi ? ` · odbijeno ${k.promet.odbijeni_lotovi}` : ""}`, trend(k.promet.prijemi, p.promet.prijemi, "neutralno")),
-    kartica("Otpis robe", broj(k.promet.otpisi), "upisanih otpisa", trend(k.promet.otpisi, p.promet.otpisi, "manje")),
+    kartica("Predate torte", broj(k.promet.torte), `${broj(k.promet.kupci)} ${oblik(k.promet.kupci, "kupac", "kupca", "kupaca")}${k.promet.otkazane ? ` · otkazano ${k.promet.otkazane}` : ""}`, trend(k.promet.torte, p.promet.torte, "neutralno")),
+    kartica("Prijemi sastojaka", broj(k.promet.prijemi), `${broj(k.promet.lotovi)} ${oblik(k.promet.lotovi, "lot", "lota", "lotova")}${k.promet.odbijeni_lotovi ? ` · odbijeno ${k.promet.odbijeni_lotovi}` : ""}`, trend(k.promet.prijemi, p.promet.prijemi, "neutralno")),
+    kartica("Otpis", broj(k.promet.otpisi), "upisanih otpisa", trend(k.promet.otpisi, p.promet.otpisi, "manje")),
   ])}
 
   ${naslovOdjeljka("Bezbjednost hrane")}
@@ -431,15 +383,14 @@ function htmlIzvjestaja(firma: string, per: ReturnType<typeof period>, k: Pokaza
   ${red([
     kartica("Neusaglašenosti otvorene", broj(k.nc.otvorene), `nove ${broj(k.nc.nove)} · zatvorene ${broj(k.nc.zatvorene)}${k.nc.dana !== null ? ` · zatvaranje prosječno ${String(k.nc.dana).replace(".", ",")} d` : ""}`, trend(k.nc.otvorene, p.nc.otvorene, "manje")),
     kartica("Povlačenja", broj(k.povlacenja.pokrenuta), k.povlacenja.u_toku ? `${k.povlacenja.u_toku} u toku` : "nijedno u toku", trend(k.povlacenja.pokrenuta, p.povlacenja.pokrenuta, "manje")),
-    kartica("Kontrola vozila (D1)", broj(k.d1.kontrola), k.d1.palo ? `nije prošlo ${k.d1.palo}` : "sve prošle", trend(k.d1.palo, p.d1.palo, "manje")),
+    kartica("Otkazane porudžbine", broj(k.promet.otkazane), "sa upisanim razlogom", trend(k.promet.otkazane, p.promet.otkazane, "neutralno")),
   ])}
 
   ${naslovOdjeljka("Grafički pregled")}
-  ${stubici("Isporuke kupcima", g.naslov, g.stubovi, [{ k: "isporuke", boja: BOJE.plava, naziv: "isporuke" }])}
+  ${stubici("Predate torte", g.naslov, g.stubovi, [{ k: "torte", boja: BOJE.plava, naziv: "torte" }])}
   ${stubici("Zapisi i kontrole", `${g.naslov}; crvena crta = radni dan bez ijednog zapisa`, g.stubovi, [
     { k: "mjerenja", boja: BOJE.plava, naziv: "mjerenja temperature" },
     { k: "obrasci", boja: BOJE.zelena, naziv: "dnevni obrasci" },
-    { k: "d1", boja: BOJE.narandzasta, naziv: "kontrole vozila" },
   ], true)}
   ${stubici("Neusaglašenosti", g.naslov, g.stubovi, [
     { k: "ncNove", boja: BOJE.crvena, naziv: "nove" },
@@ -471,7 +422,7 @@ function tekstIzvjestaja(firma: string, iz: Awaited<ReturnType<typeof izvjestaj>
     iz.ocjena.poruka,
     ...iz.ocjena.stavke.map((s) => `- ${s.tekst}`),
     "",
-    `Isporuke: ${k.promet.isporuke} (${k.promet.kupci} ${oblik(k.promet.kupci, "kupac", "kupca", "kupaca")}) · Prijemi: ${k.promet.prijemi}`,
+    `Predate torte: ${k.promet.torte} (${k.promet.kupci} ${oblik(k.promet.kupci, "kupac", "kupca", "kupaca")}) · Prijemi: ${k.promet.prijemi}`,
     `Kontrole po planu: ${k.plan.posto ?? "—"} % · Zapisi na vrijeme: ${k.zapisi.naVrijeme ?? "—"} % · Temperatura van granice: ${k.temperatura.van}`,
     `Neusaglašenosti otvorene: ${k.nc.otvorene} · Povlačenja u toku: ${k.povlacenja.u_toku}`,
   ].join("\n");
@@ -506,7 +457,7 @@ export async function posalji(vrsta: Vrsta, dan: string | undefined) {
   }
   const iz = await izvjestaj(vrsta, dan);
   const primaoci = procitajPrimaoce(iz.primaoci);
-  if (!primaoci.length) throw new ApiGreska(400, "NEMA_PRIMALACA", "Upišite kome se šalje (npr. mejl direktora) i sačuvajte.");
+  if (!primaoci.length) throw new ApiGreska(400, "NEMA_PRIMALACA", "Upišite kome se šalje (npr. mejl vlasnice) i sačuvajte.");
   const port = Number(process.env.SMTP_PORT) || 465;
   const posta = nodemailer.createTransport({
     host: process.env.SMTP_HOST,

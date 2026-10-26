@@ -5,7 +5,10 @@ import { pool, upit } from "./db.js";
 import { ApiGreska, posalji } from "./greske.js";
 import { danaUnazad, jeDatumUBuducnosti } from "./vrijeme.js";
 
-export type Uloga = "izvodjac" | "bzr" | "operater" | "vozac" | "uprava";
+// Poslastičarnica: tri uloge — konsultant (`izvodjac`), vlasnica / odgovorno lice (`bzr`) i zaposleni
+// (`operater`). Vrijednosti `vozac` i `uprava` ostaju u enumu baze (uloga_t), ali ih kod ne dodjeljuje i ne pušta
+// (PLAN.md 8.3) — nalog sa takvom ulogom ne prolazi nijednu rutu.
+export type Uloga = "izvodjac" | "bzr" | "operater";
 
 export type SesijskiKorisnik = {
   id: string;
@@ -110,7 +113,7 @@ export async function ucitajKorisnikaPoSesiji(token: string | undefined): Promis
 
 /** Uloge koje smiju uključiti potvrdu u dva koraka (#81): nalozi koji vide sve podatke firme. Terenske
  * ne — izgubljen telefon magacionera ne smije zaustaviti prijem robe. */
-export const ULOGE_2FA: Uloga[] = ["izvodjac", "bzr", "uprava"];
+export const ULOGE_2FA: Uloga[] = ["izvodjac", "bzr"];
 /** Kome je 2FA OBAVEZNA na ovoj instanci: env OBAVEZNA_2FA="izvodjac,bzr" (podrazumijevano nikome). */
 export const OBAVEZNA_2FA: Uloga[] = String(process.env.OBAVEZNA_2FA ?? "")
   .split(",").map((u) => u.trim()).filter((u): u is Uloga => (ULOGE_2FA as string[]).includes(u));
@@ -133,7 +136,7 @@ export const requireAuth = async (request: AuthZahtjev, response: Response, next
   next();
 };
 
-export const SVE_ULOGE: Uloga[] = ["izvodjac", "bzr", "uprava", "operater", "vozac"];
+export const SVE_ULOGE: Uloga[] = ["izvodjac", "bzr", "operater"];
 
 /** Uloge se pišu na SVAKOJ ruti (nalaz A3, faza 4). Funkcija nosi svoj spisak (`uloge`), pa
  * `provjeriRute()` pri pokretanju servera vidi rutu kojoj je zaboravljen. */
@@ -187,13 +190,11 @@ export function ocistiNeuspjelePokusaje(kljucKlijenta: string) {
 /** Koliko dana unazad smije da unosi/vidi svaka uloga — stoji na serveru, ne u pregledaču. */
 export const PROZOR: Record<Uloga, number> = {
   operater: 1,
-  vozac: 1,
   bzr: 7,
   izvodjac: 30,
-  uprava: 7,
 };
 
-export const NA_TERENU: Uloga[] = ["operater", "vozac"];
+export const NA_TERENU: Uloga[] = ["operater"];
 
 /** Kolona se prosljeđuje kao argument — pogledi imaju različita imena (datum, datum_prijema...). */
 export function ogranicenjeDatuma(uloga: Uloga, kolona: string) {
@@ -205,9 +206,7 @@ export function ogranicenjeDatuma(uloga: Uloga, kolona: string) {
 
 const KO_UNOSI_STARIJE: Partial<Record<Uloga, string>> = {
   operater: "odgovorno lice",
-  vozac: "odgovorno lice",
   bzr: "konsultant",
-  uprava: "konsultant",
 };
 
 /** Invarijanta #9 pri UPISU (ne samo pri čitanju liste): datum ne smije biti u budućnosti
@@ -227,7 +226,7 @@ export function provjeriProzorUpisa(uloga: Uloga, datum: string) {
   }
 }
 
-/** Operater/vozač ne mogu upisati tuđe ime kao izvršioca — server ga uvijek postavi na njihovo. */
+/** Zaposleni ne može upisati tuđe ime kao izvršioca — server ga uvijek postavi na njegovo. */
 export function izvrsilacZa(korisnik: SesijskiKorisnik, poslatoIme: string | undefined | null): string {
   if (NA_TERENU.includes(korisnik.uloga)) {
     return korisnik.lice_ime ?? korisnik.korisnicko_ime;
@@ -240,9 +239,9 @@ export function samoMoje(uloga: Uloga): boolean {
   return NA_TERENU.includes(uloga);
 }
 
-/** bzr otvara naloge samo ulozi operater/vozac; izvodjac otvara bilo koju osim izvodjac. */
+/** Vlasnica (bzr) otvara naloge samo zaposlenima; konsultant i vlasnici i zaposlenima (nikad konsultantu). */
 export function smijeDodijelitiUlogu(izvrsiocevaUloga: Uloga, ciljUloga: Uloga): boolean {
   if (izvrsiocevaUloga === "izvodjac") return ciljUloga !== "izvodjac";
-  if (izvrsiocevaUloga === "bzr") return ciljUloga === "operater" || ciljUloga === "vozac";
+  if (izvrsiocevaUloga === "bzr") return ciljUloga === "operater";
   return false;
 }

@@ -420,7 +420,7 @@ async function obavijestiPrimaoca(
     await kreirajObavjestenje(klijent, {
       korisnikId: r.primio_korisnik_id,
       naslov: `Zadržano: ${r.artikal} · lot ${r.broj_lota}`,
-      poruka: `${prijem}. Izdvojite robu i označite je — ne ide u isporuku dok se ne odluči.${razlog}`,
+      poruka: `${prijem}. Izdvojite robu i označite je — ne koristi se dok se ne odluči.${razlog}`,
       ozbiljnost: "SREDNJI",
       izvorTip: "lot",
       izvorId: ulaz.lotId,

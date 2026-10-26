@@ -9,7 +9,7 @@ import { logKreiranje, logIzmjenaReda, stanjeReda } from "./auditService.js";
 // Ranije je izvor bio slobodan tekst: greška u kucanju je prolazila, a veza je pokazivala u prazno.
 export const IZVORI_ZADATKA = ["neusaglasenost", "povlacenje", "rucno", "verifikacija_sistema"] as const;
 // „porudzbina“ — poslastičarnica, dopuna 39 (i CHECK tamo).
-export const IZVORI_OBAVJESTENJA = ["neusaglasenost", "povlacenje", "lot", "prijem", "isporuka", "zadatak", "poruka", "bekap_log", "mjerni_uredjaj", "verifikacija_sistema", "porudzbina"] as const;
+export const IZVORI_OBAVJESTENJA = ["neusaglasenost", "povlacenje", "lot", "prijem", "zadatak", "poruka", "bekap_log", "mjerni_uredjaj", "verifikacija_sistema", "porudzbina"] as const;
 export type IzvorZadatka = (typeof IZVORI_ZADATKA)[number];
 export type IzvorObavjestenja = (typeof IZVORI_OBAVJESTENJA)[number];
 
@@ -82,11 +82,10 @@ export async function obavijestiUlogu(klijent: PoolClient | typeof pool, uloga: 
 type Korisnik = { id: string; uloga: Uloga };
 const vodiSistem = (uloga: Uloga) => uloga === "bzr" || uloga === "izvodjac";
 
-/** Automatski zadaci (iz neusaglašenosti, povlačenja, kontrole vozila) nastaju NEDODIJELJENI —
- * odgovorno lice ih vidi kao svoje dok ih ne dodijeli nekome. Terenske uloge vide samo ono što
- * je dodijeljeno baš njima; uprava gleda sve, ali ne zatvara tuđe. */
+/** Automatski zadaci (iz neusaglašenosti i povlačenja) nastaju NEDODIJELJENI — odgovorno lice ih vidi
+ * kao svoje dok ih ne dodijeli nekome. Zaposleni vide samo ono što je dodijeljeno baš njima. */
 export async function listaZadataka(korisnik: Korisnik, samoMojiTrazeno: boolean) {
-  const samoMoji = samoMojiTrazeno || (!vodiSistem(korisnik.uloga) && korisnik.uloga !== "uprava");
+  const samoMoji = samoMojiTrazeno || !vodiSistem(korisnik.uloga);
   const r = await upit(
     `select z.*, coalesce(l.ime, k.korisnicko_ime) as dodijeljeno,
             case z.izvor_tip when 'neusaglasenost' then nc.broj when 'povlacenje' then pv.broj end as izvor_oznaka,

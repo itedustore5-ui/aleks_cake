@@ -59,7 +59,7 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
   const { od, do: doDan } = periodPaketa(odUlaz, doUlaz);
   const p = [od, doDan];
 
-  const [firma, kalendar, prijemi, mjerenja, zapisi, kontroleVozila, isporuke, nc, povlacenja, termometriProvjere, verifikacije, zaposleni, planObuke, provjereZnanja, izmjene] = await Promise.all([
+  const [firma, kalendar, prijemi, mjerenja, zapisi, porudzbine, nc, povlacenja, termometriProvjere, verifikacije, zaposleni, planObuke, provjereZnanja, izmjene] = await Promise.all([
     upit(`select naziv, adresa, grad, pib, odgovorno_lice_ime from firma limit 1`),
 
     // Kontinuitet: koliko je zapisa nastalo svakog dana perioda (dan radnje, po Podgorici).
@@ -68,9 +68,8 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
               (select count(*) from mjerenje_temperature m join kontrolna_tacka kt on kt.id = m.kontrolna_tacka_id
                 where kt.sifra <> 'KKT1' and ${PG("m.izmjereno_at")}::date = d.dan)::int as mjerenja, -- KKT 1 je uz prijem
               (select count(*) from zapis z where z.datum = d.dan and z.ispravlja_id is null)::int as zapisi,
-              (select count(*) from kontrola_vozila k where ${PG("k.izvrseno_at")}::date = d.dan)::int as d1,
               (select count(*) from prijem pr where pr.datum_prijema = d.dan)::int as prijemi,
-              (select count(*) from isporuka i where i.datum_isporuke = d.dan and i.status::text <> 'OTKAZANA')::int as isporuke
+              (select count(*) from porudzbina po where po.status = 'PREDATA' and ${PG("po.predato_at")}::date = d.dan)::int as torte
        from (select g::date as dan from generate_series($1::date, $2::date, interval '1 day') g) d
        order by d.dan`,
       p,
@@ -102,10 +101,10 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
       p,
     ),
 
-    // Mjerenja temperature osim KKT 1 (ono je uz prijem): magacin (KKT 2), predaja kupcu (KKT 3), ostalo.
+    // Mjerenja temperature osim KKT 1 (ono je uz prijem): frižideri i vitrina (KKT 2), predaja torte (KKT 3), ostalo.
     upit(
       `select ${VRIJEME("m.izmjereno_at")} as vrijeme, kt.sifra, kt.naziv as tacka, s.naziv as magacin,
-              l.broj_lota, a.naziv as artikal, v.registarski_broj as vozilo,
+              l.broj_lota, a.naziv as artikal, (select po.broj from porudzbina po where po.mjerenje_id = m.id) as porudzbina,
               m.vrijednost, pk.min_vrijednost as granica_min, pk.max_vrijednost as granica_max, m.rezultat::text as rezultat,
               u.naziv as termometar, ${IME("m.izmjerio_korisnik_id")} as izmjerio, m.van_mreze, m.napomena,
               (${PG("m.created_at")}::date - ${PG("m.izmjereno_at")}::date) as naknadno_dana
@@ -113,7 +112,6 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
        join kontrolna_tacka kt on kt.id = m.kontrolna_tacka_id
        left join lot l on l.id = m.lot_id
        left join artikal a on a.id = l.artikal_id
-       left join vozilo v on v.id = m.vozilo_id
        left join skladiste s on s.id = m.skladiste_id
        left join pravilo_kontrole pk on pk.id = m.pravilo_kontrole_id
        left join mjerni_uredjaj u on u.id = m.mjerni_uredjaj_id
@@ -134,35 +132,19 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
       p,
     ),
 
-    // D1 — kontrola vozila prije utovara (radni obrazac firme).
+    // Porudžbine torti (dopuna 39) sa preuzimanjem u periodu: kupac sa telefonom (čl. 28), potvrđeni alergeni (P1),
+    // serije sastojaka (čl. 27, P2), predaja i temperatura (KKT 3, P3). Otkazane se vide sa razlogom.
     upit(
-      `select ${VRIJEME("kv.izvrseno_at")} as vrijeme, v.registarski_broj as vozilo, kv.cistoca, kv.oprema_ok, kv.vrata_ok,
-              kv.temperatura, kv.granica_min, kv.granica_max, kv.temperatura_ok, kv.ukupan_status, kv.napomena,
-              ${IME("kv.izvrsio_korisnik_id")} as izvrsio, kv.van_mreze,
-              (${PG("kv.created_at")}::date - ${PG("kv.izvrseno_at")}::date) as naknadno_dana
-       from kontrola_vozila kv join vozilo v on v.id = kv.vozilo_id
-       where ${PG("kv.izvrseno_at")}::date between $1 and $2
-       order by kv.izvrseno_at`,
-      p,
-    ),
-
-    // KKT 3 — isporuke: lotovi (sledljivost naprijed, čl. 27), količine, temperatura pri predaji.
-    upit(
-      `select i.broj, to_char(i.datum_isporuke, 'YYYY-MM-DD') as datum, ku.naziv as kupac, s.naziv as magacin, v.registarski_broj as vozilo,
-              ${IME("i.vozac_korisnik_id")} as vozac, i.status::text as status, i.razlog_otkaza,
-              (select string_agg(distinct l.broj_lota, ', ') from isporuka_stavka st join lot l on l.id = st.lot_id where st.isporuka_id = i.id) as lotovi,
-              (select sum(st.planirana_kolicina) from isporuka_stavka st where st.isporuka_id = i.id) as planirano,
-              (select sum(st.isporucena_kolicina) from isporuka_stavka st where st.isporuka_id = i.id) as predato,
-              (select sum(st.odbijena_kolicina) from isporuka_stavka st where st.isporuka_id = i.id) as odbijeno,
-              (select min(st.temperatura_predaje) from isporuka_stavka st where st.isporuka_id = i.id) as temp_min,
-              (select max(st.temperatura_predaje) from isporuka_stavka st where st.isporuka_id = i.id) as temp_max,
-              ${VRIJEME("i.potvrdjeno_at")} as predato_at, i.potvrda_van_mreze
-       from isporuka i
-       join kupac ku on ku.id = i.kupac_id
-       left join skladiste s on s.id = i.skladiste_id
-       left join vozilo v on v.id = i.vozilo_id
-       where i.datum_isporuke between $1 and $2
-       order by i.datum_isporuke, i.broj`,
+      `select po.broj, to_char(${PG("po.preuzimanje_at")}, 'YYYY-MM-DD HH24:MI') as preuzimanje, po.kupac_ime as kupac, po.kupac_telefon as telefon,
+              case po.nacin when 'DOSTAVA' then 'dostava' else 'u ateljeu' end as nacin, po.opis, po.status, po.razlog_otkaza,
+              po.alergeni, po.alergeni_potvrdjeno_at is not null as alergeni_potvrdjeni, ${IME("po.alergeni_potvrdio_korisnik_id")} as alergene_potvrdio,
+              (select string_agg(a.naziv || ' · lot ' || l.broj_lota, '; ' order by a.naziv) from porudzbina_lot pl
+                 join lot l on l.id = pl.lot_id join artikal a on a.id = l.artikal_id where pl.porudzbina_id = po.id) as sastojci,
+              ${VRIJEME("po.predato_at")} as predato, ${IME("po.predao_korisnik_id")} as predao, po.preuzeo_ime as preuzeo,
+              po.temperatura_predaje, m.rezultat::text as temp_rezultat, po.predaja_van_mreze
+       from porudzbina po left join mjerenje_temperature m on m.id = po.mjerenje_id
+       where ${PG("po.preuzimanje_at")}::date between $1 and $2
+       order by po.preuzimanje_at, po.broj`,
       p,
     ),
 
@@ -269,7 +251,6 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
     { naziv: "Prijemi robe", ukupno: prijemiJednom.length, naknadno: naknadno(prijemiJednom) },
     { naziv: "Mjerenja temperature", ukupno: mjerenja.rows.length, naknadno: naknadno(mjerenja.rows) },
     { naziv: "Dnevni obrasci", ukupno: prviZapisi.length, naknadno: naknadno(prviZapisi) },
-    { naziv: "Kontrole vozila (D1)", ukupno: kontroleVozila.rows.length, naknadno: naknadno(kontroleVozila.rows) },
   ];
   const ukupno = grupe.reduce((z, g) => z + g.ukupno, 0);
   const ukupnoNaknadno = grupe.reduce((z, g) => z + g.naknadno, 0);
@@ -278,16 +259,15 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
       ...prijemi.rows.map((r: Red) => r.primio),
       ...mjerenja.rows.map((r: Red) => r.izmjerio),
       ...prviZapisi.map((r: Red) => r.izvrsilac),
-      ...kontroleVozila.rows.map((r: Red) => r.izvrsio),
+      ...porudzbine.rows.map((r: Red) => r.predao),
     ].filter(Boolean) as string[],
   );
-  const daniSaZapisom = kalendar.rows.filter((d: Red) => Number(d.mjerenja) + Number(d.zapisi) + Number(d.d1) + Number(d.prijemi) > 0).length;
+  const daniSaZapisom = kalendar.rows.filter((d: Red) => Number(d.mjerenja) + Number(d.zapisi) + Number(d.prijemi) > 0).length;
   const radniDani = kalendar.rows.filter((d: Red) => Number(d.dan_u_sedmici) !== 7).length;
   const vanMreze =
     mjerenja.rows.filter((r: Red) => r.van_mreze).length +
     prviZapisi.filter((r: Red) => r.van_mreze).length +
-    kontroleVozila.rows.filter((r: Red) => r.van_mreze).length +
-    isporuke.rows.filter((r: Red) => r.potvrda_van_mreze).length;
+    porudzbine.rows.filter((r: Red) => r.predaja_van_mreze).length;
 
   // ── Sanitarne knjižice: stanje u periodu, ne samo danas ─────────────────────────────────────────
   const knjizice = zaposleni.rows.map((z: Red) => {
@@ -320,7 +300,7 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
       radniDani,
       vanMreze,
       izmjenaPodataka: izmjene.rows[0]?.n ?? 0,
-      isporuka: isporuke.rows.filter((i: Red) => i.status !== "OTKAZANA").length,
+      torti: porudzbine.rows.filter((r: Red) => r.status === "PREDATA").length,
       neusaglasenosti: nc.rows.length,
       neusaglasenostiOtvorene: nc.rows.filter((n: Red) => n.status !== "ZATVORENA").length,
       povlacenja: povlacenja.rows.length,
@@ -333,8 +313,7 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
     prijemi: prijemi.rows.map(({ prijem_id: _id, ...r }: Red) => r),
     mjerenja: mjerenja.rows,
     zapisi: zapisiRedovi,
-    kontroleVozila: kontroleVozila.rows,
-    isporuke: isporuke.rows,
+    porudzbine: porudzbine.rows,
     neusaglasenosti: nc.rows,
     povlacenja: povlacenja.rows,
     termometri: { provjere: termometriProvjere.rows, stanje: uredjaji },
@@ -374,7 +353,7 @@ export async function paketZip(odUlaz?: string, doUlaz?: string, firmaNaziv?: st
     "",
     "Fajlovi su CSV (razdvajač ;, UTF-8) — otvaraju se u Excelu. Vrijeme je po podgoričkom satu.",
     "Kolona naknadno_dana: za koliko dana POSLIJE dana na koji se odnosi je zapis upisan (0 = isti dan).",
-    "Obrasci dnevnih zapisa i kontrole vozila (D1) su radni obrasci firme, ne zvanični obrasci.",
+    "Dnevni obrasci P3–P10 su po Vodiču UBH; ostali radni obrasci su obrasci firme, ne zvanični obrasci.",
     "",
     ...spisak,
     ...(nedostaje.length ? ["", "Nije uključeno (izvor trenutno nije dostupan u bazi):", ...nedostaje] : []),

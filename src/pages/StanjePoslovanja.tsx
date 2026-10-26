@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Send, Download, FileText, AlertCircle } from
 import { api, preuzmiFajl, ApiGreska } from "../lib/api";
 import { PageHeader } from "../components/Zajednicko";
 
-// „Stanje poslovanja“ — konsultantov izvještaj direktoru (11.10.2026): izbor perioda, pregled tačno kakav stiže
+// „Stanje poslovanja“ — konsultantov izvještaj vlasnici (11.10.2026): izbor perioda, pregled tačno kakav stiže
 // mejlom, primaoci i slanje. Server: services/stanjeService.ts.
 
 const VRSTE = [
@@ -91,7 +91,7 @@ export function StanjePoslovanja() {
       return;
     }
     if (!iz.primaoci.trim()) {
-      setGreska(primaoci.trim() ? "Prvo sačuvajte primaoce (dugme „Sačuvaj“)." : "Upišite mejl direktora i sačuvajte.");
+      setGreska(primaoci.trim() ? "Prvo sačuvajte primaoce (dugme „Sačuvaj“)." : "Upišite mejl vlasnice i sačuvajte.");
       return;
     }
     if (primaoci.trim() !== iz.primaoci.trim()) {
@@ -146,7 +146,7 @@ export function StanjePoslovanja() {
     <>
       <PageHeader
         title="Stanje poslovanja"
-        description="Izvještaj za direktora: ključni pokazatelji i grafikoni za izabrani period, uz poređenje sa prethodnim. Pregledajte ga ovdje, pa pošaljite mejlom."
+        description="Izvještaj za vlasnicu ateljea: ključni pokazatelji i grafikoni za izabrani period, uz poređenje sa prethodnim. Pregledajte ga ovdje, pa pošaljite mejlom."
       />
 
       <div className="stanje-alati">
@@ -170,9 +170,9 @@ export function StanjePoslovanja() {
 
       <div className="panel stanje-slanje">
         <label className="stanje-primaoci" htmlFor="stanje-primaoci">
-          <span>Kome se šalje (mejl direktora; više adresa — zarezom)</span>
+          <span>Kome se šalje (mejl vlasnice; više adresa — zarezom)</span>
           <div>
-            <input id="stanje-primaoci" type="text" inputMode="email" value={primaoci} onChange={(e) => setPrimaoci(e.target.value)} placeholder="direktor@firma.me" />
+            <input id="stanje-primaoci" type="text" inputMode="email" value={primaoci} onChange={(e) => setPrimaoci(e.target.value)} placeholder="vlasnica@atelje.me" />
             <button className="secondary-button" onClick={sacuvajPrimaoce} disabled={radim === "primaoci"}>
               Sačuvaj
             </button>
@@ -180,7 +180,7 @@ export function StanjePoslovanja() {
         </label>
         <div className="stanje-dugmad">
           <button className="primary-button" onClick={posalji} disabled={radim === "salji" || !iz}>
-            <Send size={15} /> {radim === "salji" ? "Šaljem…" : "Pošalji direktoru"}
+            <Send size={15} /> {radim === "salji" ? "Šaljem…" : "Pošalji vlasnici"}
           </button>
           <button className="secondary-button" onClick={sacuvajPdf} disabled={!iz}>
             <FileText size={15} /> Sačuvaj PDF

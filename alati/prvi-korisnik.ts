@@ -3,9 +3,9 @@
 //
 //   npm run prvi-korisnik -- --firma "Naziv d.o.o." --ime "Ime Prezime" --korisnik ime.prezime --konsultant moje.ime
 //
-// --firma/--ime/--korisnik — odgovorno lice za bezbjednost hrane (bzr), prvi nalog u firmi;
-// --konsultant              — konsultantski nalog (izvodjac). Samo on otvara nalog direktoru (uprava), upisuje
-//                             adresu i PIB firme (Podešavanje) i dobija obavještenje kad odgovorno lice samo zatvori
+// --firma/--ime/--korisnik — vlasnica / odgovorno lice za bezbjednost hrane (bzr), prvi nalog u ateljeu;
+// --konsultant              — konsultantski nalog (izvodjac). Upisuje adresu i PIB firme (Podešavanje), podešava
+//                             HACCP plan i dobija obavještenje kad odgovorno lice samo zatvori
 //                             neusaglašenost („bez četiri oka“, #41). Može i sam, kasnije: --konsultant moje.ime
 //
 // Zaštita (04.10.2026): ispisuje u koju bazu upisuje, odbija bazu koja već ima odgovorno lice ili konsultanta
@@ -85,9 +85,9 @@ async function main() {
       await klijent.query(
         `insert into kontrolna_tacka (sifra, naziv, opis)
          select v.sifra, v.naziv, v.opis from (values
-           ('KKT1', 'Prijem robe', 'Kontrola temperature i ispravnosti pri prijemu'),
-           ('KKT2', 'Skladištenje', 'Kontrola temperature rashladnih komora'),
-           ('KKT3', 'Vozilo i isporuka', 'Kontrola vozila i temperature pri isporuci')
+           ('KKT1', 'Prijem sastojaka', 'Kontrola temperature i ispravnosti pri prijemu (jaja, mliječno, smrznuto)'),
+           ('KKT2', 'Frižideri, vitrina i zamrzivač', 'Kontrola temperature čuvanja sastojaka, kremova i gotovih torti'),
+           ('KKT3', 'Predaja torte', 'Temperatura torte pri predaji kupcu, naročito kod dostave')
          ) as v (sifra, naziv, opis)
          where not exists (select 1 from kontrolna_tacka k where k.sifra = v.sifra)`,
       );
@@ -132,7 +132,7 @@ async function main() {
   console.log("Sljedeće:");
   if (konsultant) {
     console.log("  • prijavite se kao konsultant → Moja strana → potvrda u dva koraka; zatim na Renderu OBAVEZNA_2FA=izvodjac");
-    console.log("  • Podešavanje → adresa i PIB firme; Ljudi → direktor i nalog (uloga Uprava)");
+    console.log("  • Podešavanje → adresa i PIB firme; HACCP plan → granica za KKT 3 (predaja torte) i frižidere");
   }
   if (odgovorno) console.log("  • dodajte red u alati/klijenti.txt (Naziv = adresa baze) — bekap i dnevni pregled ga uzimaju sami");
   console.log("");

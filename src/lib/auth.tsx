@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { api } from "./api";
 import { bezVeze, postaviVlasnikaIzlaza } from "./izlaz";
 
-export type Uloga = "izvodjac" | "bzr" | "operater" | "vozac" | "uprava";
+// Poslastičarnica: konsultant, vlasnica (odgovorno lice) i zaposleni — vozač i direktor su uklonjeni (PLAN.md 8.3).
+export type Uloga = "izvodjac" | "bzr" | "operater";
 
 export type Korisnik = {
   id: string;
@@ -132,8 +133,6 @@ export function useAuth() {
 
 export const NAZIV_ULOGE: Record<Uloga, string> = {
   izvodjac: "Konsultant",
-  bzr: "Odgovorno lice",
-  operater: "Magacioner",
-  vozac: "Vozač",
-  uprava: "Uprava",
+  bzr: "Vlasnica",
+  operater: "Zaposleni",
 };

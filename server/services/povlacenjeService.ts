@@ -3,10 +3,10 @@ import { ApiGreska } from "../greske.js";
 import { logKreiranje, logPromjenaStatusa } from "./auditService.js";
 import { kreirajZadatak, obavijestiUlogu, zatvoriZadatkeIzvora } from "./zadaciService.js";
 import { sljedeciBroj, sljedeciBrojNc, danasKratko } from "./brojeviService.js";
-import { javiIsporukeSaLotom, javiPorudzbineSaLotom } from "./lotBlokadaService.js";
+import { javiPorudzbineSaLotom } from "./lotBlokadaService.js";
 import { SERIJA_LOTA } from "./sqlDijelovi.js";
 
-/** Povlačenje počinje telefonom (čl. 28) — kontakti se snimaju iz stvarnih isporuka, ne unose se
+/** Povlačenje počinje telefonom (čl. 28) — kontakti se snimaju iz stvarno predatih torti, ne unose se
  * ručno, da se niko ne izostavi. Povlači se SERIJA (R-17): isti dobavljač, artikal i broj lota kroz
  * sve prijeme — ista serija primljena dvaput je ista roba. Automatski otvara i neusaglašenost
  * visoke ozbiljnosti, jer je povlačenje uvijek ozbiljan nalaz. */
@@ -23,21 +23,7 @@ export async function pokreniPovlacenje(lotId: string, razlog: string, korisnikI
     const povlacenjeId = povlacenje.rows[0].id;
     const serija = (await klijent.query<{ id: string }>(SERIJA_LOTA, [lotId])).rows.map((r) => r.id);
 
-    const isporuke = await klijent.query<{ isporuka_id: string; kupac_naziv: string; kupac_telefon: string; kolicina: string }>(
-      `select ist.isporuka_id, k.naziv as kupac_naziv, k.telefon as kupac_telefon, ist.isporucena_kolicina as kolicina
-       from isporuka_stavka ist
-       join isporuka i on i.id = ist.isporuka_id
-       join kupac k on k.id = i.kupac_id
-       where ist.lot_id = any($1) and ist.isporucena_kolicina > 0`,
-      [serija],
-    );
-    for (const red of isporuke.rows) {
-      await klijent.query(
-        `insert into povlacenje_kontakt (povlacenje_id, isporuka_id, kupac_naziv, kupac_telefon, kolicina) values ($1, $2, $3, $4, $5)`,
-        [povlacenjeId, red.isporuka_id, red.kupac_naziv, red.kupac_telefon, red.kolicina],
-      );
-    }
-    // Poslastičarnica (dopuna 39): kupci PREDATIH torti u kojima je bila serija — jedan kontakt po torti.
+    // Kupci PREDATIH torti u kojima je bila serija (dopuna 39) — jedan kontakt po torti.
     // Torte koje još nisu predate ne idu u kontakte: predaju zaustavlja server, a ko ih pravi dobija obavještenje.
     const torte = await klijent.query<{ porudzbina_id: string; kupac_ime: string; kupac_telefon: string }>(
       `select distinct p.id as porudzbina_id, p.kupac_ime, p.kupac_telefon
@@ -51,10 +37,10 @@ export async function pokreniPovlacenje(lotId: string, razlog: string, korisnikI
         [povlacenjeId, t.porudzbina_id, t.kupac_ime, t.kupac_telefon],
       );
     }
-    const brojKontakata = isporuke.rows.length + torte.rows.length;
+    const brojKontakata = torte.rows.length;
 
-    // Serija pod povlačenjem ne smije dalje u isporuku (čl. 28): lot na HOLD, sve što je od njega
-    // ostalo u magacinu prelazi u karantin. Bez ovoga je sporni lot i dalje bio ponuđen za isporuku.
+    // Serija pod povlačenjem ne smije u tortu (čl. 28): lot na HOLD, sve što je od njega ostalo na
+    // zalihi prelazi u karantin — više se ne nudi za porudžbinu, a torta sa njim se ne predaje.
     for (const id of serija) {
       const status = (await klijent.query<{ status: string }>(`select status from lot where id = $1 for update`, [id])).rows[0]?.status;
       if (status === "ODBIJEN") continue;
@@ -72,8 +58,7 @@ export async function pokreniPovlacenje(lotId: string, razlog: string, korisnikI
         [id, povlacenjeId, korisnikId, id === lotId ? "HOLD zbog povlačenja" : "HOLD zbog povlačenja serije (isti lot iz drugog prijema)"],
       );
       if (status !== "HOLD") await logPromjenaStatusa(klijent, { korisnikId, entitetTip: "lot", entitetId: id, stareVrijednosti: { status }, noveVrijednosti: { status: "HOLD", povlacenje: broj } });
-      // Isporuke već pripremljene sa ovim lotom ne smiju krenuti — vozač i magacioner saznaju odmah (R-01).
-      await javiIsporukeSaLotom(klijent, id, `Pokrenuto povlačenje ${broj}: ${razlog}`, korisnikId);
+      // Torte u izradi sa ovim lotom ne smiju kupcu — ko ih je upisao i vlasnica saznaju odmah.
       await javiPorudzbineSaLotom(klijent, id, `Pokrenuto povlačenje ${broj}: ${razlog}`, korisnikId);
     }
 
@@ -90,9 +75,8 @@ export async function pokreniPovlacenje(lotId: string, razlog: string, korisnikI
       izvorTip: "povlacenje",
       izvorId: povlacenjeId,
     });
-    // Važno za upravu: vidi i direktor, ne samo odgovorno lice.
-    for (const uloga of ["bzr", "uprava"]) await obavijestiUlogu(klijent, uloga, {
-      naslov: "Pokrenuto povlačenje robe",
+    await obavijestiUlogu(klijent, "bzr", {
+      naslov: "Pokrenuto povlačenje",
       poruka: `${broj} — ${brojKontakata} kupaca treba obavijestiti.`,
       ozbiljnost: "VISOK",
       izvorTip: "povlacenje",

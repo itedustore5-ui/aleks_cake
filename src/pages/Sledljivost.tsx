@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "react-router-dom";
-import { Search, Truck, PackageCheck, User, Warehouse, Printer, AlertTriangle, Cake } from "lucide-react";
+import { Search, Package, PackageCheck, Warehouse, Printer, AlertTriangle, Cake } from "lucide-react";
 import { api, ApiGreska } from "../lib/api";
 import { PageHeader, Modal, ZakonskaOznaka } from "../components/Zajednicko";
 import { StatusBadge } from "../components/StatusBadge";
@@ -15,11 +15,6 @@ type Red = {
   rok_trajanja: string | null;
   artikal: string;
   lot_status: string;
-  isporuka_broj: string | null;
-  datum_isporuke: string | null;
-  kupac: string | null;
-  kupac_telefon: string | null;
-  isporuka_status: string | null;
 };
 
 type PovlacenjeRed = { id: string; broj: string; artikal_naziv: string; broj_lota: string; status: string; pokrenuto_at: string; broj_kontakata: string; broj_kontaktiranih: string };
@@ -39,8 +34,7 @@ export function Sledljivost() {
   const [otvorenoPovlacenje, setOtvorenoPovlacenje] = useState<PovlacenjeDetalj | null>(null);
 
   const mozeUpravljatiPovlacenjem = korisnik?.uloga === "bzr" || korisnik?.uloga === "izvodjac";
-  // Uprava vidi povlačenja (dolazi sa kartice "Povlačenja u toku"), ali ih ne pokreće i ne zatvara.
-  const vidiPovlacenja = mozeUpravljatiPovlacenjem || korisnik?.uloga === "uprava";
+  const vidiPovlacenja = mozeUpravljatiPovlacenjem;
 
   const ucitajPovlacenja = () => api<PovlacenjeRed[]>("/povlacenja").then(setPovlacenja);
   useEffect(() => {
@@ -63,8 +57,6 @@ export function Sledljivost() {
     const po = await Promise.all(lotovi.map((id) => api<TortaSerije[]>(`/sledljivost/lot/${id}/porudzbine`).catch(() => [] as TortaSerije[])));
     setTorteLota(Object.fromEntries(lotovi.map((id, i) => [id, po[i]])));
   };
-  // Ista serija se u rezultatima ponavlja po isporuci — torte se pokazuju samo uz prvi red lota.
-  const prviRedLota = new Set(rezultati.map((r, i) => (rezultati.findIndex((x) => x.lot_id === r.lot_id) === i ? i : -1)));
 
   const otvoriPovlacenje = async (id: string) => {
     const detalj = await api<PovlacenjeDetalj>(`/povlacenja/${id}`);
@@ -80,13 +72,13 @@ export function Sledljivost() {
   return (
     <>
       <div className="no-print">
-        <PageHeader title="Sledljivost" description="Pretraga po broju lota, dobavljaču, kupcu, dokumentu ili broju isporuke." />
+        <PageHeader title="Sledljivost" description="Pretraga po broju lota, dobavljaču, dokumentu prijema, kupcu ili broju porudžbine." />
         <div className="panel trace-search">
           <div className="trace-search-copy">
             <div className="trace-icon"><Search size={17} /></div>
             <div>
               <h2>Pretraga lanca sledljivosti</h2>
-              <p>Npr. broj lota kao MLJ-2609-A, naziv kupca ili dobavljača.</p>
+              <p>Npr. broj lota jaja ili pavlake, ime ili telefon kupca, naziv dobavljača.</p>
             </div>
           </div>
           <form className="trace-search-form" onSubmit={pretrazi}>
@@ -118,8 +110,8 @@ export function Sledljivost() {
         </div>
       )}
 
-      {rezultati.map((r, i) => (
-        <div key={`${r.lot_id}-${r.isporuka_broj ?? ""}`} className="panel" style={{ marginBottom: 14 }}>
+      {rezultati.map((r) => (
+        <div key={r.lot_id} className="panel" style={{ marginBottom: 14 }}>
           <div className="trace-chain">
             <div className="trace-chain-head" style={{ justifyContent: "space-between" }}>
               <div>
@@ -140,17 +132,11 @@ export function Sledljivost() {
               <div className="chain-line">→</div>
               <ChainNode ikonica={<PackageCheck size={14} />} oznaka="Prijem" naziv={r.datum_prijema} podnaziv={r.broj_dokumenta ?? undefined} />
               <div className="chain-line">→</div>
-              <ChainNode ikonica={<Truck size={14} />} oznaka="Lot" naziv={r.broj_lota} highlight />
-              {r.isporuka_broj && (
-                <>
-                  <div className="chain-line">→</div>
-                  <ChainNode ikonica={<PackageCheck size={14} />} oznaka="Isporuka" naziv={r.isporuka_broj} podnaziv={r.datum_isporuke ?? undefined} />
-                  <div className="chain-line">→</div>
-                  <ChainNode ikonica={<User size={14} />} oznaka="Kupac" naziv={r.kupac ?? ""} podnaziv={r.kupac_telefon ?? undefined} />
-                </>
-              )}
+              <ChainNode ikonica={<Package size={14} />} oznaka="Lot" naziv={r.broj_lota} highlight />
+              <div className="chain-line">→</div>
+              <ChainNode ikonica={<Cake size={14} />} oznaka="Torte" naziv={String(torteLota[r.lot_id]?.length ?? 0)} podnaziv="kupci ispod" />
             </div>
-            {prviRedLota.has(i) && (torteLota[r.lot_id]?.length ?? 0) > 0 && (
+            {(torteLota[r.lot_id]?.length ?? 0) > 0 && (
               <div style={{ marginTop: 12 }}>
                 <strong style={{ fontSize: 11 }}><Cake size={13} style={{ verticalAlign: "-2px" }} /> Torte sa ovom serijom (cijela serija, svi prijemi)</strong>
                 <ul className="sastojci-lista">

@@ -5,6 +5,7 @@ import { lokalniDatum } from "../lib/vrijeme";
 import { PageHeader, NaknadnoOznaka, VanMrezeOznaka } from "../components/Zajednicko";
 import { FilterVremena, type Period } from "../components/FilterVremena";
 import { NAZIVI } from "../components/StatusBadge";
+import { useAlergeni } from "../lib/alergeni";
 
 // Inspekcijski paket: sve evidencije za period na jednom mjestu, za štampu / PDF i kao podaci (ZIP).
 // Prvo kontinuitet (dokaz da zapisi nastaju svaki dan), pa same evidencije. Server: inspekcijaService.
@@ -24,7 +25,7 @@ type Paket = {
     radniDani: number;
     vanMreze: number;
     izmjenaPodataka: number;
-    isporuka: number;
+    torti: number;
     neusaglasenosti: number;
     neusaglasenostiOtvorene: number;
     povlacenja: number;
@@ -32,13 +33,12 @@ type Paket = {
     planPropusteno: number;
     planPerioda: number;
   };
-  kalendar: { dan: string; dan_u_sedmici: number; mjerenja: number; zapisi: number; d1: number; prijemi: number; isporuke: number }[];
+  kalendar: { dan: string; dan_u_sedmici: number; mjerenja: number; zapisi: number; prijemi: number; torte: number }[];
   plan: { do: string; stavke: { naziv: string; ucestalost: string; puta: number; magacin: string | null; periodaUkupno: number; uradjeno: number; propusteno: { od: string; do: string; uradjeno: number }[] }[] };
   prijemi: Red[];
   mjerenja: Red[];
   zapisi: Red[];
-  kontroleVozila: Red[];
-  isporuke: Red[];
+  porudzbine: Red[];
   neusaglasenosti: Red[];
   povlacenja: Red[];
   termometri: { provjere: Red[]; stanje: Red[] };
@@ -50,11 +50,10 @@ type Paket = {
 const ODJELJCI = [
   { kod: "kontinuitet", naziv: "Kontinuitet zapisa" },
   { kod: "plan", naziv: "Plan monitoringa — izvršenje" },
-  { kod: "prijemi", naziv: "Prijem robe (KKT 1)" },
+  { kod: "prijemi", naziv: "Prijem sastojaka (KKT 1)" },
   { kod: "mjerenja", naziv: "Temperaturna mjerenja (KKT 2, KKT 3)" },
   { kod: "zapisi", naziv: "Dnevni obrasci dobre higijenske prakse" },
-  { kod: "d1", naziv: "Kontrola vozila prije utovara (D1)" },
-  { kod: "isporuke", naziv: "Isporuke kupcima" },
+  { kod: "porudzbine", naziv: "Porudžbine torti — alergeni, sastojci, predaja" },
   { kod: "nc", naziv: "Neusaglašenosti i korektivne mjere" },
   { kod: "povlacenja", naziv: "Povlačenja" },
   { kod: "termometri", naziv: "Termometri — provjere i kalibracije" },
@@ -82,7 +81,6 @@ const granica = (min: unknown, max: unknown) => {
 };
 const status = (v: unknown) => (typeof v === "string" ? NAZIVI[v] ?? v.toLowerCase().replace(/_/g, " ") : "—");
 const tekst = (v: unknown) => (v === null || v === undefined || v === "" ? "—" : String(v));
-const daNe = (v: unknown) => (v === true ? "da" : v === false ? "ne" : "—");
 const DANI = ["", "pon", "uto", "sri", "čet", "pet", "sub", "ned"];
 
 function zadnjih30(): Period {
@@ -92,6 +90,7 @@ function zadnjih30(): Period {
 }
 
 export function Inspekcija() {
+  const { nazivi } = useAlergeni();
   const [period, setPeriod] = useState<Period>(zadnjih30);
   const [paket, setPaket] = useState<Paket | null>(null);
   const [ucitavam, setUcitavam] = useState(false);
@@ -149,7 +148,7 @@ export function Inspekcija() {
       <div className="no-print">
         <PageHeader
           title="Za inspekciju"
-          description="Sve evidencije za izabrani period na jednom mjestu: prvo dokaz da zapisi nastaju svaki dan, pa prijem, temperature, obrasci, vozila, isporuke, neusaglašenosti i zaposleni."
+          description="Sve evidencije za izabrani period na jednom mjestu: prvo dokaz da zapisi nastaju svaki dan, pa prijem, temperature, obrasci, torte, neusaglašenosti i zaposleni."
         />
         <FilterVremena period={period} onChange={setPeriod} oznaka="Period paketa (najviše godinu dana)" />
         <div className="insp-akcije">
@@ -250,13 +249,13 @@ export function Inspekcija() {
           )}
 
           {ima("mjerenja") && (
-            <Odjeljak rb={rb("mjerenja")} naslov="Temperaturna mjerenja" opis="Magacin i komore (KKT 2), predaja kupcu (KKT 3) i ostale tačke. Mjerenja pri prijemu su uz prijem.">
+            <Odjeljak rb={rb("mjerenja")} naslov="Temperaturna mjerenja" opis="Frižideri, vitrina i zamrzivač (KKT 2), torta pri predaji (KKT 3) i ostale tačke. Mjerenja pri prijemu su uz prijem.">
               <Tabela
                 kolone={["Vrijeme", "Tačka", "Gdje / šta", "Izmjereno", "Granica", "Ocjena", "Termometar", "Izmjerio"]}
                 redovi={paket.mjerenja.map((r) => [
                   <>{dat(r.vrijeme)}<NaknadnoOznaka dana={Number(r.naknadno_dana)} /><VanMrezeOznaka da={r.van_mreze === true} /></>,
                   `${tekst(r.sifra)} · ${tekst(r.tacka)}`,
-                  [r.magacin, r.vozilo, r.broj_lota ? `lot ${r.broj_lota}` : null, r.artikal, r.napomena].filter(Boolean).join(" · ") || "—",
+                  [r.magacin, r.porudzbina ? `torta ${r.porudzbina}` : null, r.broj_lota ? `lot ${r.broj_lota}` : null, r.artikal, r.napomena].filter(Boolean).join(" · ") || "—",
                   temp(r.vrijednost),
                   granica(r.granica_min, r.granica_max),
                   <span className={r.rezultat === "FAIL" ? "insp-lose" : undefined}>{status(r.rezultat)}</span>,
@@ -286,45 +285,52 @@ export function Inspekcija() {
             </Odjeljak>
           )}
 
-          {ima("d1") && (
-            <Odjeljak rb={rb("d1")} naslov="Kontrola vozila prije utovara (D1)" opis="Uredba o higijeni hrane, Dio 4 — vozila čista i održavana, temperatura koja se može pratiti. Radni obrazac firme.">
+          {ima("porudzbine") && (
+            <Odjeljak rb={rb("porudzbine")} naslov="Porudžbine torti — alergeni, sastojci, predaja" opis="Kome je torta otišla (telefon — čl. 28), od kojih serija sastojaka je pravljena (sledljivost, čl. 27), koji su alergeni potvrđeni prije predaje i temperatura pri predaji (KKT 3).">
               <Tabela
-                kolone={["Vrijeme", "Vozilo", "Čistoća", "Oprema", "Vrata", "Temperatura", "Rezultat", "Izvršio"]}
-                redovi={paket.kontroleVozila.map((r) => [
-                  <>{dat(r.vrijeme)}<NaknadnoOznaka dana={Number(r.naknadno_dana)} /><VanMrezeOznaka da={r.van_mreze === true} /></>,
-                  tekst(r.vozilo),
-                  daNe(r.cistoca),
-                  daNe(r.oprema_ok),
-                  daNe(r.vrata_ok),
-                  r.temperatura === null ? "—" : `${temp(r.temperatura)} (${granica(r.granica_min, r.granica_max)})`,
-                  <span className={r.ukupan_status !== "PROSAO" ? "insp-lose" : undefined}>{status(r.ukupan_status)}{r.napomena ? ` · ${r.napomena}` : ""}</span>,
-                  tekst(r.izvrsio),
-                ])}
-                prazno="U periodu nema kontrola vozila."
-              />
-            </Odjeljak>
-          )}
-
-          {ima("isporuke") && (
-            <Odjeljak rb={rb("isporuke")} naslov="Isporuke kupcima — KKT 3" opis="Koji lot je otišao kom kupcu (sledljivost naprijed, čl. 27) i temperatura pri predaji.">
-              <Tabela
-                kolone={["Datum", "Broj", "Kupac", "Vozilo · vozač", "Lotovi", "Planirano / predato / odbijeno", "Temp. pri predaji", "Status"]}
-                redovi={paket.isporuke.map((r) => [
-                  dat(r.datum),
-                  tekst(r.broj),
-                  tekst(r.kupac),
-                  [r.vozilo, r.vozac].filter(Boolean).join(" · ") || "—",
-                  tekst(r.lotovi),
-                  `${broj(r.planirano)} / ${broj(r.predato)} / ${broj(r.odbijeno)}`,
-                  r.temp_min === null ? "—" : r.temp_min === r.temp_max ? temp(r.temp_min) : `${broj(r.temp_min)} – ${temp(r.temp_max)}`,
-                  <>
-                    {status(r.status)}
-                    {r.predato_at ? ` · ${dat(r.predato_at)}` : ""}
-                    {r.razlog_otkaza ? ` · ${r.razlog_otkaza}` : ""}
-                    <VanMrezeOznaka da={r.potvrda_van_mreze === true} />
-                  </>,
-                ])}
-                prazno="U periodu nema isporuka."
+                kolone={["Preuzimanje · broj", "Kupac", "Torta", "Alergeni", "Serije sastojaka", "Predaja", "Temp. pri predaji", "Status"]}
+                redovi={paket.porudzbine.map((r) => {
+                  const sifre = Array.isArray(r.alergeni) ? (r.alergeni as string[]) : [];
+                  return [
+                    `${dat(r.preuzimanje)} · ${tekst(r.broj)}`,
+                    `${tekst(r.kupac)} · ${tekst(r.telefon)} · ${tekst(r.nacin)}`,
+                    tekst(r.opis),
+                    r.alergeni_potvrdjeni ? (
+                      <>
+                        {sifre.length ? nazivi(sifre) : "nema nijednog"}
+                        {r.alergene_potvrdio ? ` · potvrdio/la ${r.alergene_potvrdio}` : ""}
+                      </>
+                    ) : r.status === "OTKAZANA" ? (
+                      "—"
+                    ) : (
+                      <span className="insp-lose">nisu potvrđeni</span>
+                    ),
+                    tekst(r.sastojci),
+                    r.predato ? (
+                      <>
+                        {dat(r.predato)}
+                        {r.predao ? ` · ${r.predao}` : ""}
+                        {r.preuzeo ? ` → ${r.preuzeo}` : ""}
+                        <VanMrezeOznaka da={r.predaja_van_mreze === true} />
+                      </>
+                    ) : (
+                      "—"
+                    ),
+                    r.temperatura_predaje === null || r.temperatura_predaje === undefined ? (
+                      "—"
+                    ) : (
+                      <span className={r.temp_rezultat === "FAIL" ? "insp-lose" : undefined}>
+                        {temp(r.temperatura_predaje)}
+                        {r.temp_rezultat ? ` · ${status(r.temp_rezultat)}` : ""}
+                      </span>
+                    ),
+                    <>
+                      {status(r.status)}
+                      {r.razlog_otkaza ? ` · ${r.razlog_otkaza}` : ""}
+                    </>,
+                  ];
+                })}
+                prazno="U periodu nema porudžbina."
               />
             </Odjeljak>
           )}
@@ -513,8 +519,8 @@ function Naslovna({ paket, sadrzaj }: { paket: Paket; sadrzaj: readonly { kod: s
       <p className="insp-osnov">
         Zakon o bezbjednosti hrane („Sl. list CG“, br. 59/2026) — čl. 27 (sledljivost), čl. 28 (povlačenje), čl. 36 (HACCP); Uredba o higijeni hrane
         („Sl. list CG“, br. 91/2026) — čl. 7 st. 5 (dokazi i evidencije). Zapisi su vođeni u aplikaciji u trenutku rada; svaki naknadan upis nosi oznaku
-        „naknadno +N“, a upis sa telefona bez interneta oznaku „bez mreže“. Obrasci dnevnih zapisa i kontrole vozila (D1) su radni obrasci firme, ne
-        zvanični obrasci.
+        „naknadno +N“, a upis sa telefona bez interneta oznaku „bez mreže“. Obrasci dnevnih zapisa su radni obrasci firme, ne zvanični
+        obrasci.
       </p>
       <h3>Sadržaj</h3>
       <ol className="insp-sadrzaj">
@@ -531,7 +537,7 @@ function Kontinuitet({ rb, paket }: { rb: number; paket: Paket }) {
   // Do dva mjeseca — po danu; duže — po sedmici (godina po danu je 365 redova koje niko ne čita).
   const poDanu = paket.kalendar.length <= 62;
   const redovi = poDanu
-    ? paket.kalendar.map((d) => ({ oznaka: `${DANI[d.dan_u_sedmici]} ${dat(d.dan)}`, ...d, bez: d.dan_u_sedmici !== 7 && d.mjerenja + d.zapisi + d.d1 + d.prijemi === 0 ? 1 : 0 }))
+    ? paket.kalendar.map((d) => ({ oznaka: `${DANI[d.dan_u_sedmici]} ${dat(d.dan)}`, ...d, bez: d.dan_u_sedmici !== 7 && d.mjerenja + d.zapisi + d.prijemi + d.torte === 0 ? 1 : 0 }))
     : sedmice(paket.kalendar);
   return (
     <Odjeljak rb={rb} naslov="Kontinuitet zapisa" opis="Dokaz da zapisi nastaju svakog dana, u trenutku rada — a ne naknadno, pred inspekciju.">
@@ -547,21 +553,20 @@ function Kontinuitet({ rb, paket }: { rb: number; paket: Paket }) {
         kolone={["Vrsta zapisa", "Ukupno", "Od toga upisano naknadno"]}
         redovi={[
           ...s.grupe.map((g) => [g.naziv, broj(g.ukupno), g.naknadno ? <span className="insp-lose">{g.naknadno}</span> : "0"]),
-          ["Isporuke (bez otkazanih)", broj(s.isporuka), "—"],
+          ["Predate torte", broj(s.torti), "—"],
           ["Neusaglašenosti otvorene u periodu", broj(s.neusaglasenosti), s.neusaglasenostiOtvorene ? `još otvoreno: ${s.neusaglasenostiOtvorene}` : "sve zatvorene"],
           ["Izmjene podataka (dnevnik izmjena)", broj(s.izmjenaPodataka), "svaka sa vrijednošću prije i poslije"],
           ...(s.vanMreze ? [["Upisano na telefonu bez interneta", broj(s.vanMreze), "vrijeme je vrijeme rada, ne prijema na server"]] : []),
         ]}
       />
       <Tabela
-        kolone={[poDanu ? "Dan" : "Sedmica", "Mjerenja", "Obrasci", "D1", "Prijemi", "Isporuke", ""]}
+        kolone={[poDanu ? "Dan" : "Sedmica", "Mjerenja", "Obrasci", "Prijemi", "Predate torte", ""]}
         redovi={redovi.map((d) => [
           d.oznaka,
           broj(d.mjerenja),
           broj(d.zapisi),
-          broj(d.d1),
           broj(d.prijemi),
-          broj(d.isporuke),
+          broj(d.torte),
           d.bez ? <span className="insp-lose">{poDanu ? "nema zapisa" : `${d.bez} ${d.bez === 1 ? "radni dan" : "radnih dana"} bez zapisa`}</span> : "",
         ])}
         uska
@@ -571,16 +576,15 @@ function Kontinuitet({ rb, paket }: { rb: number; paket: Paket }) {
 }
 
 function sedmice(kalendar: Paket["kalendar"]) {
-  const r: { oznaka: string; mjerenja: number; zapisi: number; d1: number; prijemi: number; isporuke: number; bez: number }[] = [];
+  const r: { oznaka: string; mjerenja: number; zapisi: number; prijemi: number; torte: number; bez: number }[] = [];
   for (const d of kalendar) {
-    if (!r.length || d.dan_u_sedmici === 1) r.push({ oznaka: `od ${dat(d.dan)}`, mjerenja: 0, zapisi: 0, d1: 0, prijemi: 0, isporuke: 0, bez: 0 });
+    if (!r.length || d.dan_u_sedmici === 1) r.push({ oznaka: `od ${dat(d.dan)}`, mjerenja: 0, zapisi: 0, prijemi: 0, torte: 0, bez: 0 });
     const s = r[r.length - 1];
     s.mjerenja += d.mjerenja;
     s.zapisi += d.zapisi;
-    s.d1 += d.d1;
     s.prijemi += d.prijemi;
-    s.isporuke += d.isporuke;
-    if (d.dan_u_sedmici !== 7 && d.mjerenja + d.zapisi + d.d1 + d.prijemi === 0) s.bez += 1;
+    s.torte += d.torte;
+    if (d.dan_u_sedmici !== 7 && d.mjerenja + d.zapisi + d.prijemi + d.torte === 0) s.bez += 1;
   }
   return r;
 }

@@ -7,10 +7,8 @@ import { logKreiranje } from "./auditService.js";
 // Poruke: primalac poruku dobija kao obavještenje; ko je pročitao vidi se iz obavjestenje.procitano_at.
 
 const NAZIV_GRUPE: Record<Uloga, string> = {
-  operater: "Magacioneri",
-  vozac: "Vozači",
-  bzr: "Odgovorno lice",
-  uprava: "Uprava",
+  operater: "Zaposleni",
+  bzr: "Vlasnica",
   izvodjac: "Konsultant",
 };
 
@@ -73,9 +71,9 @@ export async function posaljiPoruku(ulaz: { naslov: string; tekst?: string; vazn
   return { id, brojPrimalaca: primaoci.rows.length, primaoci: opis };
 }
 
-// Vodstvo (odgovorno lice, konsultant, uprava) vidi i poruke drugih iz vodstva — da dvoje ne šalje
+// Vodstvo (vlasnica / odgovorno lice i konsultant) vidi i poruke drugih iz vodstva — da dvoje ne šalje
 // različita uputstva istim ljudima. Poruke između zaposlenih vide samo pošiljalac i primaoci.
-const VODSTVO: Uloga[] = ["bzr", "izvodjac", "uprava"];
+const VODSTVO: Uloga[] = ["bzr", "izvodjac"];
 
 /** Poslate poruke koje korisnik smije vidjeti: svoje, a vodstvo i poruke drugih iz vodstva. */
 export async function poslatePoruke(korisnik: { id: string; uloga: Uloga }) {

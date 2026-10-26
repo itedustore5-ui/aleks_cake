@@ -3,7 +3,7 @@ import { ApiGreska } from "../greske.js";
 import { logKreiranje, logPromjenaStatusa } from "./auditService.js";
 import { kreirajZadatak, obavijestiUlogu } from "./zadaciService.js";
 import { sljedeciBrojNc } from "./brojeviService.js";
-import { javiIsporukeSaLotom, javiPorudzbineSaLotom } from "./lotBlokadaService.js";
+import { javiPorudzbineSaLotom } from "./lotBlokadaService.js";
 import { skladisteUnosa } from "./skladisteService.js";
 import { vrijemeVanMreze } from "../vanMreze.js";
 
@@ -71,13 +71,12 @@ type NoviMjerenjeInput = {
   kontrolnaTackaId: string;
   praviloKontroleId: string | null;
   lotId?: string | null;
-  vozilId?: string | null;
   vrijednost: number;
   izmjerioKorisnikId: string;
   napomena?: string;
   /** Termometar (R-23) — provjeren sa provjeriTermometar prije poziva. */
   mjerniUredjajId?: string | null;
-  /** false kad je lot samo trag (npr. KKT 3 pri predaji) — roba u magacinu nije bila u vozilu. */
+  /** false kad je lot samo trag (npr. KKT 3 pri predaji torte) — sastojak na zalihi nije bio u prevozu. */
   holdLota?: boolean;
   /** Magacin u kom je izmjereno (#77). Nije zadat → magacin lota, matični magacin naloga ili jedini. */
   skladisteId?: string | null;
@@ -107,9 +106,9 @@ export async function zabiljeziMjerenje(pravilo: Pick<PraviloKontrole, "min_vrij
       ulaz.skladisteId !== undefined ? ulaz.skladisteId : await skladisteUnosa(klijent, { lotId: ulaz.lotId, korisnikId: ulaz.izmjerioKorisnikId });
     const mjerenje = await klijent.query<{ id: string }>(
       // Bez mreže (#85): izmjereno je u vrijeme sa telefona, uz oznaku — i na KKT 3 pri predaji.
-      `insert into mjerenje_temperature (kontrolna_tacka_id, pravilo_kontrole_id, lot_id, vozilo_id, vrijednost, izmjereno_at, izmjerio_korisnik_id, rezultat, napomena, mjerni_uredjaj_id, skladiste_id, van_mreze)
-       values ($1, $2, $3, $4, $5, coalesce($11::timestamptz, now()), $6, $7, $8, $9, $10, $11::timestamptz is not null) returning id`,
-      [ulaz.kontrolnaTackaId, ulaz.praviloKontroleId, ulaz.lotId ?? null, ulaz.vozilId ?? null, ulaz.vrijednost, ulaz.izmjerioKorisnikId, rezultat, napomena ?? null, ulaz.mjerniUredjajId ?? null, skladisteId, vrijemeVanMreze()],
+      `insert into mjerenje_temperature (kontrolna_tacka_id, pravilo_kontrole_id, lot_id, vrijednost, izmjereno_at, izmjerio_korisnik_id, rezultat, napomena, mjerni_uredjaj_id, skladiste_id, van_mreze)
+       values ($1, $2, $3, $4, coalesce($10::timestamptz, now()), $5, $6, $7, $8, $9, $10::timestamptz is not null) returning id`,
+      [ulaz.kontrolnaTackaId, ulaz.praviloKontroleId, ulaz.lotId ?? null, ulaz.vrijednost, ulaz.izmjerioKorisnikId, rezultat, napomena ?? null, ulaz.mjerniUredjajId ?? null, skladisteId, vrijemeVanMreze()],
     );
     const mjerenjeId = mjerenje.rows[0].id;
     if (nepotvrdjena && ocjena === "FAIL") {
@@ -147,7 +146,7 @@ export async function zabiljeziMjerenje(pravilo: Pick<PraviloKontrole, "min_vrij
         izvorId: neusaglasenostId,
       });
       // Važno za upravu: vidi i direktor, ne samo odgovorno lice.
-      for (const uloga of ["bzr", "uprava"]) await obavijestiUlogu(klijent, uloga, {
+      for (const uloga of ["bzr"]) await obavijestiUlogu(klijent, uloga, {
         naslov: "Temperatura van opsega",
         poruka: `${ulaz.vrijednost}°C — otvorena neusaglašenost ${broj}.`,
         ozbiljnost: "VISOK",
@@ -176,7 +175,6 @@ export async function zabiljeziMjerenje(pravilo: Pick<PraviloKontrole, "min_vrij
           entitetId: ulaz.lotId,
           noveVrijednosti: { status: "HOLD", razlog: "temperatura_van_opsega" },
         });
-        await javiIsporukeSaLotom(klijent, ulaz.lotId, `Temperatura van granice (${ulaz.vrijednost} °C) — lot je zadržan`, ulaz.izmjerioKorisnikId);
         await javiPorudzbineSaLotom(klijent, ulaz.lotId, `Temperatura van granice (${ulaz.vrijednost} °C) — sastojak je zadržan`, ulaz.izmjerioKorisnikId);
       }
     }

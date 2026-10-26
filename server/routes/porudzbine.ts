@@ -38,13 +38,13 @@ porudzbineRuter.get("/porudzbine/sastojci", requireUloga(...ATELJE), asyncRuta(a
   response.json(await lotoviZaIzbor());
 }));
 
-porudzbineRuter.get("/porudzbine/pretraga", requireUloga("bzr", "izvodjac", "uprava"), asyncRuta(async (request, response) => {
+porudzbineRuter.get("/porudzbine/pretraga", requireUloga("bzr", "izvodjac"), asyncRuta(async (request, response) => {
   const q = typeof request.query.q === "string" ? request.query.q.trim() : "";
   response.json(q.length < 2 ? [] : await pretraziPorudzbine(q));
 }));
 
 // Sledljivost unaprijed: serija lota → torte → kupci (telefoni).
-porudzbineRuter.get("/sledljivost/lot/:id/porudzbine", requireUloga("bzr", "izvodjac", "uprava"), asyncRuta(async (request, response) => {
+porudzbineRuter.get("/sledljivost/lot/:id/porudzbine", requireUloga("bzr", "izvodjac"), asyncRuta(async (request, response) => {
   response.json(await porudzbineSerije(str(request.params.id)));
 }));
 

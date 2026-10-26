@@ -1,9 +1,9 @@
 import { pool, upit, tabelaPostoji } from "../db.js";
 import { obavijestiUlogu } from "./zadaciService.js";
 
-// Rok trajanja robe na zalihi (nalaz R-02). Rok se provjeravao samo pri prihvatanju; lot kome rok
-// istekne na polici ostajao je dostupan za isporuku. Sada: isporuka ga odbija (isporukaService),
-// Kontrolni centar ga broji, a odgovorno lice dobija obavještenje jednom po lotu.
+// Rok trajanja sastojaka na zalihi (nalaz R-02). Lot kome rok istekne na polici se više ne nudi za tortu
+// (porudzbinaService odbija istekao lot), Kontrolni centar ga broji, a odgovorno lice dobija obavještenje
+// jednom po lotu.
 
 const DAN = `(now() at time zone 'Europe/Podgorica')::date`;
 const NA_ZALIHI = `join zaliha z on z.lot_id = l.id and z.status = 'DOSTUPNO' and z.kolicina > 0`;

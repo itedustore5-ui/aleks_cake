@@ -102,16 +102,6 @@ export async function izmijeniLice(liceId: string, ulaz: Partial<NovoLice> & { a
   });
 }
 
-/** Samo ime i id aktivnih vozača — za izbor vozača pri pripremi isporuke. */
-export async function vozaci() {
-  const r = await upit(
-    `select k.id, coalesce(l.ime, k.korisnicko_ime) as ime
-     from korisnik k left join lice l on l.id = k.lice_id
-     where k.uloga = 'vozac' and k.aktivan order by 2`,
-  );
-  return r.rows;
-}
-
 /** Godišnji plan obuke — Prilog 13 je plan, ne zapis (invarijanta #18). */
 export async function planObuke() {
   return (await upit(`select * from v_plan_obuke order by planirani_datum`)).rows;

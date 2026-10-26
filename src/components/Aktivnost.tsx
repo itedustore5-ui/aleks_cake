@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Activity, ArrowDownToLine, PackageCheck, AlertTriangle, Thermometer, Truck, ClipboardList, PhoneCall, PackageX, CheckCircle2 } from "lucide-react";
+import { Activity, ArrowDownToLine, AlertTriangle, Thermometer, Cake, ClipboardList, PhoneCall, PackageX, CheckCircle2 } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { mozeNa } from "./Layout";
@@ -10,10 +10,9 @@ type Stavka = { vrijeme: string; vrsta: string; ko: string | null; opis: string;
 const IKONICA: Record<string, typeof Activity> = {
   prijem: ArrowDownToLine,
   odluka: CheckCircle2,
-  isporuka: PackageCheck,
+  porudzbina: Cake,
   neusaglasenost: AlertTriangle,
   temperatura: Thermometer,
-  vozilo: Truck,
   zapis: ClipboardList,
   povlacenje: PhoneCall,
   otpis: PackageX,

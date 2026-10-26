@@ -19,7 +19,7 @@ export function useSlanje() {
 }
 
 /** Ključ zahtjeva — jedan po otvorenoj formi. Server isti ključ ne upisuje dvaput, pa ponovljeno
- * slanje (izgubljen odgovor na slaboj mreži) vraća prvi prijem ili isporuku umjesto drugog. */
+ * slanje (izgubljen odgovor na slaboj mreži) vraća prvi prijem ili porudžbinu umjesto druge. */
 export function noviKljuc(): string {
   try {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();

@@ -75,7 +75,7 @@ export async function brojPretplata(korisnikId: string) {
 const PUTANJA: Record<string, string> = {
   neusaglasenost: "/neusaglasenosti",
   povlacenje: "/sledljivost",
-  isporuka: "/isporuka",
+  porudzbina: "/porudzbine",
   prijem: "/prijem",
   lot: "/prijem",
   zadatak: "/moja",

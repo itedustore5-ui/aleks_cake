@@ -100,7 +100,6 @@ haccpRuter.get(
 const novoMjerenjeSchema = z.object({
   kontrolnaTackaId: z.string().uuid(),
   lotId: z.string().uuid().optional(),
-  vozilId: z.string().uuid().optional(),
   vrijednost: z.number(),
   napomena: z.string().optional(),
   mjerniUredjajId: z.string().uuid().optional(),

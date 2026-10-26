@@ -28,11 +28,9 @@ const AKCIJE: Record<string, string> = {
 const ENTITETI: Record<string, string> = {
   prijem: "Prijem",
   lot: "Lot",
-  isporuka: "Isporuka",
+  porudzbina: "Porudžbina torte",
   neusaglasenost: "Neusaglašenost",
   korektivna_mjera: "Korektivna mjera",
-  kontrola_vozila: "Kontrola vozila (D1)",
-  vozilo: "Vozilo",
   zapis: "Dnevni zapis",
   mjerenje_temperature: "Mjerenje temperature",
   kretanje_zalihe: "Kretanje zalihe",
