@@ -35,6 +35,7 @@ import { migracijeNaCekanju, primijeniMigracije } from "./migracije.js";
 import { opisGreske, pokreniCiscenjeGresaka, zapisiGresku } from "./services/greskeLogService.js";
 import { pokreniSlanjePush } from "./services/pushService.js";
 import { pokreniProvjeruRokova } from "./services/rokoviService.js";
+import { pokreniSlanjePoRasporedu } from "./services/stanjeService.js";
 import { pokreniSedmicniBekap } from "./services/bekapService.js";
 import { pripremiSesije } from "./auth.js";
 import { pool, tabeleBezPristupa } from "./db.js";
@@ -208,6 +209,7 @@ const start = async () => {
   pokreniSedmicniBekap();
   pokreniSlanjePush().catch((e) => console.error("Push obavještenja nisu pokrenuta:", e));
   pokreniProvjeruRokova();
+  pokreniSlanjePoRasporedu();
   pokreniCiscenjeGresaka();
 
   const shutdown = async () => {

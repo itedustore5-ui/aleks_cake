@@ -5,12 +5,12 @@ import { asyncRuta, ApiGreska } from "../greske.js";
 import { requireUloga, type AuthZahtjev } from "../auth.js";
 import { tijelo } from "../validacija.js";
 import { logIzmjena, logKreiranje } from "../services/auditService.js";
-import { VRSTE, izvjestaj, posalji, sacuvajPrimaoce, slanjePodeseno, type Vrsta } from "../services/stanjeService.js";
+import { RITMOVI, VRSTE, izvjestaj, posalji, sacuvajPrimaoce, sacuvajRitam, slanjePodeseno, stanjeRasporeda, type Vrsta } from "../services/stanjeService.js";
 
 export const stanjeRuter = Router();
 
-// „Stanje poslovanja“ je konsultantov izvještaj direktoru (odluka vlasnice 11.10.2026) — ni odgovorno lice ni
-// direktor ga ne prave; direktor ga dobija mejlom.
+// „Stanje poslovanja“ je konsultantov izvještaj (odluka vlasnice 11.10.2026; u ateljeu ide vlasnici) — odgovorno lice
+// ga ne pravi, nego ga dobija mejlom: ručno ili po rasporedu (dodatak, 27.10.2026).
 const KONSULTANT = "izvodjac" as const;
 const DAN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -28,10 +28,15 @@ stanjeRuter.get(
     const { vrsta, dan } = vrstaIDan(request.query);
     const iz = await izvjestaj(vrsta, dan);
     const istorija = await upit(
-      `select vrsta, to_char(period_od, 'YYYY-MM-DD') as od, to_char(period_do, 'YYYY-MM-DD') as do, primaoci, created_at
+      `select vrsta, to_char(period_od, 'YYYY-MM-DD') as od, to_char(period_do, 'YYYY-MM-DD') as do, primaoci, automatski, created_at
        from izvjestaj_poslat order by created_at desc limit 10`,
     );
-    response.json({ ...iz, slanje: { podeseno: slanjePodeseno(), posiljalac: process.env.SMTP_POSILJALAC || process.env.SMTP_KORISNIK || null }, istorija: istorija.rows });
+    response.json({
+      ...iz,
+      slanje: { podeseno: slanjePodeseno(), posiljalac: process.env.SMTP_POSILJALAC || process.env.SMTP_KORISNIK || null },
+      raspored: await stanjeRasporeda(),
+      istorija: istorija.rows,
+    });
   }),
 );
 
@@ -61,6 +66,24 @@ stanjeRuter.patch(
       return r;
     });
     response.json({ primaoci: rez.poslije });
+  }),
+);
+
+// Raspored slanja — dodatak koji konsultant uključuje klijentu koji ga plati; null = ne šalje se samo.
+const rasporedSchema = z.object({ ritam: z.enum(RITMOVI).nullable() });
+
+stanjeRuter.patch(
+  "/stanje-poslovanja/raspored",
+  requireUloga(KONSULTANT),
+  asyncRuta(async (request: AuthZahtjev, response) => {
+    const { ritam } = tijelo(rasporedSchema, request.body);
+    await transakcija(async (klijent) => {
+      const r = await sacuvajRitam(klijent, ritam);
+      if (r.prije !== r.poslije) {
+        await logIzmjena(klijent, { korisnikId: request.korisnik!.id, entitetTip: "firma", entitetId: r.id, stareVrijednosti: { izvjestaj_ritam: r.prije }, noveVrijednosti: { izvjestaj_ritam: r.poslije } });
+      }
+    });
+    response.json(await stanjeRasporeda());
   }),
 );
 

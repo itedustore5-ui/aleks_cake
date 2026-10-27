@@ -1,12 +1,38 @@
 // „Stanje poslovanja“ (11.10.2026): konsultantov izvještaj vlasnici ateljea — period (dan … godina), pokazatelji i
 // semafor, primaoci, i slanje mejlom. Mejl ide na LAŽNI SMTP server ovog testa (port 54337, samo lokalno);
 // pravi mejl se nikad ne šalje — ako server ima drugo SMTP podešavanje, slanje se preskače.
+//
+// Slanje po rasporedu (dodatak, 27.10.2026): provjeru koju server radi svaki sat test pokreće sam, u zasebnom procesu
+// (posaljiPoRasporedu, od bilo kog sata) — sa istim lažnim SMTP-om, pa ni tada pravi mejl ne ide.
+import { spawn } from "node:child_process";
 import net from "node:net";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { pool, prijava, preuzmi, NALOZI, danasCG } from "./pomoc.mjs";
 
-export const naziv = "Stanje poslovanja: periodi, pokazatelji, primaoci, slanje mejlom (lažni SMTP)";
+export const naziv = "Stanje poslovanja: periodi, pokazatelji, primaoci, slanje mejlom i po rasporedu (lažni SMTP)";
 
 const PORT_POSTE = 54337;
+const KORIJEN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const LAZNI_SMTP = { SMTP_HOST: "127.0.0.1", SMTP_PORT: String(PORT_POSTE), SMTP_KORISNIK: "proba@pilot.test", SMTP_LOZINKA: "proba", SMTP_POSILJALAC: "PILOT proba <proba@pilot.test>" };
+
+/** Jedna provjera rasporeda, kao ona koju server radi svaki sat — vraća naziv poslatog perioda, null, ili grešku. */
+function provjeraRasporeda() {
+  const skripta =
+    `const m = await import("./server/services/stanjeService.ts"); const db = await import("./server/db.ts");` +
+    `try { console.log("ISHOD:" + JSON.stringify(await m.posaljiPoRasporedu({ odSata: 0 }))); }` +
+    `catch (e) { console.log("ISHOD:" + JSON.stringify({ greska: e.message })); } finally { await db.pool.end(); }`;
+  return new Promise((ok) => {
+    const p = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", skripta], { cwd: KORIJEN, env: { ...process.env, ...LAZNI_SMTP } });
+    let izlaz = "";
+    p.stdout.on("data", (d) => (izlaz += d));
+    p.stderr.on("data", (d) => (izlaz += d));
+    p.on("close", () => {
+      const red = izlaz.split("\n").find((r) => r.startsWith("ISHOD:"));
+      ok(red ? JSON.parse(red.slice(6)) : { greska: izlaz.trim().slice(0, 300) });
+    });
+  });
+}
 
 /** Najmanji SMTP server: prima EHLO, AUTH (PLAIN/LOGIN), MAIL, RCPT, DATA. `odbijRcpt` → 550 na primaoca. */
 function laznaPosta() {
@@ -94,7 +120,7 @@ export async function pokreni({ provjeri }) {
   const marko = await prijava(NALOZI.marko);
   const oznaka = `E2E-STANJE-${Date.now().toString(36)}`;
   const pocetak = new Date();
-  const t = { nc: [], poslati: [], primaociPrije: null };
+  const t = { nc: [], poslati: [], primaociPrije: null, rasporedPrije: (await pool.query(`select izvjestaj_ritam, to_char(izvjestaj_ritam_od, 'YYYY-MM-DD') as izvjestaj_ritam_od from firma limit 1`)).rows[0] };
   const danas = danasCG();
   let posta = null;
 
@@ -237,9 +263,71 @@ export async function pokreni({ provjeri }) {
       provjeri("SMTP odbije → 502 „Mejl nije poslat“, bez traga o slanju", pao.status === 502 && pao.tijelo?.error?.code === "SLANJE_NIJE_USPJELO" && tragPao.rowCount === 0, `${pao.status} ${pao.tijelo?.error?.code} trag ${tragPao.rowCount}`);
       posta.stanje.odbijRcpt = false;
 
+      // ── Slanje po rasporedu (dodatak) ─────────────────────────────────────────────────────────
+      const juce = danaOd(danas, -1);
+      const anaRaspored = await ana("/stanje-poslovanja/raspored", { method: "PATCH", telo: { ritam: "dan" } });
+      const losRitam = await konsultant("/stanje-poslovanja/raspored", { method: "PATCH", telo: { ritam: "dvaput-dnevno" } });
+      provjeri("Raspored: vlasnica ga ne mijenja (403); nepoznat ritam → 400", anaRaspored.status === 403 && losRitam.status === 400, `${anaRaspored.status} ${losRitam.status}`);
+      const ukljuci = await konsultant("/stanje-poslovanja/raspored", { method: "PATCH", telo: { ritam: "dan" } });
+      const auditRitma = await pool.query(`select 1 from audit_log where entitet_tip = 'firma' and nove_vrijednosti ? 'izvjestaj_ritam' and created_at >= $1`, [pocetak]);
+      provjeri(
+        "Raspored „svaki dan“: važi od danas, prvi mejl sutra (za danas) — juče se ne šalje; izmjena u auditu",
+        ukljuci.status === 200 && ukljuci.tijelo.ritam === "dan" && ukljuci.tijelo.od === danas && ukljuci.tijelo.sljedece?.dan === danaOd(danas, 1) && auditRitma.rowCount === 1,
+        `${ukljuci.status} ${JSON.stringify(ukljuci.tijelo)} audit ${auditRitma.rowCount}`,
+      );
+      const mejlovaPrije = posta.stanje.poruke.length;
+      const prvaProvjera = await provjeraRasporeda();
+      provjeri("Provjera rasporeda odmah posle uključivanja: ne šalje zaostao period", prvaProvjera === null && posta.stanje.poruke.length === mejlovaPrije, JSON.stringify(prvaProvjera));
+
+      // Kao da je uključeno juče: juče se završilo → red je da ode.
+      await pool.query(`update firma set izvjestaj_ritam_od = $1::date`, [juce]);
+      const ceka = (await konsultant("/stanje-poslovanja?vrsta=dan")).tijelo.raspored;
+      const poslato = await provjeraRasporeda();
+      const tragAuto = await pool.query(
+        `select id, to_char(period_od, 'YYYY-MM-DD') as od, to_char(period_do, 'YYYY-MM-DD') as do, primaoci, poslao_korisnik_id, automatski from izvjestaj_poslat where automatski and created_at >= $1`,
+        [pocetak],
+      );
+      t.poslati.push(...tragAuto.rows.map((x) => x.id));
+      provjeri(
+        "Po rasporedu: izvještaj za juče ode sam (oba primaoca), trag „po rasporedu“ bez korisnika, audit",
+        ceka?.sljedece?.dan === danas && typeof poslato === "string" && posta.stanje.poruke.length === mejlovaPrije + 1 &&
+          posta.stanje.poruke[posta.stanje.poruke.length - 1].za.join(",") === "direktor@e2e.test,vlasnik@e2e.test" &&
+          tragAuto.rowCount === 1 && tragAuto.rows[0].od === juce && tragAuto.rows[0].do === juce && tragAuto.rows[0].poslao_korisnik_id === null &&
+          (await pool.query(`select 1 from audit_log where entitet_id = $1`, [tragAuto.rows[0].id])).rowCount === 1,
+        `${JSON.stringify(ceka?.sljedece)} ${JSON.stringify(poslato)} mejlova ${posta.stanje.poruke.length - mejlovaPrije} ${JSON.stringify(tragAuto.rows)}`,
+      );
+      const opet = await provjeraRasporeda();
+      const posle = (await konsultant("/stanje-poslovanja?vrsta=dan")).tijelo;
+      provjeri(
+        "…sljedeća provjera ne šalje isti period ponovo; u spisku piše „po rasporedu“, sljedeći je danas (šalje se sutra)",
+        opet === null && posta.stanje.poruke.length === mejlovaPrije + 1 && posle.istorija.some((h) => h.automatski && h.od === juce) && posle.raspored.sljedece?.dan === danaOd(danas, 1),
+        `${JSON.stringify(opet)} ${JSON.stringify(posle.raspored)}`,
+      );
+
+      // SMTP odbije: ništa u tragu, konsultant dobija obavještenje JEDNOM po periodu (provjera se ponavlja svaki sat).
+      await pool.query(`update firma set izvjestaj_ritam = 'sedmica', izvjestaj_ritam_od = $1::date`, [danaOd(danas, -30)]);
+      posta.stanje.odbijRcpt = true;
+      const pala = await provjeraRasporeda();
+      const pala2 = await provjeraRasporeda();
+      posta.stanje.odbijRcpt = false;
+      const tragSedmica = await pool.query(`select 1 from izvjestaj_poslat where automatski and vrsta = 'sedmica' and created_at >= $1`, [pocetak]);
+      const javljeno = await pool.query(
+        `select o.naslov from obavjestenje o join korisnik k on k.id = o.korisnik_id where k.uloga = 'izvodjac' and o.naslov like 'Stanje poslovanja nije poslato%' and o.created_at >= $1`,
+        [pocetak],
+      );
+      provjeri(
+        "Po rasporedu, SMTP odbije: bez traga, konsultant dobija „nije poslato“ jednom (ne svaki sat)",
+        /Mejl nije poslat/.test(pala?.greska ?? "") && /Mejl nije poslat/.test(pala2?.greska ?? "") && tragSedmica.rowCount === 0 &&
+          javljeno.rowCount === 1 && /sedmica/.test(javljeno.rows[0].naslov),
+        `${JSON.stringify(pala)} trag ${tragSedmica.rowCount} javljeno ${javljeno.rows.map((x) => x.naslov).join(" | ")}`,
+      );
+      const iskljuci = await konsultant("/stanje-poslovanja/raspored", { method: "PATCH", telo: { ritam: null } });
+      provjeri("Raspored isključen: ništa se ne šalje samo", iskljuci.status === 200 && iskljuci.tijelo.ritam === null && (await provjeraRasporeda()) === null, JSON.stringify(iskljuci.tijelo));
+
       await konsultant("/stanje-poslovanja/primaoci", { method: "PATCH", telo: { primaoci: "" } });
+      const mejlova = posta.stanje.poruke.length;
       const bezPrimalaca = await konsultant("/stanje-poslovanja/posalji", { telo: { vrsta: "mjesec", dan: "2025-05-14" } });
-      provjeri("Bez primalaca → 400 „upišite kome se šalje“, ništa ne ide na SMTP", bezPrimalaca.status === 400 && bezPrimalaca.tijelo?.error?.code === "NEMA_PRIMALACA" && posta.stanje.poruke.length === 1, `${bezPrimalaca.status} ${bezPrimalaca.tijelo?.error?.code}`);
+      provjeri("Bez primalaca → 400 „upišite kome se šalje“, ništa ne ide na SMTP", bezPrimalaca.status === 400 && bezPrimalaca.tijelo?.error?.code === "NEMA_PRIMALACA" && posta.stanje.poruke.length === mejlova, `${bezPrimalaca.status} ${bezPrimalaca.tijelo?.error?.code}`);
     }
   } finally {
     if (posta) await posta.ugasi();
@@ -248,6 +336,9 @@ export async function pokreni({ provjeri }) {
       await k.query("begin");
       const ncIds = t.nc.filter(Boolean);
       if (t.primaociPrije !== null) await k.query(`update firma set izvjestaj_primaoci = $1`, [t.primaociPrije || null]);
+      if (t.rasporedPrije) await k.query(`update firma set izvjestaj_ritam = $1, izvjestaj_ritam_od = $2`, [t.rasporedPrije.izvjestaj_ritam, t.rasporedPrije.izvjestaj_ritam_od]);
+      await k.query(`delete from obavjestenje where naslov like 'Stanje poslovanja nije poslato%' and created_at >= $1`, [pocetak]);
+      await k.query(`delete from audit_log where entitet_tip = 'firma' and nove_vrijednosti ? 'izvjestaj_ritam' and created_at >= $1`, [pocetak]);
       await k.query(`delete from obavjestenje where izvor_id = any($1) or naslov like $2 or poruka like $2`, [ncIds, `%${oznaka}%`]);
       await k.query(`delete from zadatak where izvor_id = any($1)`, [ncIds]);
       await k.query(`delete from audit_log where entitet_id = any($1)`, [[...ncIds, ...t.poslati]]);

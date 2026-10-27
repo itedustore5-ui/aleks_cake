@@ -1,5 +1,6 @@
 // „Stanje poslovanja“ — izvještaj za vlasnicu (11.10.2026; u poslastičarnici vlasnica je i odgovorno lice). Konsultant
-// bira period (dan, sedmica, mjesec, kvartal, polugodište, godina) i šalje ga mejlom. Za pet minuta se vidi: radi li atelje (torte), vode li se
+// bira period (dan, sedmica, mjesec, kvartal, polugodište, godina) i šalje ga mejlom — ručno, ili ga server šalje sam po
+// rasporedu (dodatak koji se posebno plaća, 27.10.2026 — dole). Za pet minuta se vidi: radi li atelje (torte), vode li se
 // zapisi svaki dan i na vrijeme, ima li problema sa temperaturom, otvorenih neusaglašenosti, povlačenja, isteklih
 // knjižica — i šta treba uraditi. Svaki broj se poredi sa prethodnim periodom iste vrste.
 //
@@ -7,11 +8,13 @@
 // dan po Podgorici (#11). Mejl je HTML sa tabelama i stilovima u redu — grafikoni su stubići od tabela, ne slike,
 // pa se vide u svakom programu za poštu (Gmail, Outlook, telefon) bez preuzimanja slika.
 import nodemailer from "nodemailer";
-import { upit } from "../db.js";
+import { pool, tabelaPostoji, transakcija, upit } from "../db.js";
 import { ApiGreska } from "../greske.js";
 import { danasCG } from "../vrijeme.js";
 import { dodajDane, pregledPlana } from "./monitoringService.js";
 import { listaUredjaja } from "./haccpPlanService.js";
+import { logKreiranje } from "./auditService.js";
+import { obavijestiUlogu } from "./zadaciService.js";
 
 export const VRSTE = ["dan", "sedmica", "mjesec", "kvartal", "polugodiste", "godina"] as const;
 export type Vrsta = (typeof VRSTE)[number];
@@ -482,4 +485,102 @@ export async function posalji(vrsta: Vrsta, dan: string | undefined) {
     throw new ApiGreska(502, "SLANJE_NIJE_USPJELO", `Mejl nije poslat: ${(greska as Error).message}. Provjerite SMTP podešavanje (za Gmail: lozinka za aplikacije, port 465).`);
   }
   return { iz, primaoci };
+}
+
+// ─── Slanje po rasporedu (dodatak, 27.10.2026) ────────────────────────────────────────────────────
+// Konsultant klijentu koji plati dodatak izabere ritam; server sam šalje posljednji ZAVRŠENI period (juče, prošla
+// sedmica, prošli mjesec, prošli kvartal) — ujutro, od SAT_SLANJA po Podgorici, da vlasnica mejl nađe na vrhu pošte.
+// Šalje se samo period koji se završio na dan uključivanja ili kasnije: uključeno u srijedu „svake sedmice“ → prvi
+// mejl u ponedjeljak, za tu sedmicu. Isti period ide jednom (i kad ga je konsultant već poslao ručno).
+export const RITMOVI = ["dan", "sedmica", "mjesec", "kvartal"] as const;
+export type Ritam = (typeof RITMOVI)[number];
+const SAT_SLANJA = 7;
+
+const satCG = () => Number(new Date().toLocaleString("en-GB", { timeZone: "Europe/Podgorica", hour: "2-digit", hourCycle: "h23" }));
+const posljednjiZavrseni = (ritam: Ritam, danas: string) => granice(ritam, dodajDane(granice(ritam, danas).od, -1));
+
+async function vecPoslat(vrsta: Vrsta, od: string, doDan: string) {
+  const r = await upit(`select 1 from izvjestaj_poslat where vrsta = $1 and period_od = $2 and period_do = $3 limit 1`, [vrsta, od, doDan]);
+  return (r.rowCount ?? 0) > 0;
+}
+
+/** Šta raspored sljedeće šalje i kada — za ekran konsultanta. */
+export async function stanjeRasporeda() {
+  const f = (await upit<{ ritam: Ritam | null; od: string | null }>(
+    `select izvjestaj_ritam as ritam, to_char(izvjestaj_ritam_od, 'YYYY-MM-DD') as od from firma limit 1`,
+  )).rows[0];
+  if (!f?.ritam || !f.od) return { ritam: null, od: null, sljedece: null };
+  const danas = danasCG();
+  const zadnji = posljednjiZavrseni(f.ritam, danas);
+  const ceka = zadnji.do >= f.od && !(await vecPoslat(f.ritam, zadnji.od, zadnji.do));
+  const p = ceka ? zadnji : granice(f.ritam, danas);
+  const dan = ceka ? danas : dodajDane(p.do, 1);
+  return {
+    ritam: f.ritam,
+    od: f.od,
+    sljedece: { period: nazivPerioda(f.ritam, p.od, p.do), dan, sat: SAT_SLANJA, odmah: ceka && satCG() >= SAT_SLANJA },
+  };
+}
+
+export async function sacuvajRitam(klijent: import("pg").PoolClient, ritam: Ritam | null) {
+  const prije = (await klijent.query<{ id: string; izvjestaj_ritam: string | null; od: string | null }>(
+    `select id, izvjestaj_ritam, to_char(izvjestaj_ritam_od, 'YYYY-MM-DD') as od from firma limit 1 for update`,
+  )).rows[0];
+  if (!prije) throw new ApiGreska(409, "FIRMA_NE_POSTOJI", "Firma nije upisana — prvo npm run prvi-korisnik.");
+  // Promjena ritma počinje od danas — da se ne pošalje zaostao period koji vlasnica nije očekivala.
+  const od = ritam ? (ritam === prije.izvjestaj_ritam ? prije.od : danasCG()) : null;
+  await klijent.query(`update firma set izvjestaj_ritam = $2, izvjestaj_ritam_od = $3, updated_at = now() where id = $1`, [prije.id, ritam, od]);
+  return { id: prije.id, prije: prije.izvjestaj_ritam, poslije: ritam };
+}
+
+/** Jedna provjera rasporeda: pošalje posljednji završeni period ako je red, i vrati njegov naziv (ili null). */
+export async function posaljiPoRasporedu(opcije: { odSata?: number } = {}): Promise<string | null> {
+  const f = (await upit<{ ritam: Ritam | null; od: string | null }>(
+    `select izvjestaj_ritam as ritam, to_char(izvjestaj_ritam_od, 'YYYY-MM-DD') as od from firma limit 1`,
+  )).rows[0];
+  if (!f?.ritam || !f.od || satCG() < (opcije.odSata ?? SAT_SLANJA)) return null;
+  const ritam = f.ritam;
+  const p = posljednjiZavrseni(ritam, danasCG());
+  if (p.do < f.od || (await vecPoslat(ritam, p.od, p.do))) return null;
+  try {
+    // Red u tragu se rezerviše PRIJE slanja (jedinstven po periodu), a ostaje samo ako je mejl otišao — pao SMTP
+    // poništi rezervaciju, pa sljedeća provjera (za sat) pokuša ponovo.
+    return await transakcija(async (klijent) => {
+      const r = await klijent.query<{ id: string }>(
+        `insert into izvjestaj_poslat (vrsta, period_od, period_do, primaoci, automatski) values ($1, $2, $3, '', true)
+         on conflict (vrsta, period_od) where automatski do nothing returning id`,
+        [ritam, p.od, p.do],
+      );
+      if (!r.rows[0]) return null;
+      const { iz, primaoci } = await posalji(ritam, p.od);
+      await klijent.query(`update izvjestaj_poslat set primaoci = $2 where id = $1`, [r.rows[0].id, primaoci.join(", ")]);
+      await logKreiranje(klijent, { korisnikId: null, entitetTip: "izvjestaj_poslat", entitetId: r.rows[0].id, noveVrijednosti: { vrsta: ritam, od: p.od, do: p.do, primaoci, automatski: true } });
+      return iz.period.naziv;
+    });
+  } catch (greska) {
+    // Konsultant saznaje JEDNOM po periodu — provjera se ponavlja svaki sat, obavještenje ne.
+    const naslov = `Stanje poslovanja nije poslato — ${nazivPerioda(ritam, p.od, p.do)}`;
+    const vec = await upit(`select 1 from obavjestenje where naslov = $1 limit 1`, [naslov]);
+    if (!vec.rowCount) {
+      await obavijestiUlogu(pool, "izvodjac", {
+        naslov,
+        poruka: `${(greska as Error).message} Server pokušava ponovo svaki sat; do tada ga možete poslati ručno (Stanje poslovanja).`,
+        ozbiljnost: "VISOK",
+      });
+    }
+    throw greska;
+  }
+}
+
+/** Provjera minut posle pokretanja, pa svaki sat — kao rokovi (rokoviService). RASPORED_SLANJA=0 gasi (test server). */
+export function pokreniSlanjePoRasporedu() {
+  if (process.env.RASPORED_SLANJA === "0") return;
+  const provjeri = async () => {
+    if (!(await tabelaPostoji("izvjestaj_poslat"))) return;
+    const poslato = await posaljiPoRasporedu();
+    if (poslato) console.log(`Stanje poslovanja poslato po rasporedu: ${poslato}`);
+  };
+  const javi = (e: unknown) => console.error("Stanje poslovanja po rasporedu:", (e as Error).message);
+  setTimeout(() => provjeri().catch(javi), 60_000).unref();
+  setInterval(() => provjeri().catch(javi), 60 * 60 * 1000).unref();
 }

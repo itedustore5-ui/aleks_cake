@@ -4,7 +4,7 @@ import { api, preuzmiFajl, ApiGreska } from "../lib/api";
 import { PageHeader } from "../components/Zajednicko";
 
 // „Stanje poslovanja“ — konsultantov izvještaj vlasnici (11.10.2026): izbor perioda, pregled tačno kakav stiže
-// mejlom, primaoci i slanje. Server: services/stanjeService.ts.
+// mejlom, primaoci, slanje ručno i po rasporedu (dodatak, 27.10.2026). Server: services/stanjeService.ts.
 
 const VRSTE = [
   { kod: "dan", naziv: "Dan" },
@@ -24,11 +24,26 @@ type Izvjestaj = {
   ocjena: { nivo: "zeleno" | "zuto" | "crveno"; poruka: string; stavke: { nivo: string; tekst: string }[] };
   html: string;
   slanje: { podeseno: boolean; posiljalac: string | null };
-  istorija: { vrsta: Vrsta; od: string; do: string; primaoci: string; created_at: string }[];
+  raspored: Raspored;
+  istorija: { vrsta: Vrsta; od: string; do: string; primaoci: string; automatski: boolean; created_at: string }[];
 };
+type Raspored = { ritam: Ritam | null; od: string | null; sljedece: { period: string; dan: string; sat: number; odmah: boolean } | null };
+
+// Slanje po rasporedu je dodatak (27.10.2026) — uključuje se samo klijentu koji ga je platio. Šalje se posljednji
+// završeni period, ujutro (server: stanjeService.posaljiPoRasporedu).
+const RITMOVI = [
+  { kod: "", naziv: "Isključeno — šaljem ručno" },
+  { kod: "dan", naziv: "Svaki dan — izvještaj za juče" },
+  { kod: "sedmica", naziv: "Svake sedmice — ponedjeljkom, za prošlu sedmicu" },
+  { kod: "mjesec", naziv: "Svakog mjeseca — 1. u mjesecu, za prošli mjesec" },
+  { kod: "kvartal", naziv: "Svakog kvartala — za prošli kvartal" },
+] as const;
+type Ritam = Exclude<(typeof RITMOVI)[number]["kod"], "">;
 
 const NAZIV_VRSTE: Record<string, string> = Object.fromEntries(VRSTE.map((v) => [v.kod, v.naziv.toLowerCase()]));
 const datum = (s: string) => `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}.`;
+const opisSljedeceg = (r: Raspored) =>
+  !r.sljedece ? "" : r.sljedece.odmah ? `sljedeći (${r.sljedece.period}) odlazi u toku sata.` : `sljedeći: ${r.sljedece.period}, šalje se ${datum(r.sljedece.dan)} od ${r.sljedece.sat} h.`;
 
 export function StanjePoslovanja() {
   const [vrsta, setVrsta] = useState<Vrsta>("mjesec");
@@ -39,6 +54,7 @@ export function StanjePoslovanja() {
   const [poruka, setPoruka] = useState("");
   const [primaoci, setPrimaoci] = useState("");
   const [radim, setRadim] = useState<string | null>(null);
+  const [ritam, setRitam] = useState<Ritam | "" | null>(null); // null = nije dirano, važi sačuvano
   const okvir = useRef<HTMLIFrameElement>(null);
 
   const ucitaj = async (v: Vrsta, d?: string) => {
@@ -105,6 +121,23 @@ export function StanjePoslovanja() {
       await ucitaj(vrsta, iz.period.od);
     } catch (e) {
       setGreska(e instanceof ApiGreska ? e.message : "Mejl nije poslat.");
+    } finally {
+      setRadim(null);
+    }
+  };
+
+  const sacuvajRaspored = async () => {
+    if (!iz) return;
+    setGreska("");
+    setPoruka("");
+    setRadim("raspored");
+    try {
+      const r = await api<Raspored>("/stanje-poslovanja/raspored", { method: "PATCH", telo: { ritam: (ritam ?? iz.raspored.ritam) || null } });
+      setIz((x) => (x ? { ...x, raspored: r } : x));
+      setRitam(null);
+      setPoruka(r.ritam ? `Raspored je sačuvan — ${opisSljedeceg(r)}` : "Automatsko slanje je isključeno — izvještaj se šalje samo ručno.");
+    } catch (e) {
+      setGreska(e instanceof ApiGreska ? e.message : "Raspored nije sačuvan.");
     } finally {
       setRadim(null);
     }
@@ -194,6 +227,32 @@ export function StanjePoslovanja() {
             {vecPoslat ? ` · Ovaj izvještaj je već poslat ${new Date(vecPoslat.created_at).toLocaleDateString("sr-Latn-ME")}.` : ""}
           </span>
         </div>
+        {iz && (
+          <div className="stanje-raspored">
+            <label htmlFor="stanje-ritam">
+              <span>Automatsko slanje (dodatak — uključite samo klijentu koji ga je platio)</span>
+              <div>
+                <select id="stanje-ritam" value={ritam ?? iz.raspored.ritam ?? ""} onChange={(e) => setRitam(e.target.value as Ritam | "")}>
+                  {RITMOVI.map((r) => (
+                    <option key={r.kod} value={r.kod}>
+                      {r.naziv}
+                    </option>
+                  ))}
+                </select>
+                <button className="secondary-button" onClick={sacuvajRaspored} disabled={radim === "raspored"}>
+                  Sačuvaj raspored
+                </button>
+              </div>
+            </label>
+            <p className="muted-text">
+              {iz.raspored.ritam
+                ? `Uključeno od ${datum(iz.raspored.od!)} — ${opisSljedeceg(iz.raspored)} Šalje se posljednji završeni period, ujutro, na adrese iznad.`
+                : "Isključeno. Kad se uključi, server sam šalje izvještaj za posljednji završeni period — prvi put za period koji se završi od danas."}
+              {iz.raspored.ritam && !iz.slanje.podeseno ? " Neće otići dok slanje nije podešeno (SMTP na Renderu) — server će vam javiti." : ""}
+              {iz.raspored.ritam && !iz.primaoci.trim() ? " Upišite i sačuvajte primaoce — bez njih se ništa ne šalje." : ""}
+            </p>
+          </div>
+        )}
         {greska && (
           <div className="auth-error" role="alert">
             <AlertCircle size={14} /> {greska}
@@ -221,6 +280,7 @@ export function StanjePoslovanja() {
                   <th>Vrsta</th>
                   <th>Period</th>
                   <th>Kome</th>
+                  <th>Kako</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,6 +290,7 @@ export function StanjePoslovanja() {
                     <td>{NAZIV_VRSTE[h.vrsta] ?? h.vrsta}</td>
                     <td>{h.od === h.do ? datum(h.od) : `${datum(h.od)} – ${datum(h.do)}`}</td>
                     <td>{h.primaoci}</td>
+                    <td>{h.automatski ? "po rasporedu" : "ručno"}</td>
                   </tr>
                 ))}
               </tbody>

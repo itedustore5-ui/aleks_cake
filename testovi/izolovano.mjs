@@ -138,8 +138,9 @@ try {
   if (!samoEkrani) {
     korak(`test server na portu ${PORT_APP}`);
     // SMTP = lažni server testa `stanje` (127.0.0.1:54337, samo dok taj test traje) — pravi mejl nikad ne ide.
+    // RASPORED_SLANJA=0: sat-provjeru „Stanja poslovanja“ test pokreće sam, da je server ne preduhitri usred testa.
     const posta = { SMTP_HOST: "127.0.0.1", SMTP_PORT: "54337", SMTP_KORISNIK: "proba@pilot.test", SMTP_LOZINKA: "proba", SMTP_POSILJALAC: "PILOT proba <proba@pilot.test>" };
-    server = nodeProces([...TSX, "server/index.ts"], { DATABASE_URL: baza.url, PORT: String(PORT_APP), SAMO_API: "1", NODE_ENV: "development", ...posta }, ["ignore", "ignore", "inherit"]);
+    server = nodeProces([...TSX, "server/index.ts"], { DATABASE_URL: baza.url, PORT: String(PORT_APP), SAMO_API: "1", NODE_ENV: "development", RASPORED_SLANJA: "0", ...posta }, ["ignore", "ignore", "inherit"]);
     await sacekajServer(server);
 
     korak("testovi");

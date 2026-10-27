@@ -55,6 +55,9 @@ export async function pokreni({ provjeri }) {
       `okvir ${Math.round(mjere.visina)}px ${mjere.unutra}/${mjere.sirina} · „${javljeno.trim().slice(0, 60)}“ · ${s0.visak}px ${s0.krivi.join(",")}`,
     );
 
+    const ritmovi = await t.strana.locator("#stanje-ritam option").allTextContents();
+    provjeri("Stanje poslovanja: automatsko slanje (dodatak) — isključeno, dan, sedmica, mjesec, kvartal", ritmovi.length === 5 && /^Isključeno/.test(ritmovi[0]), ritmovi.join(" | "));
+
     // „Sačuvaj PDF“: izvještaj u novom prozoru + štampa (pregledač bez prozora je ne prikazuje — ovdje se samo bilježi).
     await t.strana.context().addInitScript(() => {
       window.print = () => {
