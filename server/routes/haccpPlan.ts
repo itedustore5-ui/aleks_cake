@@ -125,9 +125,9 @@ haccpPlanRuter.post(
   "/plan-monitoringa/osnovni",
   requireUloga(...VODSTVO),
   asyncRuta(async (request: AuthZahtjev, response) => {
-    const broj = await transakcija((klijent) => osnovniPlan(klijent, request.korisnik!.id));
-    if (broj === 0) throw new ApiGreska(409, "PLAN_POSTOJI", "Plan monitoringa već postoji — izmijenite postojeće stavke.");
-    response.status(201).json({ broj });
+    const rezultat = await transakcija((klijent) => osnovniPlan(klijent, request.korisnik!.id));
+    if (rezultat.broj === 0) throw new ApiGreska(409, "PLAN_POSTOJI", "Plan monitoringa već postoji — izmijenite postojeće stavke.");
+    response.status(201).json(rezultat);
   }),
 );
 

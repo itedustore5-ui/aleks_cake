@@ -7,6 +7,7 @@
 import type { PoolClient } from "pg";
 import { upit } from "../db.js";
 import { danasCG } from "../vrijeme.js";
+import { logKreiranje } from "./auditService.js";
 
 export const UCESTALOSTI = ["DNEVNO", "RADNIM_DANIMA", "SEDMICNO", "MJESECNO", "PO_DOGADJAJU"] as const;
 export type Ucestalost = (typeof UCESTALOSTI)[number];
@@ -210,9 +211,20 @@ export async function pregledPlana(odDan: string, doDan: string) {
 
 /** Osnovni plan za atelje — konsultant ga zatim prilagodi (stvarni frižideri, vitrina, radni dani).
  * Samo kad plan još ne postoji. */
-export async function osnovniPlan(klijent: PoolClient, korisnikId: string): Promise<number> {
+/** Predložena granica uređaja i predaje torte (iste kao demo, 27.10.2026). Upisuje se SAMO uz „Predloži osnovni plan“
+ * (i `prvi-korisnik`), i samo tački bez aktivnog opšteg pravila — konsultant je provjerava u HACCP planu i mijenja
+ * novom verzijom pravila. Ocjena i dalje čita samo pravilo (P3, #39), nikad ovu funkciju. */
+function predlogGranice(sifra: string): { naziv: string; min: number; max: number } | null {
+  if (sifra === "KKT3") return { naziv: "Torta pri predaji — rashlađeno", min: 0, max: 6 };
+  if (!sifra.startsWith("KKT2")) return null;
+  if (sifra.startsWith("KKT2-Z")) return { naziv: "Zamrzivač — smrznuto", min: -25, max: -18 };
+  if (sifra.startsWith("KKT2-V")) return { naziv: "Vitrina — rashlađeno", min: 0, max: 4 };
+  return { naziv: "Frižider — rashlađeno", min: 0, max: 4 };
+}
+
+export async function osnovniPlan(klijent: PoolClient, korisnikId: string): Promise<{ broj: number; granice: number }> {
   const postoji = await klijent.query(`select 1 from plan_monitoringa where aktivan limit 1`);
-  if (postoji.rows[0]) return 0;
+  if (postoji.rows[0]) return { broj: 0, granice: 0 };
   const sveTacke = (await klijent.query<{ sifra: string; id: string; naziv: string }>(`select sifra, id, naziv from kontrolna_tacka where aktivan order by sifra`)).rows;
   const tacke = new Map(sveTacke.map((r) => [r.sifra, r.id]));
   type Nova = { naziv: string; vrsta: VrstaPlana; kt?: string; obrazac?: string; ucestalost: Ucestalost; puta?: number; uloga: string; napomena?: string };
@@ -237,5 +249,19 @@ export async function osnovniPlan(klijent: PoolClient, korisnikId: string): Prom
       [n.naziv, n.vrsta, n.kt ?? null, n.obrazac ?? null, n.ucestalost, n.puta ?? 1, n.uloga, n.napomena ?? null, korisnikId],
     );
   }
-  return nove.length;
+  // Bez opšteg pravila zaposleni ne može ni da izmjeri frižider (PRAVILO_NE_POSTOJI), a predaja se ne ocjenjuje (P3).
+  let granice = 0;
+  for (const t of sveTacke) {
+    const g = predlogGranice(t.sifra);
+    if (!g) continue;
+    const ima = await klijent.query(`select 1 from pravilo_kontrole where kontrolna_tacka_id = $1 and artikal_id is null and aktivan limit 1`, [t.id]);
+    if (ima.rows[0]) continue;
+    const r = await klijent.query<{ id: string }>(
+      `insert into pravilo_kontrole (kontrolna_tacka_id, naziv, min_vrijednost, max_vrijednost, jedinica, ozbiljnost) values ($1, $2, $3, $4, '°C', 'VISOK') returning id`,
+      [t.id, g.naziv, g.min, g.max],
+    );
+    await logKreiranje(klijent, { korisnikId, entitetTip: "pravilo_kontrole", entitetId: r.rows[0].id, noveVrijednosti: { tacka: t.sifra, naziv: g.naziv, min: g.min, max: g.max, predlog: true } });
+    granice += 1;
+  }
+  return { broj: nove.length, granice };
 }

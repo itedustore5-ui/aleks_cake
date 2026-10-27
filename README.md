@@ -51,7 +51,7 @@ Vidi [`.env.example`](.env.example). Najvažnije:
   produkciji.
 - `NODE_ENV` — `development` lokalno, `production` na Renderu.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_KORISNIK`, `SMTP_LOZINKA`, `SMTP_POSILJALAC` — samo za slanje „Stanja poslovanja“
-  direktoru mejlom (vidi niže). Bez njih aplikacija radi, a izvještaj se preuzima i šalje kao prilog.
+  vlasnici mejlom, ručno ili po rasporedu (vidi niže). Bez njih aplikacija radi, a izvještaj se preuzima i šalje kao prilog.
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — **nisu potrebni**. Ključ za push
   obavještenja server pravi sam pri prvom pokretanju i čuva ga u bazi klijenta (`web_push_kljuc`);
   kontakt je javna adresa servisa na Renderu (`RENDER_EXTERNAL_URL`, Render ga sam postavlja).
@@ -124,8 +124,10 @@ Svaki klijent dobija **svoj** Supabase projekat i **svoj** Render web servis, sa
 - [ ] **Render:** plaćeni plan (besplatni spava i blokira mejl); `NODE_ENV=production`, `DATABASE_URL` = Session pooler.
       Kad konsultant uključi potvrdu u dva koraka na Mojoj strani: `OBAVEZNA_2FA=izvodjac`.
 - [ ] **Lozinke vlasnice i konsultanta** iz `prvi-korisnik` se ispišu samo jednom — predati lično, ne mejlom.
-- [ ] **HACCP plan** (konsultant): granice za frižider (`KKT2`), vitrinu (`KKT2-V`), zamrzivač (`KKT2-Z`) i predaju torte
-      (`KKT3`); za svaki dodatni frižider nova tačka `KKT2-…`; pa „Predloži osnovni plan“.
+- [ ] **HACCP plan** (konsultant): na novoj bazi `prvi-korisnik` već napravi osnovni plan i predložene granice (frižider i
+      vitrina 0–4 °C, zamrzivač −25 do −18 °C, predaja torte 0–6 °C) — provjeriti ih na kartici „Kontrolne tačke“. Na bazi
+      koja je napravljena ranije (Aleks Cake): „Predloži osnovni plan“ — pravi plan i upisuje iste granice tačkama bez njih.
+      Drugi frižider: nova tačka `KKT2-F2` (ili upitnik + `uvoz-start` — sam napravi tačke, granice i mjerenja).
 - [ ] **Šifarnici:** jajima (i svemu sa obaveznom oznakom serije) „Broj serije pri prijemu: Obavezan“; ostalo se prima i bez
       serije uz broj računa ili otpremnice (P4).
 - [ ] Posle deploya: `GET /api/zdravlje` → `ok: true` i izdanje = `git log -1 --format=%h`.
@@ -139,31 +141,31 @@ Svaki klijent dobija **svoj** Supabase projekat i **svoj** Render web servis, sa
 2. **Render**: novi Web Service iz ovog repozitorijuma.
    - Build command: `npm install && npm run build`
    - Start command: `npm start`
-   - Environment: `DATABASE_URL` (iz koraka 1), `NODE_ENV=production`; za mejl direktoru i `SMTP_*` (vidi „Stanje poslovanja“)
+   - Environment: `DATABASE_URL` (iz koraka 1), `NODE_ENV=production`; za mejl vlasnici i `SMTP_*` (vidi „Stanje poslovanja“)
    - Plaćeni plan (Starter) — besplatni spava poslije 15 min neaktivnosti (prvi zahtjev čeka ~1 min),
      ima 0,1 procesora (čitanje fotografija otpremnica je presporo), a 750 besplatnih sati mjesečno važi
      za CIJELI Render nalog: jedan budan servis ih troši sam — dva besplatna servisa (npr. demo i klijent)
      ostaju bez sati sredinom mjeseca i Render ih oba gasi do 1. u mjesecu.
 3. Server pri prvom pokretanju sam napravi sve tabele (dopune baze, #79). Zatim, sa svog računara
-   (PowerShell), prvi nalozi u NOVOJ bazi — odgovorno lice i vaš konsultantski nalog:
+   (PowerShell), prvi nalog u NOVOJ bazi — najjednostavnije samo vaš konsultantski, a vlasnicu otvorite u aplikaciji:
    ```powershell
-   $env:DATABASE_URL="<adresa NOVE baze>"; npm run prvi-korisnik -- --firma "Naziv d.o.o." --ime "Ime Prezime" --korisnik ime.prezime --konsultant vase.ime
+   $env:DATABASE_URL="<adresa NOVE baze>"; npm run prvi-korisnik -- --firma "Naziv d.o.o." --konsultant vase.ime
    ```
+   (ili odmah i vlasnicu: `… --firma "Naziv d.o.o." --ime "Ime Prezime" --korisnik ime.prezime --konsultant vase.ime`).
    Alat prvo ispiše u koju bazu upisuje i **odbija bazu koja već ima odgovorno lice ili konsultanta**
-   (npr. demo iz `.env` kad se zaboravi adresa nove baze). Obje lozinke su privremene i ispišu se
-   jednom. Konsultantski nalog treba: upisuje adresu i PIB
-   firme (Podešavanje) i dobija obavještenje kad odgovorno lice samo zatvori neusaglašenost („bez četiri
-   oka“). Bez njega: izostaviti `--konsultant` (može se dodati i kasnije: samo `--konsultant vase.ime`).
-   Vlasnica u `/moja` mijenja lozinku i u `/ljudi` otvara naloge zaposlenima. Alat pravi i kontrolne
-   tačke KKT 1–3 — bez njih se temperatura na prijemu i predaji ne ocjenjuje — i to za čuvanje svaki uređaj
-   posebno: frižider (`KKT2`), vitrina (`KKT2-V`), zamrzivač (`KKT2-Z`); jedino, prazno skladište nazove „Atelje“.
-   **Podaci firme iz upitnika:** distributer popuni `upitnik-start/Upitnik-za-pocetak.html` i pošalje fajl, a vi:
+   (npr. demo iz `.env` kad se zaboravi adresa nove baze). Lozinke su privremene i ispišu se jednom. Na novoj bazi
+   napravi i: firmu, skladište „Atelje“, kontrolne tačke (prijem `KKT1`, frižider `KKT2`, vitrina `KKT2-V`, zamrzivač
+   `KKT2-Z`, predaja torte `KKT3`), **osnovni plan monitoringa i predložene granice** — zaposleni može da mjeri od prvog dana.
+   Prijavite se kao konsultant → Ljudi → Novo lice → vlasnica sa nalogom „Vlasnica — odgovorno lice“ (njeno ime ide i u
+   podatke firme); vlasnica u `/moja` mijenja lozinku i u `/ljudi` otvara naloge zaposlenima.
+   **Podaci ateljea iz upitnika:** vlasnica popuni `upitnik-start/Upitnik-za-pocetak.html` (atelje, frižideri i
+   zamrzivač, zaposleni, dobavljači, sastojci sa alergenima, stalni kupci, termometri) i pošalje fajl, a vi:
    ```powershell
    $env:DATABASE_URL="<adresa NOVE baze>"; npm run uvoz-start -- --fajl pilot-start-<firma>-<datum>.json
    ```
-   pokaže šta bi upisao (ništa ne upiše); ako je u redu — ista komanda sa `--upisi`. Zaposleni, magacini, vozila,
-   dobavljači, kupci, artikli (granice NEpotvrđene — potvrditi u Šifarnicima) i termometri; nalozi, komore i kalibracije
-   ostaju za aplikaciju (alat ih ispiše).
+   pokaže šta bi upisao (ništa ne upiše); ako je u redu — ista komanda sa `--upisi`. Uređaji postaju kontrolne tačke sa
+   svojom granicom i dnevnim mjerenjem (vitrina ili zamrzivač kojih nema se isključe), sastojci dobijaju alergene i
+   „serija obavezna“ (granice NEpotvrđene — potvrditi u Šifarnicima); nalozi i kalibracije ostaju za aplikaciju (alat ih ispiše).
 4. Dodati klijenta u `alati/klijenti.txt` (nije u gitu — ostaje samo na vašem računaru):
    ```
    Naziv klijenta = postgresql://...
@@ -183,10 +185,10 @@ Demo baza (za prodajne sastanke) se pravi na isti način, ali sa `npm run seed:d
 
 | Alat | Šta radi |
 |---|---|
-| `npm run prvi-korisnik -- --firma "..." --ime "..." --korisnik ... [--konsultant ...]` | Prvi nalozi u novoj bazi: odgovorno lice (`bzr`) i konsultant (`izvodjac`), jedna transakcija, audit, privremene lozinke. Ispiše u koju bazu upisuje i odbija bazu koja već ima odgovorno lice ili konsultanta. Samo `--konsultant ...` — konsultantski nalog u bazi koja već ima odgovorno lice. |
-| `npm run uvoz-start -- --fajl … [--upisi]` | Upitnik za početak (`upitnik-start/`) u bazu novog klijenta, posle `prvi-korisnik`. Bez `--upisi` samo pokaže šta bi uradio. Postojeće preskače (može se ponoviti), odbija demo bazu, kupca bez telefona i artikal bez granice; granice ostaju nepotvrđene; naloge ne otvara. |
+| `npm run prvi-korisnik -- --firma "..." --konsultant ...` (ili još `--ime "..." --korisnik ...` za vlasnicu) | Prvi nalozi u novoj bazi: konsultant (`izvodjac`) i po želji vlasnica (`bzr`), jedna transakcija, audit, privremene lozinke; na novoj bazi i firma, „Atelje“, kontrolne tačke, osnovni plan i predložene granice. Ispiše u koju bazu upisuje i odbija bazu koja već ima odgovorno lice ili konsultanta. Samo `--konsultant ...` — konsultantski nalog u bazi koja već ima firmu. |
+| `npm run uvoz-start -- --fajl … [--upisi]` | Upitnik ateljea (`upitnik-start/`) u bazu novog klijenta, posle `prvi-korisnik`. Bez `--upisi` samo pokaže šta bi uradio. Uređaji → kontrolne tačke sa granicom i mjerenjem u planu; sastojci sa alergenima i „serija obavezna“. Postojeće preskače (može se ponoviti), odbija demo bazu, distributerski upitnik, kupca bez telefona i sastojak bez granice; granice ostaju nepotvrđene; naloge ne otvara. |
 | `npm run dnevni-pregled` | Stanje SVIH klijenata iz `alati/klijenti.txt` u jednom ispisu (poslednji unos, otvorene neusaglašenosti, **veličina baze i koliko su otpremnice**, greške servera i ekrana u 24 h, neprimijenjene dopune baze, vodstvo bez potvrde u dva koraka). Izlazni kod `1` ako je neko u zastoju (>2 dana bez unosa) ili mu je baza ≥ 400 MB (`BAZA_UPOZORENJE_MB=` za klijente na plaćenom planu; `KLIJENTI_FAJL=` drugi spisak) — pogodno za Task Scheduler + mejl na grešku. |
-| `npm run demo-lozinke` | Nove lozinke za pet demo naloga — SAMO na demo bazi (provjeri fiksne ID-jeve); upiše ih u `.env` (`DEMO_LOZINKA_*`, za `test:e2e`) i ispiše jednom. |
+| `npm run demo-lozinke` | Nove lozinke za tri demo naloga — SAMO na demo bazi (provjeri fiksne ID-jeve); upiše ih u `.env` (`DEMO_LOZINKA_*`, za `test:e2e`) i ispiše jednom. |
 | `npm run iskljuci-2fa -- --korisnik ime` | Isključuje potvrdu u dva koraka nalogu koji je izgubio telefon i rezervne kodove; prekida njegove prijave, upisuje se u audit. |
 | `npm run zakazi-bekap` | Upisuje `npm run bekap` u Windows Task Scheduler (svaki dan u 13:00, i čim se računar upali ako je tada bio ugašen). `-Vrijeme 09:30`, `-Ukloni`. |
 | `npm run demo:lokalno` | Aplikacija na LOKALNOJ probnoj bazi sa demo podacima (http://localhost:5069) — da se ekrani proklikaju bez diranja žive baze. |
@@ -560,9 +562,17 @@ radnje, npr. datumu prijema) i **po kategorijama** koje izvještaj ima (status, 
 rezultat…) radi na serveru: isti filter važi za pregled, štampu i CSV, i ispiše se u zaglavlju
 štampe. Period ostaje izabran kad se pređe na drugi izvještaj.
 
-### Stanje poslovanja — izvještaj direktoru mejlom (`/stanje`, samo konsultant)
+### Stanje poslovanja — izvještaj vlasnici mejlom (`/stanje`, samo konsultant)
 
-Jedna strana koju direktor pogleda za pet minuta: **semafor na vrhu** („Sve pod kontrolom“ / „Ima stvari za pažnju“ /
+Izvještaj vidi i šalje samo konsultant. **Automatsko slanje je dodatak** (27.10.2026 — u paketu za atelje se plaća
+posebno): na istoj strani „Automatsko slanje“ → svaki dan / svake sedmice / svakog mjeseca / svakog kvartala →
+„Sačuvaj raspored“. Server tada sam, ujutro od 07 h, šalje posljednji završeni period (juče, prošlu sedmicu…) na
+upisane adrese — prvi put za period koji se završi od dana uključivanja. Isti period ide jednom; ako mejl ne ode (SMTP,
+primaoci), pokušava svaki sat, a vi dobijete obavještenje „Stanje poslovanja nije poslato“ jednom po periodu.
+Podrazumijevano je isključeno — uključuje se samo klijentu koji je dodatak platio.
+
+Jedna strana koju vlasnica pogleda za pet minuta (tekst ispod je pisan za distributera — u ateljeu su umjesto
+isporuka predate torte, a kontrola vozila ne postoji): **semafor na vrhu** („Sve pod kontrolom“ / „Ima stvari za pažnju“ /
 „Potrebna je vaša odluka“) sa najviše 7 stavki šta treba uraditi, pa **ključni pokazatelji** sa poređenjem sa prethodnim
 periodom (isporuke i kupci, prijemi, otpis; kontrole po planu, zapisi na vrijeme, temperatura u granici; otvorene
 neusaglašenosti, povlačenja, kontrole vozila), **grafikoni** (isporuke; zapisi i kontrole — crvena crta je radni dan bez
@@ -571,8 +581,8 @@ ijednog zapisa; neusaglašenosti nove/zatvorene) i **ljudi i oprema** (knjižice
 Period: **dan, sedmica, mjesec, kvartal, polugodište, godina** — strelicama ranije/kasnije; bez izbora posljednji završeni
 (juče, prošla sedmica, prošli mjesec…), a tekući „do danas“. Ekran prikazuje tačno ono što stiže mejlom.
 
-- **Kome se šalje** — mejl direktora (više adresa zarezom, najviše 10) → „Sačuvaj“ → **„Pošalji direktoru“**. Svako slanje
-  ostaje u spisku „Poslati izvještaji“ (ko, kad, period, kome).
+- **Kome se šalje** — mejl vlasnice (više adresa zarezom, najviše 10) → „Sačuvaj“ → **„Pošalji vlasnici“**. Svako slanje
+  ostaje u spisku „Poslati izvještaji“ (kad, period, kome, ručno ili po rasporedu).
 - **„Sačuvaj PDF“** — izvještaj se otvori u novom prozoru sa prozorom za štampu; kao štampač izaberite **„Sačuvaj kao
   PDF“** (A4, boje i grafikoni ostaju). Taj PDF pošaljete kao prilog iz svoje pošte. **„Preuzmi HTML“** — isti izvještaj
   kao `.html` fajl (otvara se u pregledaču).

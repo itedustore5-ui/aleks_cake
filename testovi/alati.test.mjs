@@ -2,9 +2,11 @@
 //   • prvi-korisnik na NOVOJ, praznoj bazi pravi odgovorno lice i konsultantski nalog (jedna transakcija, audit,
 //     privremene lozinke), a bazu koja već ima odgovorno lice ili konsultanta odbija (npr. demo iz .env);
 //   • dnevni-pregled javlja veličinu baze i upozorava kad je blizu granice besplatnog Supabase-a;
-//   • uvoz-start upisuje fajl iz upitnika (upitnik-start/) u novu bazu: proba ne upisuje ništa, upis jednom, ponovo — ništa
-//     novo; kupac bez telefona i artikal bez granice se odbijaju; granice nisu potvrđene; demo baza se odbija;
-//   • nova baza ima kontrolne tačke KKT 1–3 (dopuna 36 / prvi-korisnik) — bez njih prijem i predaja ne ocjenjuju temperaturu.
+//   • uvoz-start upisuje fajl iz upitnika ateljea (upitnik-start/) u novu bazu: proba ne upisuje ništa, upis jednom, ponovo —
+//     ništa novo; uređaji postaju kontrolne tačke sa svojom granicom i mjerenjem u planu; sastojci sa alergenima i serijom;
+//     kupac bez telefona i sastojak bez granice se odbijaju; granice nisu potvrđene; demo baza i distributerski upitnik se odbijaju;
+//   • nova baza ima kontrolne tačke KKT 1–3 (dopuna 36 / prvi-korisnik), osnovni plan i predložene granice — bez njih prijem i
+//     predaja ne ocjenjuju temperaturu, a frižider se ne može ni izmjeriti.
 // Nova baza se pravi samo na LOKALNOM klasteru (npm test / CI) i briše na kraju; na demo bazi se ta provjera preskače.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -30,32 +32,33 @@ function alat(skripta, argumenti, env) {
   });
 }
 
+// Upitnik ateljea (27.10.2026): dva frižidera, zamrzivač sa svojom granicom, BEZ vitrine; sastojci sa alergenima
+// (šifre ih upitnik računa sam) i jaja sa obaveznom serijom.
 const UPITNIK = {
-  format: "pilot-upitnik-start", verzija: 1, sacuvano: "2026-10-11T08:00:00.000Z",
-  firma: {
-    naziv: "Nova d.o.o.", pib: "02999888", adresa: "Cetinjski put bb", grad: "Podgorica", registracija: "",
-    roba: { rashladjeno: true, smrznuto: true, sobna: true }, drugaRoba: "",
-    odgovorno: { ime: "Jelena Nović", telefon: "067 555 111", email: "" }, direktor: { ime: "Petar Nović", telefon: "", email: "" }, direktorJeOdgovorno: false,
-  },
-  rad: { dani: { pon: true, uto: true, sri: true, cet: true, pet: true, sub: true, ned: false }, prijema: "4", isporuka: "25", napomena: "" },
-  nemaVozila: false, nemaTermometra: false,
-  magacini: [{ naziv: "Magacin Podgorica", adresa: "Cetinjski put bb" }, { naziv: "Magacin Bar", adresa: "" }],
-  komore: [{ naziv: "Komora 1", magacin: "Magacin Podgorica", rezim: "rashladjeno", min: "0", max: "4" }],
-  vozila: [{ oznaka: "PG AB-123", tip: "kombi", rashladno: true, min: "0", max: "4" }, { oznaka: "PG XY-9", tip: "kamion", rashladno: true, min: "", max: "" }],
+  format: "pilot-upitnik-start", vrsta: "atelje", verzija: 2, sacuvano: "2026-10-27T08:00:00.000Z",
+  firma: { naziv: "Nova d.o.o.", pib: "02999888", adresa: "Obala 13. jula bb", grad: "Bar", registracija: "", odgovorno: { ime: "Jelena Nović", telefon: "067 555 111", email: "" } },
+  rad: { dani: { pon: true, uto: true, sri: true, cet: true, pet: true, sub: true, ned: false }, porudzbina: "15", dostava: true, napomena: "" },
+  nemaTermometra: false,
+  uredjaji: [
+    { naziv: "Frižider za kremove", vrsta: "frizider", min: "0", max: "4" },
+    { naziv: "Frižider za torte", vrsta: "frizider", min: "1", max: "5" },
+    { naziv: "Zamrzivač", vrsta: "zamrzivac", min: "-22", max: "-18" },
+  ],
   zaposleni: [
-    { ime: "Jelena Nović", radnoMjesto: "odgovorno lice", rukujeHranom: true, knjizicaBroj: "SK-1", knjizicaRok: "2027-05-31", nalog: "odgovorno", magacin: "Magacin Podgorica" },
-    { ime: "Marko Marković", radnoMjesto: "magacioner", rukujeHranom: true, knjizicaBroj: "SK-2", knjizicaRok: "2027-01-31", nalog: "magacioner", magacin: "Magacin Podgorica" },
-    { ime: "Petar Nović", radnoMjesto: "direktor", rukujeHranom: false, knjizicaBroj: "", knjizicaRok: "", nalog: "direktor", magacin: "" },
+    { ime: "Jelena Nović", radnoMjesto: "vlasnica", rukujeHranom: true, knjizicaBroj: "SK-1", knjizicaRok: "2027-05-31", nalog: "vlasnica" },
+    { ime: "Marko Marković", radnoMjesto: "poslastičar", rukujeHranom: true, knjizicaBroj: "SK-2", knjizicaRok: "2027-01-31", nalog: "zaposleni" },
+    { ime: "Petar Nović", radnoMjesto: "dostava", rukujeHranom: false, knjizicaBroj: "", knjizicaRok: "", nalog: "" },
   ],
-  dobavljaci: [{ naziv: "Mljekara d.o.o.", pib: "02123456", telefon: "040 123 456", mjesto: "Nikšić", roba: "mlijeko" }, { naziv: "Pekara", pib: "12", telefon: "", mjesto: "", roba: "" }],
-  kupci: [{ naziv: "Market Centar", telefon: "067 123 456", pib: "03012345", adresa: "", adresaIsporuke: "", kontakt: "" }, { naziv: "Kiosk bez telefona", telefon: "", pib: "", adresa: "", adresaIsporuke: "", kontakt: "" }],
+  dobavljaci: [{ naziv: "Mljekara d.o.o.", pib: "02123456", telefon: "040 123 456", mjesto: "Nikšić", roba: "pavlaka" }, { naziv: "Pekara", pib: "12", telefon: "", mjesto: "", roba: "" }],
+  kupci: [{ naziv: "Kafe Centar", telefon: "067 123 456", pib: "03012345", adresa: "", kontakt: "" }, { naziv: "Kiosk bez telefona", telefon: "", pib: "", adresa: "", kontakt: "" }],
   artikli: [
-    { naziv: "Mlijeko 2,8% 1 l", jedinica: "kom", rezim: "rashladjeno", min: "0", max: "4", rok: true, dobavljac: "Mljekara d.o.o.", sifra: "1001" },
-    { naziv: "Sladoled vanila 1 l", jedinica: "kom", rezim: "smrznuto", min: "", max: "", rok: true, dobavljac: "", sifra: "" },
-    { naziv: "Keks 200 g", jedinica: "kom", rezim: "sobna", min: "", max: "", rok: true, dobavljac: "", sifra: "" },
-    { naziv: "Riba na ledu", jedinica: "kg", rezim: "drugo", min: "", max: "", rok: true, dobavljac: "", sifra: "" },
+    { naziv: "Slatka pavlaka 35% 1 l", jedinica: "kom", rezim: "rashladjeno", min: "0", max: "4", rok: true, serija: false, alergeni: "mlijeko", alergeniSifre: ["MLIJEKO"], alergeniUpisani: true, dobavljac: "Mljekara d.o.o.", sifra: "1001" },
+    { naziv: "Jaja M 30 kom", jedinica: "kom", rezim: "rashladjeno", min: "", max: "", rok: true, serija: true, alergeni: "jaja", alergeniSifre: ["JAJA"], alergeniUpisani: true, dobavljac: "", sifra: "" },
+    { naziv: "Maline smrznute 1 kg", jedinica: "kg", rezim: "smrznuto", min: "", max: "", rok: true, serija: false, alergeni: "nema", alergeniSifre: [], alergeniUpisani: true, dobavljac: "", sifra: "" },
+    { naziv: "Šećer 1 kg", jedinica: "kg", rezim: "sobna", min: "", max: "", rok: true, serija: false, alergeni: "", alergeniSifre: [], alergeniUpisani: false, dobavljac: "", sifra: "" },
+    { naziv: "Krem na ledu", jedinica: "kg", rezim: "drugo", min: "", max: "", rok: true, serija: false, alergeni: "", alergeniSifre: [], alergeniUpisani: false, dobavljac: "", sifra: "" },
   ],
-  termometri: [{ naziv: "Ubodni", oznaka: "T-01", gdje: "prijem", kalibracijaBroj: "K-55", kalibracijaDatum: "2026-01-10" }],
+  termometri: [{ naziv: "Ubodni", oznaka: "T-01", gdje: "frižideri", kalibracijaBroj: "K-55", kalibracijaDatum: "2026-01-10" }],
 };
 
 export async function pokreni({ provjeri }) {
@@ -73,8 +76,13 @@ export async function pokreni({ provjeri }) {
   );
 
   const demoUvoz = await alat("alati/uvoz-start.ts", ["--fajl", fajlUpitnika, "--upisi"], { DATABASE_URL: URL_TESTA });
-  const artPoslije = (await pool.query(`select count(*)::int as n from artikal where naziv = 'Riba na ledu' or naziv = 'Sladoled vanila 1 l'`)).rows[0].n;
+  const artPoslije = (await pool.query(`select count(*)::int as n from artikal where naziv = 'Krem na ledu' or naziv = 'Maline smrznute 1 kg'`)).rows[0].n;
   provjeri("uvoz-start: demo baza se odbija (upitnik klijenta ide samo u njegovu bazu), ništa se ne upisuje", demoUvoz.kod === 1 && /DEMO baza/.test(demoUvoz.izlaz) && artPoslije === 0, demoUvoz.izlaz.trim().slice(0, 200));
+  const fajlDistributera = path.join(os.tmpdir(), `pilot-start-distributer-${Date.now().toString(36)}.json`);
+  fs.writeFileSync(fajlDistributera, JSON.stringify({ ...UPITNIK, vrsta: undefined, verzija: 1 }));
+  const distributer = await alat("alati/uvoz-start.ts", ["--fajl", fajlDistributera], { DATABASE_URL: URL_TESTA });
+  fs.rmSync(fajlDistributera, { force: true });
+  provjeri("uvoz-start: distributerski upitnik (magacini, vozila) se ne prima — kaže da se popuni upitnik ateljea", distributer.kod === 1 && /distributerski upitnik/.test(distributer.izlaz), distributer.izlaz.trim().slice(0, 200));
 
   // ── Nova, prazna baza: dopune pa prvi nalozi ─────────────────────────────────────────────────
   if (!URL_TESTA.includes("localhost")) {
@@ -124,49 +132,82 @@ export async function pokreni({ provjeri }) {
         );
         const skladista = (await k.query(`select naziv from skladiste`)).rows.map((x) => x.naziv).join(",");
         provjeri("…i jedino, prazno skladište se zove „Atelje“ (ne „Glavni magacin“)", skladista === "Atelje", skladista);
+        const granice = (await k.query(
+          `select kt.sifra, p.min_vrijednost::float as min, p.max_vrijednost::float as max from pravilo_kontrole p join kontrolna_tacka kt on kt.id = p.kontrolna_tacka_id
+           where p.artikal_id is null and p.aktivan order by kt.sifra`,
+        )).rows.map((x) => `${x.sifra} ${x.min}..${x.max}`).join(", ");
+        const planStavki = (await k.query(`select count(*)::int as n from plan_monitoringa where aktivan`)).rows[0].n;
+        provjeri(
+          "…i odmah osnovni plan monitoringa sa predloženim granicama (frižider, vitrina 0–4, zamrzivač −25..−18, predaja 0–6) — zaposleni može da mjeri od prvog dana",
+          granice === "KKT2 0..4, KKT2-V 0..4, KKT2-Z -25..-18, KKT3 0..6" && planStavki >= 8 && /Osnovni plan monitoringa: \d+ stavki; predložene granice: 4/.test(r.izlaz),
+          `${granice} · plan ${planStavki}`,
+        );
 
         // ── uvoz-start ──
         const broj = async (sql) => (await k.query(sql)).rows[0].n;
         const proba = await alat("alati/uvoz-start.ts", ["--fajl", fajlUpitnika], { DATABASE_URL: nova });
         provjeri(
-          "uvoz-start bez --upisi: kaže šta bi uradio (artikli 3 nova, 1 odbijen; kupac bez telefona odbijen), a ništa ne upiše",
-          proba.kod === 0 && /PROBA/.test(proba.izlaz) && /Artikli\s+3 novih · 1 odbijeno/.test(proba.izlaz) && /Kiosk bez telefona: nema telefon/.test(proba.izlaz) &&
-            (await broj(`select count(*)::int as n from artikal`)) === 0 && (await broj(`select count(*)::int as n from kupac`)) === 0,
+          "uvoz-start bez --upisi: kaže šta bi uradio (sastojci 4 nova, 1 odbijen; kupac bez telefona odbijen), a ništa ne upiše",
+          proba.kod === 0 && /PROBA/.test(proba.izlaz) && /Sastojci\s+4 novih · 1 odbijeno/.test(proba.izlaz) && /Kiosk bez telefona: nema telefon/.test(proba.izlaz) &&
+            (await broj(`select count(*)::int as n from artikal`)) === 0 && (await broj(`select count(*)::int as n from kupac`)) === 0 &&
+            (await broj(`select count(*)::int as n from kontrolna_tacka where sifra = 'KKT2-F2'`)) === 0,
           proba.izlaz.trim().slice(0, 600),
         );
         const upis = await alat("alati/uvoz-start.ts", ["--fajl", fajlUpitnika, "--upisi"], { DATABASE_URL: nova });
-        const magacini = (await k.query(`select naziv, adresa from skladiste order by naziv`)).rows;
         const jelena = (await k.query(`select sanitarna_knjizica_broj as b, to_char(sanitarna_knjizica_rok, 'YYYY-MM-DD') as r from lice where ime = 'Jelena Nović'`)).rows[0];
-        const sladoled = (await k.query(`select temp_min::float as min, temp_max::float as max, granica_potvrdio from artikal where naziv = 'Sladoled vanila 1 l'`)).rows[0];
         const firma2 = (await k.query(`select pib, adresa, grad from firma`)).rows[0];
         provjeri(
-          "uvoz-start --upisi: prazno podrazumijevano skladište („Atelje“) preimenovano + drugi magacin; vozila; Jelena dopunjena knjižicom, 2 nova zaposlena; firma dopunjena",
+          "uvoz-start --upisi: Jelena dopunjena knjižicom, 2 nova zaposlena; firma dopunjena; skladište ostaje „Atelje“",
           upis.kod === 0 && /Upisano/.test(upis.izlaz) &&
-            JSON.stringify(magacini) === JSON.stringify([{ naziv: "Magacin Bar", adresa: null }, { naziv: "Magacin Podgorica", adresa: "Cetinjski put bb" }]) &&
-            (await broj(`select count(*)::int as n from vozilo`)) === 2 && (await broj(`select count(*)::int as n from vozilo where registarski_broj = 'PG XY-9' and temp_min = 0 and temp_max = 4`)) === 1 &&
             jelena?.b === "SK-1" && jelena?.r === "2027-05-31" && (await broj(`select count(*)::int as n from lice`)) === 3 &&
-            firma2.pib === "02999888" && firma2.adresa === "Cetinjski put bb" && firma2.grad === "Podgorica",
-          `${upis.kod} ${JSON.stringify(magacini)} ${JSON.stringify(jelena)} ${JSON.stringify(firma2)} | ${upis.izlaz.trim().slice(0, 300)}`,
+            firma2.pib === "02999888" && firma2.adresa === "Obala 13. jula bb" && firma2.grad === "Bar" &&
+            (await broj(`select count(*)::int as n from skladiste where naziv = 'Atelje'`)) === 1,
+          `${upis.kod} ${JSON.stringify(jelena)} ${JSON.stringify(firma2)} | ${upis.izlaz.trim().slice(0, 300)}`,
         );
+        const uredjaji = (await k.query(
+          `select kt.sifra, kt.naziv, kt.aktivan, p.min_vrijednost::float as min, p.max_vrijednost::float as max, p.verzija,
+                  (select count(*)::int from plan_monitoringa pm where pm.kontrolna_tacka_id = kt.id and pm.aktivan) as u_planu,
+                  (select pm.naziv from plan_monitoringa pm where pm.kontrolna_tacka_id = kt.id and pm.aktivan limit 1) as plan_naziv
+           from kontrolna_tacka kt left join pravilo_kontrole p on p.kontrolna_tacka_id = kt.id and p.artikal_id is null and p.aktivan
+           where kt.sifra like 'KKT2%' order by kt.sifra`,
+        )).rows;
+        const u = Object.fromEntries(uredjaji.map((x) => [x.sifra, x]));
         provjeri(
-          "…kupci samo sa telefonom; dobavljač sa lošim PIB-om upisan bez PIB-a; artikli sa granicom koja NIJE potvrđena i pravilom na KKT 1 i KKT 3; šifra kod dobavljača upamćena; termometar",
-          (await broj(`select count(*)::int as n from kupac`)) === 1 && (await broj(`select count(*)::int as n from dobavljac where naziv = 'Pekara' and pib is null`)) === 1 &&
-            (await broj(`select count(*)::int as n from artikal`)) === 3 && sladoled?.min === -25 && sladoled?.max === -18 && sladoled?.granica_potvrdio === false &&
-            (await broj(`select count(*)::int as n from artikal where granica_potvrdio`)) === 0 &&
-            (await broj(`select count(*)::int as n from pravilo_kontrole p join kontrolna_tacka kt on kt.id = p.kontrolna_tacka_id where kt.sifra in ('KKT1', 'KKT3') and p.artikal_id is not null and p.aktivan`)) === 4 &&
+          "…uređaji: prvi frižider preuzima KKT2 (ime iz upitnika, i u planu), drugi postaje KKT2-F2 sa svojom granicom u planu, zamrzivač dobija granicu iz upitnika (nova verzija), vitrine nema — isključena",
+          u.KKT2?.naziv === "Frižider za kremove" && u.KKT2.plan_naziv === "Temperatura — Frižider za kremove (KKT2)" && u.KKT2.min === 0 && u.KKT2.max === 4 &&
+            u["KKT2-F2"]?.naziv === "Frižider za torte" && u["KKT2-F2"].min === 1 && u["KKT2-F2"].max === 5 && u["KKT2-F2"].u_planu === 1 &&
+            u["KKT2-Z"]?.min === -22 && u["KKT2-Z"].max === -18 && u["KKT2-Z"].verzija === 2 &&
+            u["KKT2-V"]?.aktivan === false && u["KKT2-V"].u_planu === 0 && /Uređaji\s+1 nov · 2 dopunjeno/.test(upis.izlaz),
+          JSON.stringify(uredjaji),
+        );
+        const sastojci = Object.fromEntries((await k.query(
+          `select naziv, temp_min::float as min, temp_max::float as max, granica_potvrdio, zahtijeva_lot, alergeni, alergeni_upisani from artikal`,
+        )).rows.map((x) => [x.naziv, x]));
+        provjeri(
+          "…sastojci: alergeni iz upitnika (prazno = nije upisano), jaja sa obaveznom serijom, granica NIJE potvrđena i ima pravilo na KKT 1 i KKT 3; kupci samo sa telefonom; šifra kod dobavljača; termometar",
+          sastojci["Slatka pavlaka 35% 1 l"]?.alergeni.join() === "MLIJEKO" && sastojci["Slatka pavlaka 35% 1 l"].alergeni_upisani === true &&
+            sastojci["Jaja M 30 kom"]?.zahtijeva_lot === true && sastojci["Jaja M 30 kom"].min === 0 && sastojci["Jaja M 30 kom"].max === 4 &&
+            sastojci["Slatka pavlaka 35% 1 l"].zahtijeva_lot === false && sastojci["Maline smrznute 1 kg"]?.min === -25 && sastojci["Maline smrznute 1 kg"].alergeni_upisani === true &&
+            sastojci["Šećer 1 kg"]?.alergeni_upisani === false && !sastojci["Krem na ledu"] &&
+            Object.values(sastojci).every((x) => x.granica_potvrdio === false) &&
+            (await broj(`select count(*)::int as n from pravilo_kontrole p join kontrolna_tacka kt on kt.id = p.kontrolna_tacka_id where kt.sifra in ('KKT1', 'KKT3') and p.artikal_id is not null and p.aktivan`)) === 6 &&
+            (await broj(`select count(*)::int as n from kupac`)) === 1 && (await broj(`select count(*)::int as n from dobavljac where naziv = 'Pekara' and pib is null`)) === 1 &&
             (await broj(`select count(*)::int as n from artikal_dobavljaca where kljuc = 's:1001'`)) === 1 && (await broj(`select count(*)::int as n from mjerni_uredjaj`)) === 1,
-          JSON.stringify(sladoled),
+          JSON.stringify(sastojci),
         );
         provjeri(
-          "…svaki upis u audit, a nalozi se NE otvaraju (samo podsjetnik: magacioner, direktor)",
+          "…svaki upis u audit, a nalozi se NE otvaraju (samo podsjetnik za one koji ga još nemaju; sastojci bez alergena)",
           (await broj(`select count(*)::int as n from audit_log where nove_vrijednosti->>'izvor' = 'alati/uvoz-start'`)) >= 15 && (await broj(`select count(*)::int as n from korisnik`)) === 2 &&
-            /Marko Marković — magacioner/.test(upis.izlaz) && /PRETPOSTAVLJENE/.test(upis.izlaz),
-          upis.izlaz.trim().slice(-500),
+            /Marko Marković — Zaposleni/.test(upis.izlaz) && !/Jelena Nović — Vlasnica/.test(upis.izlaz) && /PRETPOSTAVLJENE/.test(upis.izlaz) && /1 sastojak bez upisanih alergena/.test(upis.izlaz),
+          upis.izlaz.trim().slice(-600),
         );
         const ponovo = await alat("alati/uvoz-start.ts", ["--fajl", fajlUpitnika, "--upisi"], { DATABASE_URL: nova });
         provjeri(
-          "…ponovni uvoz istog fajla: ništa novo (sve „već postoji“), bez duplikata",
-          ponovo.kod === 0 && /Artikli\s+3 već postoji/.test(ponovo.izlaz) && (await broj(`select count(*)::int as n from artikal`)) === 3 && (await broj(`select count(*)::int as n from skladiste`)) === 2 && (await broj(`select count(*)::int as n from lice`)) === 3,
+          "…ponovni uvoz istog fajla: ništa novo (sve „već postoji“), bez duplikata tačaka, pravila i stavki plana",
+          ponovo.kod === 0 && /Sastojci\s+4 već postoji/.test(ponovo.izlaz) && /Uređaji\s+3 već postoji/.test(ponovo.izlaz) && (await broj(`select count(*)::int as n from artikal`)) === 4 &&
+            (await broj(`select count(*)::int as n from kontrolna_tacka where sifra like 'KKT2%'`)) === 4 && (await broj(`select count(*)::int as n from lice`)) === 3 &&
+            (await broj(`select count(*)::int as n from pravilo_kontrole where artikal_id is null and aktivan`)) === 5 &&
+            (await broj(`select count(*)::int as n from plan_monitoringa where aktivan and kontrolna_tacka_id is not null`)) === uredjaji.reduce((s, x) => s + x.u_planu, 0) + 2,
           ponovo.izlaz.trim().slice(0, 400),
         );
       } finally {

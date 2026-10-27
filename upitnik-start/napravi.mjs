@@ -1,4 +1,4 @@
-// Pravi Upitnik-za-pocetak.html — fajl koji se šalje distributeru (otvara se dvoklikom, radi i bez interneta;
+// Pravi Upitnik-za-pocetak.html — fajl koji se šalje vlasnici ateljea (otvara se dvoklikom, radi i bez interneta;
 // sa internetom učita i slova aplikacije). Izvor je upitnik.html — on se objavljuje i kao stranica na claude.ai,
 // gdje se omot (doctype, head) dodaje sam, pa ga ovdje dodajemo isti.
 //

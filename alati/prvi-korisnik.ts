@@ -10,6 +10,8 @@
 //   npm run prvi-korisnik -- --firma "Naziv" --konsultant moje.ime   (27.10.2026 — samo konsultant na NOVOJ bazi:
 //                             firma, skladište „Atelje“ i kontrolne tačke se prave, a vlasnicu i zaposlene konsultant
 //                             otvara u aplikaciji, Ljudi → Novo lice → nalog)
+// Na NOVOJ bazi se odmah pravi i osnovni plan monitoringa sa predloženim granicama uređaja i predaje (isto kao
+// „Predloži osnovni plan“) — konsultant ih samo provjeri u HACCP planu.
 //
 // Zaštita (04.10.2026): ispisuje u koju bazu upisuje, odbija bazu koja već ima odgovorno lice ili konsultanta
 // (npr. demo iz .env kad se zaboravi DATABASE_URL nove baze) i sve upisuje u JEDNOJ transakciji, sa auditom.
@@ -49,12 +51,16 @@ async function main() {
 
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL nije podešen — postavite adresu NOVE baze klijenta.");
+  // Tek posle provjere adrese: server/db.ts pri uvozu traži DATABASE_URL.
+  const { osnovniPlan } = await import("../server/services/monitoringService.js");
   const adresa = new URL(connectionString);
   console.log(`Baza: ${adresa.hostname} · korisnik ${decodeURIComponent(adresa.username)} · ${adresa.pathname.slice(1) || "postgres"}`);
 
   const pool = new pg.Pool({ connectionString, ssl: connectionString.includes("localhost") ? undefined : { rejectUnauthorized: false } });
   const klijent = await pool.connect();
   const lozinke: { korisnik: string; uloga: string; lozinka: string }[] = [];
+  const nalozi: string[] = [];
+  let plan = { broj: 0, granice: 0 };
   try {
     const tabele = (await klijent.query<{ ima: string | null }>(`select to_regclass('public.korisnik')::text as ima`)).rows[0].ima;
     if (!tabele) {
@@ -128,6 +134,7 @@ async function main() {
       );
       await audit(k.rows[0].id, { korisnicko_ime: korisnickoIme, uloga: "bzr", ime });
       lozinke.push({ korisnik: korisnickoIme!, uloga: "odgovorno lice", lozinka });
+      nalozi.push(k.rows[0].id);
     }
 
     if (konsultant) {
@@ -139,7 +146,12 @@ async function main() {
       );
       await audit(k.rows[0].id, { korisnicko_ime: konsultant, uloga: "izvodjac" });
       lozinke.push({ korisnik: konsultant, uloga: "konsultant", lozinka });
+      nalozi.unshift(k.rows[0].id);
     }
+
+    // Nova baza odmah dobija osnovni plan monitoringa i predložene granice uređaja i predaje — isto kao „Predloži
+    // osnovni plan“ u aplikaciji. Bez granice zaposleni ne može ni izmjeriti frižider; konsultant ih samo provjeri.
+    if (!imaFirmu) plan = await osnovniPlan(klijent, nalozi[0]);
     await klijent.query("commit");
   } catch (greska) {
     await klijent.query("rollback").catch(() => undefined);
@@ -154,10 +166,16 @@ async function main() {
   console.log("\nNalozi napravljeni (privremene lozinke — mijenjaju se pri prvoj prijavi):");
   for (const l of lozinke) console.log(`  ${l.uloga.padEnd(15)} ${l.korisnik.padEnd(22)} ${l.lozinka}`);
   console.log("\nLozinke se više neće prikazati. Lozinku odgovornog lica predajte lično ili telefonom — ne mejlom.");
+  if (plan.broj) {
+    console.log(
+      `\nOsnovni plan monitoringa: ${plan.broj} stavki; predložene granice: ${plan.granice} ` +
+        "(frižider i vitrina 0–4 °C, zamrzivač −25 do −18 °C, predaja torte 0–6 °C).",
+    );
+  }
   console.log("Sljedeće:");
   if (konsultant) {
     console.log("  • prijavite se kao konsultant → Moja strana → potvrda u dva koraka; zatim na Renderu OBAVEZNA_2FA=izvodjac");
-    console.log("  • Podešavanje → naziv, adresa i PIB firme; HACCP plan → granice: frižider (KKT2), vitrina (KKT2-V), zamrzivač (KKT2-Z), predaja torte (KKT3); još jedan frižider = nova tačka KKT2-…");
+    console.log("  • Podešavanje → adresa i PIB firme; HACCP plan → Kontrolne tačke: provjerite predložene granice (drugi frižider = nova tačka KKT2-F2), Termometri: upišite termometar");
     if (!odgovorno) console.log("  • Ljudi → Novo lice → vlasnica sa nalogom „Vlasnica“ (odgovorno lice); zatim zaposleni — lozinka se pokaže jednom");
   }
   if (odgovorno) console.log("  • dodajte red u alati/klijenti.txt (Naziv = adresa baze) — bekap i dnevni pregled ga uzimaju sami");

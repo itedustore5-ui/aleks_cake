@@ -1,19 +1,24 @@
-// Uvoz upitnika za početak (upitnik-start/) u bazu NOVOG klijenta — da konsultant ne prepisuje ručno.
+// Uvoz upitnika za početak (upitnik-start/) u bazu NOVOG ateljea — da konsultant ne prepisuje ručno.
 // Pokreće se sa računara konsultantkinje, POSLIJE `npm run prvi-korisnik`:
 //
-//   npm run uvoz-start -- --fajl pilot-start-firma-2026-10-11.json            (samo pokaže šta bi uradio)
-//   npm run uvoz-start -- --fajl pilot-start-firma-2026-10-11.json --upisi    (upiše)
+//   npm run uvoz-start -- --fajl pilot-start-atelje-2026-10-27.json            (samo pokaže šta bi uradio)
+//   npm run uvoz-start -- --fajl pilot-start-atelje-2026-10-27.json --upisi    (upiše)
 //
 // Sve ide u JEDNOJ transakciji (#35): bez --upisi se na kraju poništi, pa je ispis tačno ono što bi upis uradio.
-// Ista pravila kao aplikacija: šifra zaposlenog iz sljedeciBroj (#34), granica artikla postaje pravilo (#39) i
+// Ista pravila kao aplikacija: šifra zaposlenog iz sljedeciBroj (#34), granica sastojka postaje pravilo (#39) i
 // NIJE potvrđena (#5 — potvrđuje je čovjek u Šifarnicima), kupac bez telefona se ne upisuje (#4), PIB ciframa i
 // jedinstven (#66), u lice samo broj i rok knjižice (#15), audit za svaki upis (#45). Nalozi se NE otvaraju —
-// lozinke postavlja odgovorno lice u aplikaciji (#28). Ono što već postoji se preskače (može se pokrenuti ponovo).
+// lozinke postavlja konsultant ili vlasnica u aplikaciji (#28). Ono što već postoji se preskače (može se ponovo).
+//
+// Atelje (27.10.2026): frižider, vitrina i zamrzivač iz upitnika postaju kontrolne tačke (KKT2, KKT2-V, KKT2-Z, pa
+// KKT2-F2…) sa svojim opštim pravilom i dnevnim mjerenjem u planu; sastojci nose alergene i „serija obavezna“
+// (P1, P4). Distributerski upitnik (magacini, vozila, direktor) se ne prima.
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import type { PoolClient } from "pg";
 import { pool } from "../server/db.js";
+import { urediAlergene } from "../server/alergeni.js";
 import { logIzmjena, logKreiranje } from "../server/services/auditService.js";
 import { sljedeciBroj } from "../server/services/brojeviService.js";
 import { uskladiPravilaArtikla } from "../server/services/pravilaService.js";
@@ -27,9 +32,9 @@ function argument(naziv: string): string | undefined {
 type Red = Record<string, unknown>;
 type Fajl = {
   format?: string;
-  firma?: Red & { roba?: Red; odgovorno?: Red; direktor?: Red };
+  vrsta?: string;
+  firma?: Red & { odgovorno?: Red };
   rad?: Red & { dani?: Record<string, boolean> };
-  nemaVozila?: boolean;
   nemaTermometra?: boolean;
   [lista: string]: unknown;
 };
@@ -37,17 +42,27 @@ type Fajl = {
 const t = (v: unknown) => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "");
 const cifre = (v: unknown) => t(v).replace(/[\s.\-/]/g, "");
 const kljuc = (v: unknown) => t(v).toLowerCase().replace(/\s+/g, " ");
-const oznakaVozila = (v: unknown) => t(v).toUpperCase().replace(/[\s-]/g, "");
 const broj = (v: unknown) => {
   const s = t(v).replace(",", ".");
   if (s === "") return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : NaN;
 };
+const ispravnaGranica = (min: number | null, max: number | null): [number, number] | null =>
+  min !== null && max !== null && !Number.isNaN(min) && !Number.isNaN(max) && min < max ? [min, max] : null;
 const lista = (f: Fajl, ime: string): Red[] => (Array.isArray(f[ime]) ? (f[ime] as Red[]).filter((r) => r && typeof r === "object") : []);
 // Isti režimi i pretpostavljene granice kao u aplikaciji (GRANICA_REZIMA) i u upitniku.
 const PREDLOG: Record<string, [number, number]> = { rashladjeno: [0, 4], smrznuto: [-25, -18] };
-const NAZIV_ULOGE: Record<string, string> = { magacioner: "magacioner", vozac: "vozač", odgovorno: "odgovorno lice", direktor: "direktor (Uprava — otvara konsultant)" };
+// Uređaji za čuvanje: prvi svake vrste je tačka koju pravi `prvi-korisnik` (KKT2, KKT2-V, KKT2-Z), svaki sljedeći nova
+// (KKT2-F2, KKT2-V2…). Šifra počinje sa KKT2 — po tome ih „Predloži osnovni plan“ prepoznaje. Granice kao predlog
+// osnovnog plana (monitoringService.predlogGranice).
+const UREDJAJ = {
+  frizider: { osnovna: "KKT2", prefiks: "KKT2-F", naziv: "Frižider", opis: "Temperatura frižidera sa kremovima, filovima i gotovim tortama", granica: [0, 4] },
+  vitrina: { osnovna: "KKT2-V", prefiks: "KKT2-V", naziv: "Vitrina", opis: "Temperatura vitrine sa tortama i kolačima u prodaji", granica: [0, 4] },
+  zamrzivac: { osnovna: "KKT2-Z", prefiks: "KKT2-Z", naziv: "Zamrzivač", opis: "Temperatura zamrzivača (smrznuto voće, biskvit, poluproizvodi)", granica: [-25, -18] },
+} as const;
+type VrstaUredjaja = keyof typeof UREDJAJ;
+const NAZIV_ULOGE: Record<string, string> = { zaposleni: "Zaposleni", vlasnica: "Vlasnica — odgovorno lice" };
 
 /** Ishod jedne grupe: šta je novo, šta postoji, šta je odbijeno i zašto, i napomene za konsultanta. */
 class Ishod {
@@ -107,79 +122,105 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
     firmaIshod.dopunjeno = 1;
     firmaIshod.napomene.push(`dopunjeno: ${zaFirmu.map(([k]) => k.replace("odgovorno_lice_ime", "odgovorno lice")).join(", ")}`);
   }
-  if (!f.firma?.direktorJeOdgovorno && t(ff.direktor?.ime)) podsjetnik.push(`Direktor ${t(ff.direktor?.ime)}: nalog „Uprava“ otvara konsultant (Ljudi).`);
 
-  // ── Magacini: podrazumijevani prazni magacin („Atelje“ iz prvi-korisnik, ranije „Glavni magacin“) dobija ime i
-  //    adresu prvog iz upitnika ──
-  const magIshod = new Ishod("Magacini");
-  ishodi.push(magIshod);
-  const magacini = new Map((await klijent.query<{ id: string; naziv: string; adresa: string | null }>(`select id, naziv, adresa from skladiste`)).rows.map((s) => [kljuc(s.naziv), s]));
-  const izFajla = lista(f, "magacini").filter((m) => t(m.naziv));
-  const podrazumijevani = magacini.size === 1 ? ["atelje", "glavni magacin"].find((k) => magacini.has(k)) : undefined;
-  let preimenovan = "";
-  if (podrazumijevani && izFajla.length && !magacini.has(kljuc(izFajla[0].naziv))) {
-    const korisceno = (await klijent.query<{ da: boolean }>(
-      `select exists (select 1 from prijem) or exists (select 1 from isporuka) or exists (select 1 from mjerenje_temperature) or exists (select 1 from zapis) as da`,
-    )).rows[0].da;
-    if (!korisceno) {
-      const glavni = magacini.get(podrazumijevani)!;
-      await klijent.query(`update skladiste set naziv = $2, adresa = coalesce(nullif($3, ''), adresa) where id = $1`, [glavni.id, t(izFajla[0].naziv), t(izFajla[0].adresa)]);
-      await logIzmjena(klijent, { korisnikId: null, entitetTip: "skladiste", entitetId: glavni.id, stareVrijednosti: { naziv: glavni.naziv, adresa: glavni.adresa }, noveVrijednosti: { naziv: t(izFajla[0].naziv), adresa: t(izFajla[0].adresa) || glavni.adresa, ...izvor } });
-      magacini.delete(podrazumijevani);
-      magacini.set(kljuc(izFajla[0].naziv), { ...glavni, naziv: t(izFajla[0].naziv) });
-      magIshod.dopunjeno += 1;
-      preimenovan = kljuc(izFajla[0].naziv);
-      magIshod.napomene.push(`„${glavni.naziv}“ (prazan, napravljen sam) preimenovan u „${t(izFajla[0].naziv)}“.`);
+  // ── Frižideri, vitrina, zamrzivač → kontrolne tačke sa svojom granicom i dnevnim mjerenjem ─────
+  const uredIshod = new Ishod("Uređaji");
+  ishodi.push(uredIshod);
+  type Tacka = { id: string; sifra: string; naziv: string; aktivan: boolean };
+  const tacke = (await klijent.query<Tacka>(`select id, sifra, naziv, aktivan from kontrolna_tacka where sifra like 'KKT2%'`)).rows;
+  const poSifri = new Map(tacke.map((x) => [x.sifra, x]));
+  const poNazivu = new Map(tacke.map((x) => [kljuc(x.naziv), x]));
+  const mjereno = async (id: string) =>
+    (await klijent.query<{ da: boolean }>(`select exists (select 1 from mjerenje_temperature where kontrolna_tacka_id = $1) as da`, [id])).rows[0].da;
+  const imaPlan = (await klijent.query<{ da: boolean }>(`select exists (select 1 from plan_monitoringa where aktivan) as da`)).rows[0].da;
+  const uredjaji = lista(f, "uredjaji").filter((u) => t(u.naziv) && t(u.vrsta) in UREDJAJ);
+  const redniPoVrsti: Partial<Record<VrstaUredjaja, number>> = {};
+  let uPlan = 0;
+  for (const u of uredjaji) {
+    const vrsta = t(u.vrsta) as VrstaUredjaja;
+    const cfg = UREDJAJ[vrsta];
+    const naziv = t(u.naziv);
+    let granica = ispravnaGranica(broj(u.min), broj(u.max));
+    if (!granica) {
+      granica = [cfg.granica[0], cfg.granica[1]];
+      uredIshod.napomene.push(`${naziv}: granica nije ispravna — upisana ${granica[0]} do ${granica[1]} °C, provjeriti (HACCP plan).`);
     }
-  }
-  for (const m of izFajla) {
-    if (magacini.has(kljuc(m.naziv))) {
-      if (kljuc(m.naziv) !== preimenovan) magIshod.postoji += 1;
-      continue;
+    const redni = (redniPoVrsti[vrsta] = (redniPoVrsti[vrsta] ?? 0) + 1);
+    let tacka = poNazivu.get(kljuc(naziv));
+    let ishodTacke: "postoji" | "dopunjeno" | "novi" = "postoji";
+    // Prvi uređaj vrste preuzima tačku koju je napravio prvi-korisnik — ime iz upitnika, ali samo dok se njome ne mjeri.
+    const osnovna = poSifri.get(cfg.osnovna);
+    if (!tacka && redni === 1 && osnovna && !(await mjereno(osnovna.id))) {
+      await klijent.query(`update kontrolna_tacka set naziv = $2, aktivan = true where id = $1`, [osnovna.id, naziv]);
+      await klijent.query(`update plan_monitoringa set naziv = $3, updated_at = now() where kontrolna_tacka_id = $1 and naziv = $2`, [
+        osnovna.id, `Temperatura — ${osnovna.naziv} (${osnovna.sifra})`, `Temperatura — ${naziv} (${osnovna.sifra})`,
+      ]);
+      await logIzmjena(klijent, { korisnikId: null, entitetTip: "kontrolna_tacka", entitetId: osnovna.id, stareVrijednosti: { naziv: osnovna.naziv }, noveVrijednosti: { naziv, ...izvor } });
+      uredIshod.napomene.push(`„${osnovna.naziv}“ (${osnovna.sifra}) → „${naziv}“.`);
+      poNazivu.delete(kljuc(osnovna.naziv));
+      osnovna.naziv = naziv;
+      osnovna.aktivan = true;
+      poNazivu.set(kljuc(naziv), osnovna);
+      tacka = osnovna;
+      ishodTacke = "dopunjeno";
     }
-    const r = await klijent.query<{ id: string }>(`insert into skladiste (naziv, adresa) values ($1, $2) returning id`, [t(m.naziv), t(m.adresa) || null]);
-    await audit("skladiste", r.rows[0].id, { naziv: t(m.naziv), adresa: t(m.adresa) });
-    magacini.set(kljuc(m.naziv), { id: r.rows[0].id, naziv: t(m.naziv), adresa: t(m.adresa) });
-    magIshod.novi += 1;
-  }
-  const komore = lista(f, "komore").filter((k) => t(k.naziv));
-  if (komore.length) {
-    podsjetnik.push(
-      `Komore (${komore.length}) — upisati u HACCP plan (kontrolne tačke i plan monitoringa): ` +
-        komore.map((k) => `${t(k.naziv)} [${t(k.magacin) || "?"}, ${t(k.rezim)}${PREDLOG[t(k.rezim)] || t(k.rezim) === "drugo" ? ` ${t(k.min)}…${t(k.max)} °C` : ""}]`).join("; "),
-    );
-  }
-
-  // ── Vozila ──────────────────────────────────────────────────────────────────────────────────
-  const vozIshod = new Ishod("Vozila");
-  ishodi.push(vozIshod);
-  if (f.nemaVozila) vozIshod.napomene.push("Nemaju svoja vozila — dogovoriti kako roba ide do kupca (roba pod režimom samo rashladnim vozilom).");
-  const vozila = new Set((await klijent.query<{ registarski_broj: string }>(`select registarski_broj from vozilo`)).rows.map((v) => oznakaVozila(v.registarski_broj)));
-  for (const v of lista(f, "vozila")) {
-    const oznaka = t(v.oznaka);
-    if (!oznaka) continue;
-    if (vozila.has(oznakaVozila(oznaka))) {
-      vozIshod.postoji += 1;
-      continue;
+    if (!tacka) {
+      let sifra: string = cfg.osnovna;
+      for (let n = 2; poSifri.has(sifra); n++) sifra = `${cfg.prefiks}${n}`;
+      const r = await klijent.query<{ id: string }>(`insert into kontrolna_tacka (sifra, naziv, opis) values ($1, $2, $3) returning id`, [sifra, naziv, cfg.opis]);
+      await audit("kontrolna_tacka", r.rows[0].id, { sifra, naziv, vrsta });
+      tacka = { id: r.rows[0].id, sifra, naziv, aktivan: true };
+      poSifri.set(sifra, tacka);
+      poNazivu.set(kljuc(naziv), tacka);
+      ishodTacke = "novi";
     }
-    let min: number | null = null;
-    let max: number | null = null;
-    if (v.rashladno) {
-      min = broj(v.min);
-      max = broj(v.max);
-      if (min === null || max === null || Number.isNaN(min) || Number.isNaN(max) || min >= max) {
-        [min, max] = PREDLOG.rashladjeno;
-        vozIshod.napomene.push(`${oznaka}: granica nije ispravna — upisano 0 do 4 °C, provjeriti (Vozila).`);
+    // Opšte pravilo tačke = granica uređaja (#39). Predlog (prvi-korisnik) se zamjenjuje dok se tačkom ne mjeri.
+    const pravilo = (await klijent.query<{ id: string; verzija: number; min: number | null; max: number | null }>(
+      `select id, verzija, min_vrijednost::float as min, max_vrijednost::float as max from pravilo_kontrole
+       where kontrolna_tacka_id = $1 and artikal_id is null and aktivan for update`,
+      [tacka.id],
+    )).rows[0];
+    const isto = pravilo && pravilo.min === granica[0] && pravilo.max === granica[1];
+    if (pravilo && !isto && (await mjereno(tacka.id))) {
+      uredIshod.napomene.push(`${naziv}: granica u bazi ${pravilo.min} do ${pravilo.max} °C, u upitniku ${granica[0]} do ${granica[1]} °C — tačkom se već mjeri, ne mijenjam (HACCP plan).`);
+    } else if (!isto) {
+      if (pravilo) await klijent.query(`update pravilo_kontrole set aktivan = false, vazi_do = now() where id = $1`, [pravilo.id]);
+      const r = await klijent.query<{ id: string }>(
+        `insert into pravilo_kontrole (kontrolna_tacka_id, naziv, min_vrijednost, max_vrijednost, jedinica, ozbiljnost, verzija) values ($1, $2, $3, $4, '°C', 'VISOK', $5) returning id`,
+        [tacka.id, naziv, granica[0], granica[1], (pravilo?.verzija ?? 0) + 1],
+      );
+      await audit("pravilo_kontrole", r.rows[0].id, { tacka: tacka.sifra, min: granica[0], max: granica[1], ...(pravilo ? { prethodno: { min: pravilo.min, max: pravilo.max } } : {}) });
+      if (ishodTacke === "postoji") ishodTacke = "dopunjeno";
+    }
+    // Dnevno mjerenje — kad plan već postoji (prvi-korisnik ga pravi), uređaj iz upitnika ulazi u njega.
+    if (imaPlan) {
+      const uPlanu = (await klijent.query(`select 1 from plan_monitoringa where kontrolna_tacka_id = $1 and aktivan limit 1`, [tacka.id])).rows[0];
+      if (!uPlanu) {
+        const r = await klijent.query<{ id: string }>(
+          `insert into plan_monitoringa (naziv, vrsta, kontrolna_tacka_id, ucestalost, puta, uloga, napomena) values ($1, 'mjerenje', $2, 'DNEVNO', 2, 'operater', 'Jutro i popodne.') returning id`,
+          [`Temperatura — ${naziv} (${tacka.sifra})`, tacka.id],
+        );
+        await audit("plan_monitoringa", r.rows[0].id, { naziv, tacka: tacka.sifra, ucestalost: "DNEVNO", puta: 2 });
+        uPlan += 1;
       }
     }
-    const r = await klijent.query<{ id: string }>(
-      `insert into vozilo (registarski_broj, tip, temp_kontrolisano, temp_min, temp_max) values ($1, $2, $3, $4, $5) returning id`,
-      [oznaka, t(v.tip) || null, !!v.rashladno, min, max],
-    );
-    await audit("vozilo", r.rows[0].id, { registarskiBroj: oznaka, rashladno: !!v.rashladno, min, max });
-    vozila.add(oznakaVozila(oznaka));
-    vozIshod.novi += 1;
+    uredIshod[ishodTacke] += 1;
   }
+  // Vitrina ili zamrzivač iz prvi-korisnik kojih u upitniku nema — isključuju se (dok se njima nije mjerilo), inače bi
+  // „danas fali“ svaki dan tražio mjerenje uređaja koji ne postoji.
+  if (uredjaji.length) {
+    for (const vrsta of ["vitrina", "zamrzivac"] as const) {
+      if (redniPoVrsti[vrsta]) continue;
+      const osnovna = poSifri.get(UREDJAJ[vrsta].osnovna);
+      if (!osnovna || !osnovna.aktivan || (await mjereno(osnovna.id))) continue;
+      await klijent.query(`update kontrolna_tacka set aktivan = false where id = $1`, [osnovna.id]);
+      await klijent.query(`update plan_monitoringa set aktivan = false, updated_at = now() where kontrolna_tacka_id = $1 and aktivan`, [osnovna.id]);
+      await logIzmjena(klijent, { korisnikId: null, entitetTip: "kontrolna_tacka", entitetId: osnovna.id, stareVrijednosti: { aktivan: true }, noveVrijednosti: { aktivan: false, ...izvor } });
+      uredIshod.napomene.push(`„${osnovna.naziv}“ (${osnovna.sifra}) isključena — nema je u upitniku.`);
+    }
+  } else podsjetnik.push("Uređaji: upitnik ih nema — u HACCP planu provjeriti frižider, vitrinu i zamrzivač i njihove granice.");
+  if (uPlan) uredIshod.napomene.push(`${uPlan} ${uPlan === 1 ? "uređaj dodat" : "uređaja dodato"} u plan monitoringa (dnevno, 2×).`);
+  if (uredjaji.length && !imaPlan) podsjetnik.push("Plan monitoringa još ne postoji — HACCP plan → „Predloži osnovni plan“ uvrštava sve uređaje.");
 
   // ── Zaposleni → lice (bez naloga); postojećem licu se dopuni prazna knjižica i radno mjesto ─────
   const ljudiIshod = new Ishod("Zaposleni");
@@ -187,6 +228,7 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
   const lica = new Map((await klijent.query<{ id: string; ime: string; radno_mjesto: string | null; sanitarna_knjizica_broj: string | null; sanitarna_knjizica_rok: string | null }>(
     `select id, ime, radno_mjesto, sanitarna_knjizica_broj, to_char(sanitarna_knjizica_rok, 'YYYY-MM-DD') as sanitarna_knjizica_rok from lice`,
   )).rows.map((l) => [kljuc(l.ime), l]));
+  const saNalogom = new Set((await klijent.query<{ ime: string }>(`select l.ime from lice l join korisnik k on k.lice_id = l.id`)).rows.map((l) => kljuc(l.ime)));
   const nalozi: string[] = [];
   for (const z of lista(f, "zaposleni")) {
     const ime = t(z.ime);
@@ -199,7 +241,7 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
     }
     const brojKnj = t(z.knjizicaBroj) || null;
     if (rukuje && (!brojKnj || !rok)) ljudiIshod.napomene.push(`${ime}: rukuje hranom, a fali ${!brojKnj ? "broj" : "rok"} sanitarne knjižice.`);
-    if (t(z.nalog) && NAZIV_ULOGE[t(z.nalog)] && t(z.nalog) !== "odgovorno") nalozi.push(`${ime} — ${NAZIV_ULOGE[t(z.nalog)]}${t(z.magacin) ? `, ${t(z.magacin)}` : ""}`);
+    if (NAZIV_ULOGE[t(z.nalog)] && !saNalogom.has(kljuc(ime))) nalozi.push(`${ime} — ${NAZIV_ULOGE[t(z.nalog)]}`);
     const postojece = lica.get(kljuc(ime));
     if (postojece) {
       const dopuna: Record<string, string> = {};
@@ -227,7 +269,7 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
     lica.set(kljuc(ime), { id: r.rows[0].id, ime, radno_mjesto: t(z.radnoMjesto) || null, sanitarna_knjizica_broj: brojKnj, sanitarna_knjizica_rok: rok });
     ljudiIshod.novi += 1;
   }
-  if (nalozi.length) podsjetnik.push(`Nalozi za telefon (Ljudi → „Otvori nalog“, lozinku daje odgovorno lice): ${nalozi.join("; ")}.`);
+  if (nalozi.length) podsjetnik.push(`Nalozi za telefon (Ljudi → lice → „Otvori nalog“; vlasnicu otvara konsultant, zaposlene i vlasnica): ${nalozi.join("; ")}.`);
 
   // ── Dobavljači ──────────────────────────────────────────────────────────────────────────────
   const dobIshod = new Ishod("Dobavljači");
@@ -254,7 +296,7 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
     dobIshod.novi += 1;
   }
 
-  // ── Kupci: bez telefona se ne upisuje (povlačenje počinje telefonom, #4) ────────────────────
+  // ── Stalni kupci: bez telefona se ne upisuje (povlačenje počinje telefonom, #4) ───────────────
   const kupIshod = new Ishod("Kupci");
   ishodi.push(kupIshod);
   const kupci = (await klijent.query<{ naziv: string; pib: string | null }>(`select naziv, pib from kupac`)).rows;
@@ -278,18 +320,19 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
       `insert into kupac (naziv, telefon, pib, adresa, adresa_isporuke) values ($1, $2, $3, $4, $5) returning id`,
       [naziv, t(k.telefon), ispravanPib, t(k.adresa) || null, t(k.adresaIsporuke) || null],
     );
-    await audit("kupac", r.rows[0].id, { naziv, telefon: t(k.telefon), pib: ispravanPib, adresa: t(k.adresa), adresaIsporuke: t(k.adresaIsporuke) });
+    await audit("kupac", r.rows[0].id, { naziv, telefon: t(k.telefon), pib: ispravanPib, adresa: t(k.adresa) });
     kupPoNazivu.add(kljuc(naziv));
     if (ispravanPib) kupPoPibu.add(ispravanPib);
     kupIshod.novi += 1;
   }
 
-  // ── Artikli: granica postaje pravilo (#39), NIJE potvrđena (#5); šifra kod dobavljača se pamti ──
-  const artIshod = new Ishod("Artikli");
+  // ── Sastojci: granica postaje pravilo (#39), NIJE potvrđena (#5); alergeni (P1) i serija (P4) ──
+  const artIshod = new Ishod("Sastojci");
   ishodi.push(artIshod);
   const artikli = new Set((await klijent.query<{ naziv: string }>(`select naziv from artikal`)).rows.map((a) => kljuc(a.naziv)));
   let podRezimom = 0;
   let sifara = 0;
+  let bezAlergena = 0;
   for (const a of lista(f, "artikli")) {
     const naziv = t(a.naziv);
     if (!naziv) continue;
@@ -302,10 +345,9 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
     let min: number | null = null;
     let max: number | null = null;
     if (kontrolisano) {
-      min = broj(a.min);
-      max = broj(a.max);
-      const ispravna = min !== null && max !== null && !Number.isNaN(min) && !Number.isNaN(max) && min < max;
-      if (!ispravna) {
+      const granica = ispravnaGranica(broj(a.min), broj(a.max));
+      if (granica) [min, max] = granica;
+      else {
         if (!PREDLOG[rezim]) {
           artIshod.odbijeno.push(`${naziv}: drugi režim bez ispravne granice od–do — upisati u Šifarnicima.`);
           continue;
@@ -314,19 +356,24 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
         artIshod.napomene.push(`${naziv}: granica nije ispravna — upisana ${min} do ${max} °C.`);
       }
     }
+    // Šifre iz upitnika (alergeniSifre) — samo sa spiska; „upisani“ samo kad je upitnik sve prepoznao.
+    const alergeni = urediAlergene(Array.isArray(a.alergeniSifre) ? (a.alergeniSifre as unknown[]).filter((x): x is string => typeof x === "string") : []);
+    const upisani = a.alergeniUpisani === true;
+    if (!upisani) bezAlergena += 1;
+    const serija = a.serija === true;
     const r = await klijent.query<{ id: string }>(
-      `insert into artikal (naziv, jedinica_mjere, temp_kontrolisano, temp_min, temp_max, granica_potvrdio, rok_obavezan)
-       values ($1, $2, $3, $4, $5, false, $6) returning id`,
-      [naziv, (t(a.jedinica) || "kom").slice(0, 20), kontrolisano, min, max, a.rok !== false],
+      `insert into artikal (naziv, jedinica_mjere, temp_kontrolisano, temp_min, temp_max, granica_potvrdio, rok_obavezan, zahtijeva_lot, alergeni, alergeni_upisani)
+       values ($1, $2, $3, $4, $5, false, $6, $7, $8::varchar(20)[], $9) returning id`,
+      [naziv, (t(a.jedinica) || "kom").slice(0, 20), kontrolisano, min, max, a.rok !== false, serija, alergeni, upisani],
     );
     const id = r.rows[0].id;
-    await audit("artikal", id, { naziv, jedinica: t(a.jedinica) || "kom", rezim, min, max, rokObavezan: a.rok !== false, granicaPotvrdio: false });
+    await audit("artikal", id, { naziv, jedinica: t(a.jedinica) || "kom", rezim, min, max, rokObavezan: a.rok !== false, zahtijevaLot: serija, alergeni, alergeniUpisani: upisani, granicaPotvrdio: false });
     await uskladiPravilaArtikla(klijent, id, null);
     if (kontrolisano) podRezimom += 1;
     const dobavljacId = t(a.dobavljac) ? dobPoNazivu.get(kljuc(a.dobavljac)) : undefined;
     if (t(a.dobavljac) && !dobavljacId) artIshod.napomene.push(`${naziv}: dobavljač „${t(a.dobavljac)}“ nije na spisku — veza nije upamćena.`);
     if (dobavljacId && t(a.sifra)) {
-      // Isti ključ kao kad magacioner potvrdi stavku sa otpremnice — sljedeća otpremnica se prepozna sama.
+      // Isti ključ kao kad zaposleni potvrdi stavku sa otpremnice — sljedeća otpremnica se prepozna sama.
       await klijent.query(
         `insert into artikal_dobavljaca (dobavljac_id, kljuc, sifra, naziv, artikal_id) values ($1, $2, $3, $4, $5)
          on conflict (dobavljac_id, kljuc) do nothing`,
@@ -337,13 +384,14 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
     artikli.add(kljuc(naziv));
     artIshod.novi += 1;
   }
-  if (podRezimom) podsjetnik.push(`Granice ${podRezimom} artikala pod režimom su PRETPOSTAVLJENE — potvrditi u Šifarnicima (dok nisu potvrđene, van granice je samo upozorenje, roba se ne zadržava).`);
+  if (podRezimom) podsjetnik.push(`Granice ${podRezimom} sastojaka pod režimom su PRETPOSTAVLJENE — potvrditi u Šifarnicima (dok nisu potvrđene, van granice je samo upozorenje, roba se ne zadržava).`);
+  if (bezAlergena) podsjetnik.push(`${bezAlergena} ${bezAlergena === 1 ? "sastojak" : "sastojaka"} bez upisanih alergena — vlasnica ih upisuje u Šifarnicima (do tada aplikacija upozorava kad sastojak ide u tortu).`);
   if (sifara) artIshod.napomene.push(`${sifara} šifara kod dobavljača upamćeno — otpremnica ih prepoznaje sama.`);
 
   // ── Termometri (provjera i kalibracija se upisuju u aplikaciji, uz sertifikat) ─────────────────
   const termIshod = new Ishod("Termometri");
   ishodi.push(termIshod);
-  if (f.nemaTermometra) termIshod.napomene.push("Još nemaju termometar — bez njega nema mjerenja na prijemu i isporuci.");
+  if (f.nemaTermometra) termIshod.napomene.push("Još nemaju termometar — bez njega nema mjerenja frižidera, prijema ni dostave.");
   const termometri = new Set((await klijent.query<{ naziv: string; oznaka: string | null }>(`select naziv, oznaka from mjerni_uredjaj`)).rows.map((u) => `${kljuc(u.naziv)}|${kljuc(u.oznaka)}`));
   for (const u of lista(f, "termometri")) {
     const naziv = t(u.naziv);
@@ -363,8 +411,10 @@ async function uvezi(klijent: PoolClient, f: Fajl, izvor: Record<string, unknown
   // ── Ritam rada — za plan monitoringa ────────────────────────────────────────────────────────
   const rad = f.rad ?? {};
   const dani = Object.entries(rad.dani ?? {}).filter(([, da]) => da).map(([d]) => d.replace("cet", "čet")).join(", ");
-  if (dani || t(rad.prijema) || t(rad.isporuka) || t(rad.napomena)) {
-    podsjetnik.push(`Ritam rada za plan monitoringa: dani ${dani || "—"}; prijema dnevno ${t(rad.prijema) || "—"}, isporuka ${t(rad.isporuka) || "—"}${t(rad.napomena) ? `; ${t(rad.napomena)}` : ""}.`);
+  if (dani || t(rad.porudzbina) || rad.dostava || t(rad.napomena)) {
+    podsjetnik.push(
+      `Ritam rada za plan monitoringa: dani ${dani || "—"}; torti sedmično ${t(rad.porudzbina) || "—"}; dostava ${rad.dostava ? "da (predaja torte — KKT 3)" : "ne"}${t(rad.napomena) ? `; ${t(rad.napomena)}` : ""}.`,
+    );
   }
 
   return { ishodi, podsjetnik };
@@ -388,6 +438,10 @@ async function main() {
     console.error("Ovo nije fajl upitnika za početak (upitnik-start) — fali oznaka „pilot-upitnik-start“.");
     process.exit(1);
   }
+  if (f.vrsta !== "atelje") {
+    console.error("Ovo je distributerski upitnik (magacini, vozila, direktor) — za atelje vlasnica popunjava novi upitnik-start/Upitnik-za-pocetak.html.");
+    process.exit(1);
+  }
 
   const adresa = new URL(process.env.DATABASE_URL!);
   console.log(`Baza: ${adresa.hostname} · korisnik ${decodeURIComponent(adresa.username)} · ${adresa.pathname.slice(1) || "postgres"}`);
@@ -403,7 +457,7 @@ async function main() {
               (select count(*)::int from korisnik where uloga in ('bzr', 'izvodjac') and aktivan) as vodstvo`,
     )).rows[0];
     if (stanje.demo) throw new Error("Ovo je DEMO baza (demo nalozi) — upitnik klijenta se uvozi samo u njegovu bazu. Provjerite DATABASE_URL.");
-    if (!stanje.firma || !stanje.vodstvo) throw new Error("Prvo napravite prve naloge: npm run prvi-korisnik -- --firma … --ime … --korisnik … --konsultant …");
+    if (!stanje.firma || !stanje.vodstvo) throw new Error("Prvo napravite prve naloge: npm run prvi-korisnik -- --firma … --konsultant …");
     if (t(f.firma?.naziv) && kljuc(f.firma?.naziv) !== kljuc(stanje.firma)) {
       console.log(`Pažnja: firma u bazi je „${stanje.firma}“, a u fajlu „${t(f.firma?.naziv)}“ — provjerite da je prava baza.\n`);
     }

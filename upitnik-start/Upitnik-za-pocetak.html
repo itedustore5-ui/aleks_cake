@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <style>
 /* Raspored: lijevo koraci sa stanjem (na telefonu traka iznad), desno jedan korak; dno — traka „sačuvano“ i slanje.
-   Boje i slova kao u aplikaciji PILOT (DM Sans, Space Grotesk, plava i teget), da distributer prepozna isti alat. */
+   Boje i slova kao u aplikaciji PILOT (DM Sans, Space Grotesk, plava i teget), da vlasnica prepozna isti alat. */
 :root {
   --bg: #f2f5f9;
   --surface: #ffffff;
@@ -146,6 +146,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .poruka.greska { background: var(--bad-soft); color: var(--bad); }
 
 .sazetak { display: grid; gap: 14px; margin-top: 20px; }
+/* Stavka grida se inače ne sužava ispod širine tabele — široka tabela (Sastojci, 9 kolona) je raširila cijelu stranu na
+   telefonu; ovako se skroluje samo unutar svog okvira. */
+.sazetak > div { min-width: 0; }
 .sazetak h3 { font-size: 15px; margin-bottom: 6px; }
 .tabela-omot { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
 .sazetak table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -183,11 +186,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   <div class="znak" aria-hidden="true">P</div>
   <div class="vrh-tekst">
     <h1 id="naslov-firme">Upitnik za početak</h1>
-    <p>Podaci za uvođenje aplikacije PILOT — sledljivost, temperature i dobra higijenska praksa. Popunjava se jednom, sa pauzama koliko treba.</p>
+    <p>Podaci za uvođenje aplikacije PILOT u atelje — sastojci i alergeni, temperature frižidera i vitrine, zaposleni. Popunjava se jednom, sa pauzama koliko treba.</p>
   </div>
   <div class="napredak" aria-live="polite">
     <div class="napredak-traka"><span id="napredak-traka" style="width:0%"></span></div>
-    <span id="napredak-tekst">0 od 9 koraka spremno</span>
+    <span id="napredak-tekst">0 od 8 koraka spremno</span>
   </div>
 </header>
 
@@ -212,8 +215,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   "use strict";
 
   // ─── Podaci ─────────────────────────────────────────────────────────────────────────────────
-  const KLJUC = "pilot-upitnik-start-v1";
+  // Upitnik za atelje torti (27.10.2026). Fajl ide konsultantu, a `npm run uvoz-start` ga upisuje u bazu ateljea —
+  // isti format („pilot-upitnik-start“), vrsta „atelje“; distributerski upitnik (vozila, magacini) se ne prima.
+  const KLJUC = "pilot-upitnik-atelje-v1";
   const FORMAT = "pilot-upitnik-start";
+  const VRSTA = "atelje";
   // Isti režimi i pretpostavljene granice kao u aplikaciji (GRANICA_REZIMA) — konsultant ih potvrđuje.
   const REZIMI = {
     rashladjeno: { naziv: "Rashlađeno", min: 0, max: 4 },
@@ -222,73 +228,67 @@ button, input, select, textarea { font: inherit; color: inherit; }
     drugo: { naziv: "Drugi režim — upišite od–do", min: null, max: null },
   };
   const POD_REZIMOM = (r) => r === "rashladjeno" || r === "smrznuto" || r === "drugo";
+  // Uređaji za čuvanje — svaki postaje svoja kontrolna tačka sa svojom granicom (KKT2, KKT2-V, KKT2-Z…); iste
+  // predložene granice kao „Predloži osnovni plan“ u aplikaciji.
+  const UREDJAJI = {
+    frizider: { naziv: "Frižider", min: 0, max: 4 },
+    vitrina: { naziv: "Vitrina", min: 0, max: 4 },
+    zamrzivac: { naziv: "Zamrzivač", min: -25, max: -18 },
+  };
+  // 14 alergena (Uredba EU 1169/2011, Prilog II) — iste šifre kao server/alergeni.ts. Upisuju se nazivom, a u fajl
+  // idu i šifre (alergeniSifre), pa uvoz ne pogađa ponovo.
+  const ALERGENI = [
+    ["GLUTEN", "gluten", /glut|psen|^raz|jecam|ovas|spelt|kamut/],
+    ["RAKOVI", "rakovi", /^rak/],
+    ["JAJA", "jaja", /jaj/],
+    ["RIBA", "riba", /^rib/],
+    ["KIKIRIKI", "kikiriki", /kikiriki/],
+    ["SOJA", "soja", /^soj/],
+    ["MLIJEKO", "mlijeko", /mlij|mlek|mlec|lakto/],
+    ["ORASASTI", "orašasti plodovi", /orasast|^orah|^orasi|ljesn|lesn|badem|pista|indij|pekan|makadam|brazil/],
+    ["CELER", "celer", /celer/],
+    ["SENF", "slačica (senf)", /senf|slac/],
+    ["SUSAM", "susam", /susam/],
+    ["SULFITI", "sulfiti", /sulf|sumpor/],
+    ["LUPINA", "lupina", /lupin/],
+    ["MEKUSCI", "mekušci", /mekus/],
+  ];
   const DANI = [["pon", "pon"], ["uto", "uto"], ["sri", "sri"], ["cet", "čet"], ["pet", "pet"], ["sub", "sub"], ["ned", "ned"]];
-  const NALOZI = { "": "Bez naloga", magacioner: "Magacioner", vozac: "Vozač", odgovorno: "Odgovorno lice", direktor: "Direktor" };
-  const JEDINICE = ["kom", "kg", "l", "pak", "kutija", "gajba"];
-  const TIPOVI_VOZILA = ["kombi", "kamion", "putničko", "drugo"];
+  const NALOZI = { "": "Bez naloga", zaposleni: "Zaposleni", vlasnica: "Vlasnica (odgovorno lice)" };
+  const JEDINICE = ["kom", "kg", "l", "pak", "kutija"];
 
   const prazno = () => ({
-    firma: {
-      naziv: "", pib: "", adresa: "", grad: "", registracija: "",
-      roba: { rashladjeno: false, smrznuto: false, sobna: false }, drugaRoba: "",
-      odgovorno: { ime: "", telefon: "", email: "" },
-      direktor: { ime: "", telefon: "", email: "" },
-      direktorJeOdgovorno: false,
-    },
-    rad: { dani: { pon: true, uto: true, sri: true, cet: true, pet: true, sub: false, ned: false }, prijema: "", isporuka: "", napomena: "" },
-    magacini: [], komore: [],
-    nemaVozila: false, vozila: [],
-    zaposleni: [], dobavljaci: [], kupci: [], artikli: [],
+    firma: { naziv: "", pib: "", adresa: "", grad: "", registracija: "", odgovorno: { ime: "", telefon: "", email: "" } },
+    rad: { dani: { pon: true, uto: true, sri: true, cet: true, pet: true, sub: true, ned: false }, porudzbina: "", dostava: false, napomena: "" },
+    uredjaji: [], zaposleni: [], dobavljaci: [], artikli: [], kupci: [],
     nemaTermometra: false, termometri: [],
   });
 
   // Liste: kolone redom (isti red važi i za lijepljenje iz Excela).
   const LISTE = {
-    magacini: {
-      jedan: "magacin", vise: "magacina", dodaj: "Dodaj magacin",
+    uredjaji: {
+      jedan: "uređaj", vise: "uređaja", dodaj: "Dodaj uređaj",
       kolone: [
-        { k: "naziv", l: "Naziv magacina", obavezno: true, ph: "npr. Glavni magacin", siroko: true },
-        { k: "adresa", l: "Adresa", ph: "npr. Cetinjski put bb, Podgorica", siroko: true },
-      ],
-      primjer: { naziv: "Glavni magacin", adresa: "Cetinjski put bb, Podgorica" },
-    },
-    komore: {
-      jedan: "komora", vise: "komora", dodaj: "Dodaj komoru",
-      kolone: [
-        { k: "naziv", l: "Komora, frižider ili zona", obavezno: true, ph: "npr. Komora 1 — mliječni", siroko: true },
-        { k: "magacin", l: "U magacinu", tip: "magacin", obavezno: true },
-        { k: "rezim", l: "Režim", tip: "rezim", obavezno: true },
+        { k: "naziv", l: "Naziv", obavezno: true, ph: "npr. Frižider za kremove", siroko: true },
+        { k: "vrsta", l: "Vrsta", tip: "uredjaj", obavezno: true },
         { k: "min", l: "Od °C", tip: "broj", granica: true },
         { k: "max", l: "Do °C", tip: "broj", granica: true },
       ],
-      novi: () => ({ naziv: "", magacin: S.magacini.length === 1 ? S.magacini[0].naziv : "", rezim: "rashladjeno", min: "0", max: "4" }),
-      primjer: { naziv: "Komora 1 — mliječni", magacin: "Glavni magacin", rezim: "rashladjeno", min: "0", max: "4" },
-    },
-    vozila: {
-      jedan: "vozilo", vise: "vozila", dodaj: "Dodaj vozilo",
-      kolone: [
-        { k: "oznaka", l: "Registarska oznaka", obavezno: true, ph: "npr. PG AB-123" },
-        { k: "tip", l: "Vrsta", tip: "izbor", opcije: TIPOVI_VOZILA },
-        { k: "rashladno", l: "Rashladno vozilo", tip: "kvacica" },
-        { k: "min", l: "Od °C", tip: "broj", granica: true },
-        { k: "max", l: "Do °C", tip: "broj", granica: true },
-      ],
-      novi: () => ({ oznaka: "", tip: "kombi", rashladno: true, min: "0", max: "4" }),
-      primjer: { oznaka: "PG AB-123", tip: "kombi", rashladno: true, min: "0", max: "4" },
+      novi: () => ({ naziv: "", vrsta: "frizider", min: "0", max: "4" }),
+      primjer: { naziv: "Frižider za kremove i torte", vrsta: "frizider", min: "0", max: "4" },
     },
     zaposleni: {
       jedan: "zaposleni", vise: "zaposlenih", dodaj: "Dodaj zaposlenog",
       kolone: [
-        { k: "ime", l: "Ime i prezime", obavezno: true, ph: "npr. Marko Vuković", siroko: true },
-        { k: "radnoMjesto", l: "Radno mjesto", ph: "npr. magacioner" },
+        { k: "ime", l: "Ime i prezime", obavezno: true, ph: "npr. Marija Ivanović", siroko: true },
+        { k: "radnoMjesto", l: "Radno mjesto", ph: "npr. poslastičar" },
         { k: "rukujeHranom", l: "Rukuje hranom", tip: "kvacica" },
         { k: "knjizicaBroj", l: "Broj sanitarne knjižice", ph: "broj sa knjižice" },
         { k: "knjizicaRok", l: "Knjižica važi do", tip: "datum" },
         { k: "nalog", l: "Nalog u aplikaciji", tip: "izbor", opcije: Object.keys(NALOZI), nazivi: NALOZI },
-        { k: "magacin", l: "Radi u magacinu", tip: "magacin" },
       ],
-      novi: () => ({ ime: "", radnoMjesto: "", rukujeHranom: true, knjizicaBroj: "", knjizicaRok: "", nalog: "", magacin: S.magacini.length === 1 ? S.magacini[0].naziv : "" }),
-      primjer: { ime: "Marko Vuković", radnoMjesto: "magacioner", rukujeHranom: true, knjizicaBroj: "SK-48213", knjizicaRok: "2027-03-31", nalog: "magacioner", magacin: "Glavni magacin" },
+      novi: () => ({ ime: "", radnoMjesto: "", rukujeHranom: true, knjizicaBroj: "", knjizicaRok: "", nalog: "zaposleni" }),
+      primjer: { ime: "Marija Ivanović", radnoMjesto: "poslastičar", rukujeHranom: true, knjizicaBroj: "SK-48213", knjizicaRok: "2027-03-31", nalog: "zaposleni" },
     },
     dobavljaci: {
       jedan: "dobavljač", vise: "dobavljača", dodaj: "Dodaj dobavljača",
@@ -297,63 +297,64 @@ button, input, select, textarea { font: inherit; color: inherit; }
         { k: "pib", l: "PIB", ph: "8 cifara", mod: "numeric" },
         { k: "telefon", l: "Telefon", tip: "tel" },
         { k: "mjesto", l: "Mjesto", ph: "npr. Nikšić" },
-        { k: "roba", l: "Koju robu donosi", ph: "npr. mlijeko, jogurt, sir", siroko: true },
+        { k: "roba", l: "Šta donosi", ph: "npr. mlijeko, pavlaka, maskarpone", siroko: true },
       ],
-      primjer: { naziv: "Mljekara d.o.o.", pib: "02123456", telefon: "040 123 456", mjesto: "Nikšić", roba: "mlijeko, jogurt, sir" },
-    },
-    kupci: {
-      jedan: "kupac", vise: "kupaca", dodaj: "Dodaj kupca",
-      kolone: [
-        { k: "naziv", l: "Naziv kupca", obavezno: true, ph: "npr. Market Centar", siroko: true },
-        { k: "telefon", l: "Telefon", tip: "tel", obavezno: true },
-        { k: "pib", l: "PIB", ph: "samo cifre", mod: "numeric" },
-        { k: "adresa", l: "Adresa (sjedište)", siroko: true },
-        { k: "adresaIsporuke", l: "Adresa isporuke, ako je druga", siroko: true },
-        { k: "kontakt", l: "Kontakt osoba" },
-      ],
-      primjer: { naziv: "Market Centar", telefon: "067 123 456", pib: "03012345", adresa: "Bulevar Svetog Petra Cetinjskog 1, Podgorica", adresaIsporuke: "", kontakt: "Jelena" },
+      primjer: { naziv: "Mljekara d.o.o.", pib: "02123456", telefon: "040 123 456", mjesto: "Nikšić", roba: "mlijeko, pavlaka, maskarpone" },
     },
     artikli: {
-      jedan: "artikal", vise: "artikala", dodaj: "Dodaj artikal",
+      jedan: "sastojak", vise: "sastojaka", dodaj: "Dodaj sastojak",
       kolone: [
-        { k: "naziv", l: "Naziv artikla (sa pakovanjem)", obavezno: true, ph: "npr. Mlijeko 2,8% 1 l", siroko: true },
+        { k: "naziv", l: "Sastojak (sa pakovanjem)", obavezno: true, ph: "npr. Slatka pavlaka 35% 1 l", siroko: true },
         { k: "jedinica", l: "Jedinica", tip: "izbor", opcije: JEDINICE, obavezno: true },
         { k: "rezim", l: "Režim", tip: "rezim", obavezno: true },
         { k: "min", l: "Od °C", tip: "broj", granica: true },
         { k: "max", l: "Do °C", tip: "broj", granica: true },
         { k: "rok", l: "Ima rok trajanja", tip: "kvacica" },
+        { k: "serija", l: "Serija obavezna (jaja)", tip: "kvacica" },
+        { k: "alergeni", l: "Alergeni", ph: "npr. mlijeko — ili „nema“", siroko: true },
         { k: "dobavljac", l: "Dobavljač", tip: "dobavljac" },
         { k: "sifra", l: "Šifra kod dobavljača", ph: "sa otpremnice" },
       ],
-      novi: () => ({ naziv: "", jedinica: "kom", rezim: "rashladjeno", min: "0", max: "4", rok: true, dobavljac: "", sifra: "" }),
-      primjer: { naziv: "Mlijeko 2,8% 1 l", jedinica: "kom", rezim: "rashladjeno", min: "0", max: "4", rok: true, dobavljac: "Mljekara d.o.o.", sifra: "1001" },
+      novi: () => ({ naziv: "", jedinica: "kom", rezim: "rashladjeno", min: "0", max: "4", rok: true, serija: false, alergeni: "", dobavljac: "", sifra: "" }),
+      primjer: { naziv: "Slatka pavlaka 35% 1 l", jedinica: "kom", rezim: "rashladjeno", min: "0", max: "4", rok: true, serija: false, alergeni: "mlijeko", dobavljac: "Mljekara d.o.o.", sifra: "2104" },
+    },
+    kupci: {
+      jedan: "stalni kupac", vise: "stalnih kupaca", dodaj: "Dodaj stalnog kupca",
+      kolone: [
+        { k: "naziv", l: "Naziv (kafić, hotel, sala)", obavezno: true, ph: "npr. Kafe Centar", siroko: true },
+        { k: "telefon", l: "Telefon", tip: "tel", obavezno: true },
+        { k: "pib", l: "PIB", ph: "samo cifre", mod: "numeric" },
+        { k: "adresa", l: "Adresa za dostavu", siroko: true },
+        { k: "kontakt", l: "Kontakt osoba" },
+      ],
+      primjer: { naziv: "Kafe Centar", telefon: "067 123 456", pib: "", adresa: "Obala 13. jula bb, Bar", kontakt: "Jelena" },
     },
     termometri: {
       jedan: "termometar", vise: "termometara", dodaj: "Dodaj termometar",
       kolone: [
         { k: "naziv", l: "Termometar", obavezno: true, ph: "npr. ubodni digitalni", siroko: true },
         { k: "oznaka", l: "Serijski ili inventarski broj" },
-        { k: "gdje", l: "Gdje se koristi", ph: "npr. prijem robe" },
+        { k: "gdje", l: "Gdje se koristi", ph: "npr. frižideri i prijem" },
         { k: "kalibracijaBroj", l: "Broj sertifikata kalibracije", ph: "ako postoji" },
         { k: "kalibracijaDatum", l: "Datum kalibracije", tip: "datum" },
       ],
-      primjer: { naziv: "Ubodni digitalni termometar", oznaka: "T-01", gdje: "prijem i isporuka", kalibracijaBroj: "", kalibracijaDatum: "" },
+      primjer: { naziv: "Ubodni digitalni termometar", oznaka: "T-01", gdje: "frižideri, prijem i dostava", kalibracijaBroj: "", kalibracijaDatum: "" },
     },
   };
   const noviRed = (lista) => (LISTE[lista].novi ? LISTE[lista].novi() : Object.fromEntries(LISTE[lista].kolone.map((c) => [c.k, c.tip === "kvacica" ? false : ""])));
 
   const KORACI = [
-    { id: "firma", naziv: "Firma", kratko: "Firma" },
-    { id: "rad", naziv: "Ritam rada", kratko: "Rad" },
-    { id: "magacini", naziv: "Magacini i komore", kratko: "Magacini" },
-    { id: "vozila", naziv: "Vozila", kratko: "Vozila" },
-    { id: "zaposleni", naziv: "Zaposleni", kratko: "Zaposleni" },
-    { id: "dobavljaci", naziv: "Dobavljači", kratko: "Dobavljači" },
-    { id: "kupci", naziv: "Kupci", kratko: "Kupci" },
-    { id: "artikli", naziv: "Artikli", kratko: "Artikli" },
-    { id: "termometri", naziv: "Termometri", kratko: "Termometri" },
-    { id: "pregled", naziv: "Pregled i slanje", kratko: "Pregled" },
+    { id: "firma", naziv: "Atelje" },
+    { id: "rad", naziv: "Ritam rada" },
+    { id: "uredjaji", naziv: "Frižideri i zamrzivač" },
+    { id: "zaposleni", naziv: "Zaposleni" },
+    { id: "dobavljaci", naziv: "Dobavljači" },
+    { id: "artikli", naziv: "Sastojci" },
+    { id: "kupci", naziv: "Stalni kupci" },
+    { id: "termometri", naziv: "Termometri" },
+    { id: "pregled", naziv: "Pregled i slanje" },
   ];
+  const BROJ_KORAKA = KORACI.length - 1;
 
   let S = prazno();
   let aktivni = "firma";
@@ -364,6 +365,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   const t = (v) => String(v ?? "").trim();
   const cifre = (v) => t(v).replace(/[\s.\-/]/g, "");
   const kljucNaziva = (v) => t(v).toLowerCase().replace(/\s+/g, " ");
+  const bezKvacica = (v) => kljucNaziva(v).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "dj");
   const danas = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Podgorica" });
   const datumCitljiv = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}.` : d || "—");
   const broj = (v) => (t(v) === "" ? null : Number(String(v).replace(",", ".")));
@@ -374,9 +376,25 @@ button, input, select, textarea { font: inherit; color: inherit; }
     o[dijelovi[dijelovi.length - 1]] = vrijednost;
   };
   const get = (put) => put.split(".").reduce((o, k) => (o == null ? o : o[k]), S);
-  const slobodno = (c) => !["kvacica", "rezim", "izbor", "magacin", "dobavljac"].includes(c.tip) && !c.granica;
+  const slobodno = (c) => !["kvacica", "rezim", "izbor", "uredjaj", "dobavljac"].includes(c.tip) && !c.granica;
   const redPrazan = (lista, r) => !r || LISTE[lista].kolone.filter(slobodno).every((c) => t(r[c.k]) === "");
   const puniRedovi = (lista) => S[lista].map((r, i) => ({ r, i })).filter(({ r }) => !redPrazan(lista, r));
+
+  /** „mlijeko, jaja i lješnik“ → šifre; „nema“ → upisano bez alergena; prazno → nije upisano (vlasnica potvrđuje u aplikaciji). */
+  function procitajAlergene(tekst) {
+    const komadi = t(tekst).toLowerCase().split(/\s*[,;/+]\s*|\s+i\s+/).map((x) => x.trim()).filter(Boolean);
+    if (!komadi.length) return { sifre: [], upisano: false, nepoznato: [] };
+    if (komadi.length === 1 && /^(nema|nema ih|bez|bez alergena|ne|-|—|0)$/.test(bezKvacica(komadi[0]))) return { sifre: [], upisano: true, nepoznato: [] };
+    const nadjeni = new Set();
+    const nepoznato = [];
+    for (const k of komadi) {
+      const a = ALERGENI.find(([, , re]) => re.test(bezKvacica(k)));
+      if (a) nadjeni.add(a[0]);
+      else nepoznato.push(k);
+    }
+    return { sifre: ALERGENI.map(([s]) => s).filter((s) => nadjeni.has(s)), upisano: true, nepoznato };
+  }
+  const naziviAlergena = (sifre) => sifre.map((s) => ALERGENI.find(([x]) => x === s)?.[1] ?? s).join(", ");
 
   // ─── Provjera (ista pravila kao aplikacija) ─────────────────────────────────────────────────
   function provjeri() {
@@ -391,28 +409,24 @@ button, input, select, textarea { font: inherit; color: inherit; }
       if (!t(get(put))) polja.set(put, poruka);
     };
 
-    // 1. Firma
+    // 1. Atelje
     const f = S.firma;
-    const firmaPoruke = [];
     obavezno("firma.naziv", "Upišite naziv firme.");
     if (!t(f.pib)) polja.set("firma.pib", "Upišite PIB.");
     else if (!/^\d{8,13}$/.test(cifre(f.pib))) polja.set("firma.pib", "PIB se piše samo ciframa (8 cifara).");
-    obavezno("firma.adresa", "Upišite adresu.");
+    obavezno("firma.adresa", "Upišite adresu ateljea.");
     obavezno("firma.grad", "Upišite grad.");
-    obavezno("firma.odgovorno.ime", "Ko vodi bezbjednost hrane u firmi?");
-    obavezno("firma.odgovorno.telefon", "Telefon odgovornog lica — za hitne slučajeve.");
-    if (!f.direktorJeOdgovorno) obavezno("firma.direktor.ime", "Upišite ime direktora.");
-    if (!f.roba.rashladjeno && !f.roba.smrznuto && !f.roba.sobna && !t(f.drugaRoba)) firmaPoruke.push({ poruka: "Označite koju robu distribuirate.", tip: "greska" });
-    const firmaPolja = ["firma.naziv", "firma.pib", "firma.adresa", "firma.grad", "firma.odgovorno.ime", "firma.odgovorno.telefon", "firma.direktor.ime"];
-    const firmaIma = firmaPolja.some((p) => t(get(p))) || f.roba.rashladjeno || f.roba.smrznuto || f.roba.sobna;
-    odjeljci.firma = { ima: firmaIma, poruke: [...firmaPolja.filter((p) => polja.has(p)).map((p) => ({ poruka: polja.get(p), tip: "greska" })), ...firmaPoruke] };
+    obavezno("firma.odgovorno.ime", "Ko u ateljeu vodi bezbjednost hrane (obično vlasnica)?");
+    obavezno("firma.odgovorno.telefon", "Telefon vlasnice — za hitne slučajeve.");
+    const firmaPolja = ["firma.naziv", "firma.pib", "firma.adresa", "firma.grad", "firma.odgovorno.ime", "firma.odgovorno.telefon"];
+    odjeljci.firma = { ima: firmaPolja.some((p) => t(get(p))), poruke: firmaPolja.filter((p) => polja.has(p)).map((p) => ({ poruka: polja.get(p), tip: "greska" })) };
 
     // 2. Ritam rada
     const imaDan = Object.values(S.rad.dani).some(Boolean);
-    const radIma = posjeceni.has("rad") || !!t(S.rad.prijema) || !!t(S.rad.isporuka) || !!t(S.rad.napomena);
+    const radIma = posjeceni.has("rad") || !!t(S.rad.porudzbina) || !!t(S.rad.napomena) || S.rad.dostava;
     odjeljci.rad = { ima: radIma, poruke: imaDan ? [] : [{ poruka: "Označite radne dane.", tip: "greska" }] };
 
-    // Liste — zajednička pravila: obavezna polja, granica za robu pod režimom, dupli nazivi.
+    // Liste — zajednička pravila: obavezna polja, granica, dupli nazivi.
     const provjeriListu = (lista, posebno) => {
       const nazivi = new Map();
       for (const { r, i } of puniRedovi(lista)) {
@@ -422,7 +436,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
         }
         const kn = kljucNaziva(r[LISTE[lista].kolone[0].k]);
         if (kn) {
-          if (nazivi.has(kn)) dodajRed(put, `Isto kao red ${nazivi.get(kn) + 1} — upišite jednom.`);
+          if (nazivi.has(kn)) dodajRed(put, `Isto kao red ${nazivi.get(kn) + 1} — upišite jednom (dva frižidera: „Frižider 1“, „Frižider 2“).`);
           else nazivi.set(kn, i);
         }
         posebno?.(r, put, i);
@@ -447,28 +461,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
       return p;
     };
 
-    // 3. Magacini i komore
-    provjeriListu("magacini");
-    const imenaMagacina = new Set(puniRedovi("magacini").map(({ r }) => kljucNaziva(r.naziv)));
-    provjeriListu("komore", (r, put) => {
-      if (t(r.magacin) && !imenaMagacina.has(kljucNaziva(r.magacin))) dodajRed(put, "Izaberite magacin sa spiska iznad.");
-      granica(r, put, POD_REZIMOM(r.rezim));
-    });
-    const trebaKomore = f.roba.rashladjeno || f.roba.smrznuto;
-    const magaciniPoruke = [...porukeListe("magacini", 1, "Upišite bar jedan magacin."), ...porukeListe("komore", 0, "")];
-    if (trebaKomore && puniRedovi("komore").length === 0) magaciniPoruke.push({ poruka: "Distribuirate robu pod režimom — upišite komore, frižidere ili zamrzivače u kojima je čuvate.", tip: "greska" });
-    odjeljci.magacini = { ima: puniRedovi("magacini").length + puniRedovi("komore").length > 0, poruke: magaciniPoruke };
-
-    // 4. Vozila
-    provjeriListu("vozila", (r, put) => granica(r, put, !!r.rashladno));
-    const vozilaPoruke = S.nemaVozila ? [] : porukeListe("vozila", 1, "Upišite vozila — ili označite da nemate svoja.");
-    if (!S.nemaVozila && trebaKomore && puniRedovi("vozila").length && !puniRedovi("vozila").some(({ r }) => r.rashladno)) {
-      vozilaPoruke.push({ poruka: "Roba pod režimom ide samo rashladnim vozilom — označite koje je rashladno.", tip: "upozorenje" });
+    // 3. Frižideri, vitrina, zamrzivač — svaki svoja granica.
+    provjeriListu("uredjaji", (r, put) => granica(r, put, true));
+    const uredjajiPoruke = porukeListe("uredjaji", 1, "Upišite bar frižider u kome stoje kremovi i torte.");
+    if (puniRedovi("uredjaji").length && !puniRedovi("uredjaji").some(({ r }) => r.vrsta === "frizider")) {
+      uredjajiPoruke.push({ poruka: "Nema frižidera — gdje stoje kremovi, filovi i gotove torte?", tip: "upozorenje" });
     }
-    if (S.nemaVozila) vozilaPoruke.push({ poruka: "Nemate svoja vozila — javite konsultantu kako roba stiže do kupca (prevoznik ili kupac preuzima).", tip: "upozorenje" });
-    odjeljci.vozila = { ima: S.nemaVozila || puniRedovi("vozila").length > 0, poruke: vozilaPoruke };
+    odjeljci.uredjaji = { ima: puniRedovi("uredjaji").length > 0, poruke: uredjajiPoruke };
 
-    // 5. Zaposleni — sanitarna knjižica: broj i rok, nikad nalaz pregleda.
+    // 4. Zaposleni — sanitarna knjižica: broj i rok, nikad nalaz pregleda.
     const d = danas();
     provjeriListu("zaposleni", (r, put) => {
       if (r.rukujeHranom) {
@@ -476,15 +477,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
         if (!t(r.knjizicaRok)) polja.set(`${put}.knjizicaRok`, "Do kada važi knjižica?");
         else if (r.knjizicaRok < d) dodajRed(put, `Knjižica je istekla ${datumCitljiv(r.knjizicaRok)} — obnoviti prije početka rada.`, "upozorenje");
       }
-      if (t(r.magacin) && !imenaMagacina.has(kljucNaziva(r.magacin))) dodajRed(put, "Izaberite magacin sa spiska (korak 3).");
     });
-    const zaposleniPoruke = porukeListe("zaposleni", 1, "Upišite zaposlene — bar one koji rade sa robom.");
-    if (puniRedovi("zaposleni").length && !puniRedovi("zaposleni").some(({ r }) => r.nalog === "odgovorno")) {
-      zaposleniPoruke.push({ poruka: "Ko je odgovorno lice? Kod te osobe izaberite nalog „Odgovorno lice“.", tip: "greska" });
+    const zaposleniPoruke = porukeListe("zaposleni", 1, "Upišite sve koji rade u ateljeu — i vlasnicu.");
+    if (puniRedovi("zaposleni").length && !puniRedovi("zaposleni").some(({ r }) => r.nalog === "vlasnica")) {
+      zaposleniPoruke.push({ poruka: "Ko je vlasnica (odgovorno lice)? Kod nje izaberite nalog „Vlasnica“.", tip: "greska" });
     }
     odjeljci.zaposleni = { ima: puniRedovi("zaposleni").length > 0, poruke: zaposleniPoruke };
 
-    // 6. Dobavljači
+    // 5. Dobavljači
     const pibovi = new Map();
     const pibProvjera = (lista, r, put, i) => {
       if (!t(r.pib)) return;
@@ -496,27 +496,30 @@ button, input, select, textarea { font: inherit; color: inherit; }
       }
     };
     provjeriListu("dobavljaci", (r, put, i) => pibProvjera("dobavljaci", r, put, i));
-    odjeljci.dobavljaci = { ima: puniRedovi("dobavljaci").length > 0, poruke: porukeListe("dobavljaci", 1, "Upišite dobavljače od kojih primate robu.") };
+    odjeljci.dobavljaci = { ima: puniRedovi("dobavljaci").length > 0, poruke: porukeListe("dobavljaci", 1, "Upišite dobavljače od kojih kupujete sastojke.") };
 
-    // 7. Kupci — telefon obavezan: povlačenje serije počinje telefonom (čl. 28).
+    // 6. Sastojci — granica za robu pod režimom; alergeni sa spiska (P1: alergen iz sastojka ide u spisak torte).
+    const imenaDobavljaca = new Set(puniRedovi("dobavljaci").map(({ r }) => kljucNaziva(r.naziv)));
+    provjeriListu("artikli", (r, put) => {
+      granica(r, put, POD_REZIMOM(r.rezim));
+      if (t(r.dobavljac) && !imenaDobavljaca.has(kljucNaziva(r.dobavljac))) dodajRed(put, "Dobavljača nema u koraku 5 — dodajte ga tamo ili izaberite sa spiska.", "upozorenje");
+      const a = procitajAlergene(r.alergeni);
+      if (a.nepoznato.length) polja.set(`${put}.alergeni`, `Nije alergen: „${a.nepoznato.join("“, „")}“ — upišite alergen (gluten, jaja, mlijeko, orašasti plodovi…) ili „nema“.`);
+      else if (!a.upisano) dodajRed(put, "Alergeni nisu upisani — pogledajte deklaraciju (ili upišite „nema“).", "upozorenje");
+    });
+    odjeljci.artikli = { ima: puniRedovi("artikli").length > 0, poruke: porukeListe("artikli", 1, "Upišite sastojke — najbrže lijepljenjem iz Excela.") };
+
+    // 7. Stalni kupci (nije obavezno) — telefon obavezan: povlačenje serije počinje telefonom (čl. 28).
     provjeriListu("kupci", (r, put, i) => {
       if (t(r.telefon) && cifre(r.telefon).replace(/^\+/, "").length < 6) polja.set(`${put}.telefon`, "Telefon nije potpun.");
       if (!t(r.telefon)) polja.set(`${put}.telefon`, "Telefon je obavezan — kad se povlači serija, kupac se prvo zove.");
       pibProvjera("kupci", r, put, i);
     });
-    odjeljci.kupci = { ima: puniRedovi("kupci").length > 0, poruke: porukeListe("kupci", 1, "Upišite kupce kojima isporučujete.") };
+    odjeljci.kupci = { ima: posjeceni.has("kupci") || puniRedovi("kupci").length > 0, poruke: porukeListe("kupci", 0, "") };
 
-    // 8. Artikli
-    const imenaDobavljaca = new Set(puniRedovi("dobavljaci").map(({ r }) => kljucNaziva(r.naziv)));
-    provjeriListu("artikli", (r, put) => {
-      granica(r, put, POD_REZIMOM(r.rezim));
-      if (t(r.dobavljac) && !imenaDobavljaca.has(kljucNaziva(r.dobavljac))) dodajRed(put, "Dobavljača nema u koraku 6 — dodajte ga tamo ili izaberite sa spiska.", "upozorenje");
-    });
-    odjeljci.artikli = { ima: puniRedovi("artikli").length > 0, poruke: porukeListe("artikli", 1, "Upišite artikle — najbrže lijepljenjem iz Excela.") };
-
-    // 9. Termometri
+    // 8. Termometri
     provjeriListu("termometri");
-    const termometriPoruke = S.nemaTermometra ? [{ poruka: "Za početak treba bar jedan ubodni termometar — za prijem i isporuku robe pod režimom. Konsultant će preporučiti koji.", tip: "upozorenje" }] : porukeListe("termometri", 1, "Upišite termometre — ili označite da ih još nemate.");
+    const termometriPoruke = S.nemaTermometra ? [{ poruka: "Za početak treba bar jedan ubodni termometar — za prijem, frižidere i dostavu. Konsultant će preporučiti koji.", tip: "upozorenje" }] : porukeListe("termometri", 1, "Upišite termometre — ili označite da ih još nemate.");
     odjeljci.termometri = { ima: S.nemaTermometra || puniRedovi("termometri").length > 0, poruke: termometriPoruke };
 
     for (const o of Object.values(odjeljci)) {
@@ -559,9 +562,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
     const osnova = prazno();
     const out = { ...osnova, ...ulaz };
     out.firma = { ...osnova.firma, ...(ulaz.firma ?? {}) };
-    out.firma.roba = { ...osnova.firma.roba, ...(ulaz.firma?.roba ?? {}) };
     out.firma.odgovorno = { ...osnova.firma.odgovorno, ...(ulaz.firma?.odgovorno ?? {}) };
-    out.firma.direktor = { ...osnova.firma.direktor, ...(ulaz.firma?.direktor ?? {}) };
     out.rad = { ...osnova.rad, ...(ulaz.rad ?? {}), dani: { ...osnova.rad.dani, ...(ulaz.rad?.dani ?? {}) } };
     for (const lista of Object.keys(LISTE)) {
       out[lista] = Array.isArray(ulaz[lista]) ? ulaz[lista].map((r) => ({ ...noviRed(lista), ...r })) : [];
@@ -603,17 +604,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
     const r = S[lista][i];
     if (c.tip === "kvacica") return `<div class="polje">${kvacica(put, c.l)}</div>`;
     if (c.tip === "rezim") return izbor(put, c.l, Object.entries(REZIMI).map(([k, v]) => [k, v.naziv]), { obavezno: c.obavezno });
+    if (c.tip === "uredjaj") return izbor(put, c.l, Object.entries(UREDJAJI).map(([k, v]) => [k, v.naziv]), { obavezno: c.obavezno });
     if (c.tip === "izbor") return izbor(put, c.l, c.opcije.map((k) => [k, c.nazivi ? c.nazivi[k] : k]), { obavezno: c.obavezno });
-    if (c.tip === "magacin") return izbor(put, c.l, [["", "— izaberite —"], ...puniRedovi("magacini").map(({ r: m }) => [m.naziv, m.naziv])], { obavezno: c.obavezno });
     if (c.tip === "dobavljac") return izbor(put, c.l, [["", "— izaberite —"], ...puniRedovi("dobavljaci").map(({ r: m }) => [m.naziv, m.naziv])]);
-    const bezGranice = c.granica && (lista === "vozila" ? !r.rashladno : !POD_REZIMOM(r.rezim));
+    const bezGranice = c.granica && lista === "artikli" && !POD_REZIMOM(r.rezim);
     return polje(put, c.l, { tip: c.tip, ph: c.ph, obavezno: c.obavezno || (c.granica && !bezGranice), siroko: c.siroko, mod: c.mod, disabled: bezGranice });
   }
 
   function naslovReda(lista, r) {
     const prvi = t(r[LISTE[lista].kolone[0].k]);
-    const rezim = r.rezim && POD_REZIMOM(r.rezim) && r.rezim !== "drugo" ? ` <span class="rezim-oznaka ${r.rezim}">${esc(REZIMI[r.rezim].naziv)}</span>` : "";
-    return `${prvi ? esc(prvi) : `<span style="color:var(--muted)">Nov ${esc(LISTE[lista].jedan)}</span>`}${rezim}`;
+    let oznaka = "";
+    if (lista === "uredjaji" && UREDJAJI[r.vrsta]) oznaka = ` <span class="rezim-oznaka ${r.vrsta === "zamrzivac" ? "smrznuto" : "rashladjeno"}">${esc(UREDJAJI[r.vrsta].naziv)}</span>`;
+    else if (r.rezim && POD_REZIMOM(r.rezim) && r.rezim !== "drugo") oznaka = ` <span class="rezim-oznaka ${r.rezim}">${esc(REZIMI[r.rezim].naziv)}</span>`;
+    return `${prvi ? esc(prvi) : `<span style="color:var(--muted)">Nov ${esc(LISTE[lista].jedan)}</span>`}${oznaka}`;
   }
 
   function red(lista, i) {
@@ -634,13 +637,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
         const v = p[c.k];
         if (c.tip === "kvacica") return v ? c.l.toLowerCase() : "";
         if (c.tip === "rezim") return REZIMI[v]?.naziv ?? "";
+        if (c.tip === "uredjaj") return UREDJAJI[v]?.naziv ?? "";
         if (c.k === "min" || c.k === "max") return "";
+        if (c.k === "alergeni") return v ? `alergeni: ${v}` : "";
         if (c.tip === "izbor" && c.nazivi) return c.nazivi[v];
         if (c.tip === "datum") return v ? `do ${datumCitljiv(v)}` : "";
         return v;
       })
       .filter(Boolean);
-    const granicaTekst = POD_REZIMOM(p.rezim) || p.rashladno ? `${p.min} do ${p.max} °C` : "";
+    const granicaTekst = lista === "uredjaji" || POD_REZIMOM(p.rezim) ? `${p.min} do ${p.max} °C` : "";
     return `<div class="red primjer" aria-label="Primjer"><div class="red-glava"><span class="rb">npr.</span><span class="naziv-reda">${esc(opis.join(" · "))}${granicaTekst ? ` · ${esc(granicaTekst)}` : ""}</span></div></div>`;
   }
 
@@ -648,7 +653,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
     const cfg = LISTE[ime];
     const n = puniRedovi(ime).length;
     const redovi = S[ime].length ? S[ime].map((_, i) => red(ime, i)).join("") : primjerReda(ime) + `<p class="prazna-lista">Još nema upisanih — „${esc(cfg.dodaj)}“ ili „Zalijepi iz Excela“.</p>`;
-    const kolone = cfg.kolone.map((c) => c.l + (c.tip === "kvacica" ? " (da/ne)" : c.tip === "datum" ? " (dd.mm.gggg)" : c.tip === "rezim" ? " (rashlađeno/smrznuto/sobna)" : "")).join(" · ");
+    const kolone = cfg.kolone.map((c) => c.l + (c.tip === "kvacica" ? " (da/ne)" : c.tip === "datum" ? " (dd.mm.gggg)" : c.tip === "rezim" ? " (rashlađeno/smrznuto/sobna)" : c.tip === "uredjaj" ? " (frižider/vitrina/zamrzivač)" : "")).join(" · ");
     return `<div class="lista" data-lista="${ime}">
       <div class="lista-alati">
         <button class="dugme" type="button" data-akcija="dodaj" data-lista="${ime}">+ ${esc(cfg.dodaj)}</button>
@@ -670,78 +675,63 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
   const STRANE = {
     firma: () => `
-      ${zasto("<b>Zašto:</b> naziv, PIB i adresa idu na svaki papir koji aplikacija štampa — rješenje o imenovanju, HACCP plan, otpremnice i paket za inspekciju.")}
-      <div class="grupa"><h3>Podaci o firmi</h3><div class="polja">
-        ${polje("firma.naziv", "Naziv firme", { obavezno: true, ph: "npr. Distribucija Sever d.o.o." })}
+      ${zasto("<b>Zašto:</b> naziv, PIB i adresa idu na svaki papir koji aplikacija štampa — rješenje o imenovanju, HACCP plan i paket za inspekciju.")}
+      <div class="grupa"><h3>Podaci o ateljeu</h3><div class="polja">
+        ${polje("firma.naziv", "Naziv firme", { obavezno: true, ph: "npr. Atelje Slatko d.o.o." })}
         ${polje("firma.pib", "PIB", { obavezno: true, ph: "8 cifara", mod: "numeric" })}
-        ${polje("firma.adresa", "Adresa", { obavezno: true, ph: "ulica i broj" })}
-        ${polje("firma.grad", "Grad", { obavezno: true, ph: "npr. Podgorica" })}
+        ${polje("firma.adresa", "Adresa ateljea", { obavezno: true, ph: "ulica i broj" })}
+        ${polje("firma.grad", "Grad", { obavezno: true, ph: "npr. Bar" })}
         ${polje("firma.registracija", "Broj rješenja o registraciji objekta (UBH)", { ph: "ako ga imate pri ruci", savjet: "Uprava za bezbjednost hrane, veterinu i fitosanitarne poslove" })}
       </div></div>
-      <div class="grupa"><h3>Koju robu distribuirate</h3><div class="polja">
-        ${kvacica("firma.roba.rashladjeno", "Rashlađenu (mliječni proizvodi, meso, salate…)")}
-        ${kvacica("firma.roba.smrznuto", "Smrznutu")}
-        ${kvacica("firma.roba.sobna", "Na sobnoj temperaturi (suva roba, piće…)")}
-        ${polje("firma.drugaRoba", "Nešto drugo", { ph: "npr. svježe voće i povrće" })}
-      </div><small data-greska="firma.roba" hidden></small></div>
-      <div class="grupa"><h3>Odgovorno lice za bezbjednost hrane</h3>
-        <p style="margin:0;color:var(--muted);font-size:13.5px;max-width:70ch">Osoba koja u firmi vodi računa o higijeni, temperaturama i zapisima. Ona prva dobija nalog u aplikaciji i potpisano rješenje o imenovanju.</p>
+      <div class="grupa"><h3>Vlasnica — odgovorno lice za bezbjednost hrane</h3>
+        <p style="margin:0;color:var(--muted);font-size:13.5px;max-width:70ch">Osoba koja u ateljeu vodi računa o higijeni, temperaturama, alergenima i zapisima — obično vlasnica. Ona dobija nalog „Vlasnica“ i potpisuje rješenje o imenovanju.</p>
         <div class="polja">
         ${polje("firma.odgovorno.ime", "Ime i prezime", { obavezno: true })}
         ${polje("firma.odgovorno.telefon", "Telefon", { obavezno: true, tip: "tel" })}
         ${polje("firma.odgovorno.email", "E-pošta", { tip: "email" })}
-      </div></div>
-      <div class="grupa"><h3>Direktor</h3><div class="polja">
-        ${kvacica("firma.direktorJeOdgovorno", "Direktor je i odgovorno lice")}
-      </div>
-      ${S.firma.direktorJeOdgovorno ? "" : `<div class="polja">
-        ${polje("firma.direktor.ime", "Ime i prezime", { obavezno: true })}
-        ${polje("firma.direktor.telefon", "Telefon", { tip: "tel" })}
-        ${polje("firma.direktor.email", "E-pošta", { tip: "email" })}
-      </div>`}</div>`,
+      </div></div>`,
 
     rad: () => `
-      ${zasto("<b>Zašto:</b> po ovome konsultant pravi plan — koliko često se mjere komore i popunjavaju obrasci. Nedjelja se ne broji kao radni dan, osim ako je označite.")}
+      ${zasto("<b>Zašto:</b> po ovome konsultant pravi plan — koliko često se mjere frižideri i popunjavaju obrasci (čišćenje, lična higijena). Nedjelja se ne broji kao radni dan, osim ako je označite.")}
       <div class="grupa"><h3>Radni dani</h3><div class="dani">
         ${DANI.map(([k, n]) => `<label for="${idPolja(`rad.dani.${k}`)}"><input id="${idPolja(`rad.dani.${k}`)}" type="checkbox" data-p="rad.dani.${k}"${S.rad.dani[k] ? " checked" : ""}> ${n}</label>`).join("")}
       </div></div>
-      <div class="grupa"><h3>Koliko robe obrnete</h3><div class="polja">
-        ${polje("rad.prijema", "Prijema robe dnevno (otprilike)", { tip: "broj", ph: "npr. 4" })}
-        ${polje("rad.isporuka", "Isporuka kupcima dnevno (otprilike)", { tip: "broj", ph: "npr. 25" })}
-        ${polje("rad.napomena", "Napomena", { tip: "textarea", ph: "npr. utorkom i petkom veliki prijemi; subotom samo isporuke do 13 h", siroko: true })}
+      <div class="grupa"><h3>Porudžbine</h3><div class="polja">
+        ${polje("rad.porudzbina", "Torti sedmično (otprilike)", { tip: "broj", ph: "npr. 15" })}
+        ${kvacica("rad.dostava", "Dostavljamo torte (sala, hotel, kućna adresa)")}
+        ${polje("rad.napomena", "Napomena", { tip: "textarea", ph: "npr. vikendom najviše porudžbina; jaja i mlijeko stižu utorkom i petkom", siroko: true })}
       </div></div>`,
 
-    magacini: () => `
-      ${zasto("<b>Zašto:</b> svaka komora, frižider ili zamrzivač je mjesto gdje se temperatura mjeri i upisuje. Granica je pretpostavka — konsultant je potvrđuje.")}
-      <div class="grupa"><h3>Magacini</h3>${lista("magacini")}</div>
-      <div class="grupa"><h3>Komore, frižideri i zamrzivači</h3>${puniRedovi("magacini").length ? lista("komore") : '<p class="prazna-lista">Prvo upišite magacin, pa komore u njemu.</p>'}</div>`,
-
-    vozila: () => `
-      ${zasto("<b>Zašto:</b> roba pod temperaturnim režimom ide samo rashladnim vozilom, a vozač prije utovara provjerava vozilo i temperaturu (kontrola D1).")}
-      <div class="grupa"><div class="polja">${kvacica("nemaVozila", "Nemamo svoja vozila (prevoznik ili kupac preuzima)")}</div></div>
-      ${S.nemaVozila ? "" : `<div class="grupa"><h3>Vozila</h3>${lista("vozila")}</div>`}`,
+    uredjaji: () => `
+      ${zasto("<b>Zašto:</b> svaki frižider, vitrina i zamrzivač je svoja kontrolna tačka — zaposleni ga mjeri dva puta dnevno, a aplikacija ocjenjuje po NJEGOVOJ granici (zamrzivač se ne ocjenjuje granicom frižidera). Granica je predlog — konsultant je potvrđuje.")}
+      <div class="grupa">
+        <div class="lista-alati"><span style="font-size:13.5px;color:var(--muted)">Brzo dodaj:</span>
+          ${Object.entries(UREDJAJI).map(([k, v]) => `<button class="dugme" type="button" data-akcija="dodaj-uredjaj" data-vrsta="${k}">+ ${esc(v.naziv)}</button>`).join("")}
+        </div>
+        ${lista("uredjaji")}
+      </div>`,
 
     zaposleni: () => `
-      ${zasto("<b>Zašto:</b> za svakoga ko rukuje hranom vodi se sanitarna knjižica (Zakon o zaštiti stanovništva od zaraznih bolesti, čl. 31). Upisuje se <b>samo broj i datum do kog važi</b>, nikad nalaz pregleda. Magacioneri i vozači dobijaju nalog za telefon.")}
+      ${zasto("<b>Zašto:</b> za svakoga ko rukuje hranom vodi se sanitarna knjižica (Zakon o zaštiti stanovništva od zaraznih bolesti, čl. 31). Upisuje se <b>samo broj i datum do kog važi</b>, nikad nalaz pregleda. Ko upisuje u aplikaciji (temperature, porudžbine, prijem) dobija nalog za telefon.")}
       <div class="grupa">
-        <div class="lista-alati"><button class="dugme" type="button" data-akcija="dodaj-vodstvo">+ Dodaj odgovorno lice i direktora iz koraka 1</button></div>
+        <div class="lista-alati"><button class="dugme" type="button" data-akcija="dodaj-vlasnicu">+ Dodaj vlasnicu iz koraka 1</button></div>
         ${lista("zaposleni")}
       </div>`,
 
     dobavljaci: () => `
-      ${zasto("<b>Zašto:</b> svaki lot robe vodi se po dobavljaču — kad je serija sporna, zna se odakle je stigla (sledljivost, čl. 27 Zakona o bezbjednosti hrane). Po PIB-u aplikacija sama prepoznaje dobavljača sa otpremnice.")}
+      ${zasto("<b>Zašto:</b> svaki sastojak se vodi po dobavljaču i seriji — kad je serija jaja ili pavlake sporna, zna se odakle je stigla i u kojim je tortama (sledljivost, čl. 27 Zakona o bezbjednosti hrane). Po PIB-u aplikacija sama prepoznaje dobavljača sa otpremnice.")}
       <div class="grupa">${lista("dobavljaci")}</div>`,
 
-    kupci: () => `
-      ${zasto("<b>Zašto:</b> kad treba povući seriju, prvo se zovu kupci koji su je dobili (čl. 28) — zato je <b>telefon obavezan</b>. Adresa isporuke ide na otpremnicu kad roba ne ide u sjedište.")}
-      <div class="grupa">${lista("kupci")}</div>`,
-
     artikli: () => `
-      ${zasto("<b>Zašto:</b> po režimu i granici aplikacija ocjenjuje temperaturu pri prijemu i predaji. Naziv pišite sa pakovanjem („Mlijeko 2,8% 1 l“), da se ne zamijeni sa drugim pakovanjem. Najbrže: kopirajte spisak iz Excela ili programa za fakturisanje.")}
+      ${zasto("<b>Zašto:</b> po režimu i granici aplikacija ocjenjuje temperaturu pri prijemu, a po alergenima predlaže spisak alergena svake torte (kupac ga dobija prije predaje). Naziv pišite sa pakovanjem („Slatka pavlaka 35% 1 l“). <b>Serija obavezna</b> — samo za sastojak kome je broj serije uvijek na pakovanju (jaja); za ostalo je dovoljan račun. Najbrže: kopirajte spisak iz Excela.")}
       <div class="grupa">${lista("artikli")}</div>`,
 
+    kupci: () => `
+      ${zasto("<b>Zašto:</b> kafići, hoteli i sale koji redovno naručuju — u porudžbini se biraju sa spiska, pa se ime, telefon i adresa ne kucaju svaki put. Telefon je obavezan: kad se povlači serija, kupac se prvo zove (čl. 28). Nemate stalnih kupaca — preskočite korak.")}
+      <div class="grupa">${lista("kupci")}</div>`,
+
     termometri: () => `
-      ${zasto("<b>Zašto:</b> svako mjerenje pamti kojim je termometrom izmjereno, a termometar se povremeno provjerava ili kalibriše. Ako nemate sertifikat kalibracije — ostavite prazno.")}
+      ${zasto("<b>Zašto:</b> svako mjerenje pamti kojim je termometrom izmjereno, a termometar se povremeno provjerava (ledena voda) ili kalibriše. Ako nemate sertifikat kalibracije — ostavite prazno.")}
       <div class="grupa"><div class="polja">${kvacica("nemaTermometra", "Još nemamo termometar")}</div></div>
       ${S.nemaTermometra ? "" : `<div class="grupa">${lista("termometri")}</div>`}`,
 
@@ -787,22 +777,22 @@ button, input, select, textarea { font: inherit; color: inherit; }
             .join("")}</tbody></table></div></div>`
         : "";
     const gr = (r) => (POD_REZIMOM(r.rezim) ? `${t(r.min)} do ${t(r.max)} °C` : "—");
-    const robe = [f.roba.rashladjeno && "rashlađena", f.roba.smrznuto && "smrznuta", f.roba.sobna && "sobna temperatura", t(f.drugaRoba)].filter(Boolean).join(", ");
+    const alergeni = (r) => {
+      const a = procitajAlergene(r.alergeni);
+      return !a.upisano ? "—" : a.sifre.length ? naziviAlergena(a.sifre) + (a.nepoznato.length ? ` (+ ${a.nepoznato.join(", ")}?)` : "") : a.nepoznato.length ? `${a.nepoznato.join(", ")}?` : "nema";
+    };
     const dani = DANI.filter(([k]) => S.rad.dani[k]).map(([, n]) => n).join(", ");
     return [
-      tabela("Firma", ["Podatak", "Vrijednost"], [
-        ["Naziv", f.naziv], ["PIB", f.pib], ["Adresa", [f.adresa, f.grad].filter((x) => t(x)).join(", ")], ["Registracija objekta", f.registracija || "—"], ["Roba", robe || "—"],
-        ["Odgovorno lice", [f.odgovorno.ime, f.odgovorno.telefon, f.odgovorno.email].filter((x) => t(x)).join(" · ")],
-        ["Direktor", f.direktorJeOdgovorno ? "isto lice" : [f.direktor.ime, f.direktor.telefon, f.direktor.email].filter((x) => t(x)).join(" · ")],
-        ["Radni dani", dani || "—"], ["Prijema / isporuka dnevno", `${S.rad.prijema || "—"} / ${S.rad.isporuka || "—"}`], ["Napomena", S.rad.napomena || "—"],
+      tabela("Atelje", ["Podatak", "Vrijednost"], [
+        ["Naziv", f.naziv], ["PIB", f.pib], ["Adresa", [f.adresa, f.grad].filter((x) => t(x)).join(", ")], ["Registracija objekta", f.registracija || "—"],
+        ["Vlasnica (odgovorno lice)", [f.odgovorno.ime, f.odgovorno.telefon, f.odgovorno.email].filter((x) => t(x)).join(" · ")],
+        ["Radni dani", dani || "—"], ["Torti sedmično", S.rad.porudzbina || "—"], ["Dostava torti", S.rad.dostava ? "da" : "ne"], ["Napomena", S.rad.napomena || "—"],
       ].filter(([, v]) => t(v))),
-      tabela("Magacini", ["Naziv", "Adresa"], puniRedovi("magacini").map(({ r }) => [r.naziv, r.adresa])),
-      tabela("Komore", ["Komora", "Magacin", "Režim", "Granica"], puniRedovi("komore").map(({ r }) => [r.naziv, r.magacin, REZIMI[r.rezim]?.naziv ?? r.rezim, gr(r)])),
-      S.nemaVozila ? `<p>Vozila: nemaju svoja vozila.</p>` : tabela("Vozila", ["Oznaka", "Vrsta", "Rashladno", "Granica"], puniRedovi("vozila").map(({ r }) => [r.oznaka, r.tip, r.rashladno ? "da" : "ne", r.rashladno ? `${t(r.min)} do ${t(r.max)} °C` : "—"])),
-      tabela("Zaposleni", ["Ime", "Radno mjesto", "Rukuje hranom", "Knjižica", "Važi do", "Nalog", "Magacin"], puniRedovi("zaposleni").map(({ r }) => [r.ime, r.radnoMjesto, r.rukujeHranom ? "da" : "ne", r.knjizicaBroj, datumCitljiv(r.knjizicaRok), NALOZI[r.nalog] ?? "", r.magacin])),
-      tabela("Dobavljači", ["Naziv", "PIB", "Telefon", "Mjesto", "Roba"], puniRedovi("dobavljaci").map(({ r }) => [r.naziv, r.pib, r.telefon, r.mjesto, r.roba])),
-      tabela("Kupci", ["Naziv", "Telefon", "PIB", "Adresa", "Adresa isporuke", "Kontakt"], puniRedovi("kupci").map(({ r }) => [r.naziv, r.telefon, r.pib, r.adresa, r.adresaIsporuke, r.kontakt])),
-      tabela("Artikli", ["Naziv", "Jed.", "Režim", "Granica", "Rok", "Dobavljač", "Šifra"], puniRedovi("artikli").map(({ r }) => [r.naziv, r.jedinica, REZIMI[r.rezim]?.naziv ?? r.rezim, gr(r), r.rok ? "da" : "ne", r.dobavljac, r.sifra])),
+      tabela("Frižideri, vitrina, zamrzivač", ["Naziv", "Vrsta", "Granica"], puniRedovi("uredjaji").map(({ r }) => [r.naziv, UREDJAJI[r.vrsta]?.naziv ?? r.vrsta, `${t(r.min)} do ${t(r.max)} °C`])),
+      tabela("Zaposleni", ["Ime", "Radno mjesto", "Rukuje hranom", "Knjižica", "Važi do", "Nalog"], puniRedovi("zaposleni").map(({ r }) => [r.ime, r.radnoMjesto, r.rukujeHranom ? "da" : "ne", r.knjizicaBroj, datumCitljiv(r.knjizicaRok), NALOZI[r.nalog] ?? ""])),
+      tabela("Dobavljači", ["Naziv", "PIB", "Telefon", "Mjesto", "Šta donosi"], puniRedovi("dobavljaci").map(({ r }) => [r.naziv, r.pib, r.telefon, r.mjesto, r.roba])),
+      tabela("Sastojci", ["Naziv", "Jed.", "Režim", "Granica", "Rok", "Serija", "Alergeni", "Dobavljač", "Šifra"], puniRedovi("artikli").map(({ r }) => [r.naziv, r.jedinica, REZIMI[r.rezim]?.naziv ?? r.rezim, gr(r), r.rok ? "da" : "ne", r.serija ? "obavezna" : "—", alergeni(r), r.dobavljac, r.sifra])),
+      tabela("Stalni kupci", ["Naziv", "Telefon", "PIB", "Adresa za dostavu", "Kontakt"], puniRedovi("kupci").map(({ r }) => [r.naziv, r.telefon, r.pib, r.adresa, r.kontakt])),
       S.nemaTermometra ? `<p>Termometri: još nemaju.</p>` : tabela("Termometri", ["Termometar", "Oznaka", "Gdje", "Sertifikat", "Kalibrisan"], puniRedovi("termometri").map(({ r }) => [r.naziv, r.oznaka, r.gdje, r.kalibracijaBroj, datumCitljiv(r.kalibracijaDatum)])),
     ].join("");
   }
@@ -817,8 +807,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
         <span class="br">${stanje === "spremno" ? "✓" : i + 1}</span><span class="ime">${esc(k.naziv)}</span><span class="stanje">${opis}</span></button>`;
     }).join("");
     const spremnih = KORACI.filter((k) => k.id !== "pregled" && odjeljci[k.id].stanje === "spremno").length;
-    document.getElementById("napredak-traka").style.width = `${Math.round((spremnih / 9) * 100)}%`;
-    document.getElementById("napredak-tekst").textContent = `${spremnih} od 9 koraka spremno`;
+    document.getElementById("napredak-traka").style.width = `${Math.round((spremnih / BROJ_KORAKA) * 100)}%`;
+    document.getElementById("napredak-tekst").textContent = `${spremnih} od ${BROJ_KORAKA} koraka spremno`;
     // Telefon: traka koraka se pomjeri vodoravno do trenutnog koraka — strana se ne pomjera (kucanje je ne smije vraćati gore).
     const trenutni = nav.querySelector('[aria-current="step"]');
     if (trenutni && nav.scrollWidth > nav.clientWidth) {
@@ -872,13 +862,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
       const [ime, i] = el.getAttribute("data-naslov").split(".");
       if (S[ime][i]) el.innerHTML = naslovReda(ime, S[ime][i]);
     });
-    const firmaRoba = strana.querySelector('[data-greska="firma.roba"]');
-    if (firmaRoba) {
-      const p = prikaziPolja ? rez.odjeljci.firma.poruke.find((x) => x.poruka.startsWith("Označite koju robu")) : null;
-      firmaRoba.hidden = !p;
-      firmaRoba.textContent = p ? p.poruka : "";
-      firmaRoba.style.color = "var(--bad)";
-    }
     strana.querySelectorAll(".brojac").forEach((el) => {
       const ime = el.closest("[data-lista]").getAttribute("data-lista");
       const n = puniRedovi(ime).length;
@@ -898,12 +881,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
   // ─── Lijepljenje iz Excela ─────────────────────────────────────────────────────────────────
   const REZIM_IZ_TEKSTA = (v) => {
-    const s = kljucNaziva(v).normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const s = bezKvacica(v);
     if (!s) return null;
     if (/smrz|zamrz|duboko|^-1[5-9]|^-2/.test(s)) return "smrznuto";
     if (/rashl|hlad|frizid|^0|^2|^\+?4/.test(s)) return "rashladjeno";
     if (/sob|suv|ambij/.test(s)) return "sobna";
     return "drugo";
+  };
+  const UREDJAJ_IZ_TEKSTA = (v) => {
+    const s = bezKvacica(v);
+    if (!s) return null;
+    if (/zamrz|smrz|duboko/.test(s)) return "zamrzivac";
+    if (/vitrin/.test(s)) return "vitrina";
+    return "frizider";
   };
   const DA = (v) => /^(da|d|x|1|yes|true|✓)$/i.test(t(v));
   const DATUM_IZ_TEKSTA = (v) => {
@@ -930,13 +920,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
         if (pune && kaoNaziv >= Math.max(1, Math.ceil(pune / 2))) return;
       }
       const r = noviRed(ime);
-      const roba = S.firma.roba;
-      const jedina = [roba.rashladjeno && "rashladjeno", roba.smrznuto && "smrznuto", roba.sobna && "sobna"].filter(Boolean);
-      if ("rezim" in r && jedina.length === 1) {
-        r.rezim = jedina[0];
-        r.min = REZIMI[jedina[0]].min === null ? "" : String(REZIMI[jedina[0]].min);
-        r.max = REZIMI[jedina[0]].max === null ? "" : String(REZIMI[jedina[0]].max);
-      }
       cfg.kolone.forEach((c, j) => {
         const v = celije[j];
         if (v === undefined || v === "") return;
@@ -952,6 +935,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
               r.min = "";
               r.max = "";
             }
+          }
+        } else if (c.tip === "uredjaj") {
+          const u = UREDJAJ_IZ_TEKSTA(v);
+          if (u) {
+            r[c.k] = u;
+            r.min = String(UREDJAJI[u].min);
+            r.max = String(UREDJAJI[u].max);
           }
         } else if (c.tip === "datum") r[c.k] = DATUM_IZ_TEKSTA(v);
         else if (c.tip === "broj") r[c.k] = v.replace(",", ".");
@@ -973,12 +963,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
   if (uPregledacuClaude) window.claude.use("downloads").then((d) => { preuzimanja = d; pripremiSlanje(); }).catch(() => undefined);
 
   function zaSlanje() {
-    const izvoz = { format: FORMAT, verzija: 1, sacuvano: new Date().toISOString(), firma: S.firma, rad: S.rad, nemaVozila: S.nemaVozila, nemaTermometra: S.nemaTermometra };
+    const izvoz = { format: FORMAT, vrsta: VRSTA, verzija: 2, sacuvano: new Date().toISOString(), firma: S.firma, rad: S.rad, nemaTermometra: S.nemaTermometra };
     for (const ime of Object.keys(LISTE)) izvoz[ime] = puniRedovi(ime).map(({ r }) => r);
+    // Alergeni idu i kao šifre — „upisani“ samo kad je sve prepoznato (inače vlasnica potvrđuje u aplikaciji, P1).
+    izvoz.artikli = izvoz.artikli.map((r) => {
+      const a = procitajAlergene(r.alergeni);
+      return { ...r, alergeniSifre: a.sifre, alergeniUpisani: a.upisano && !a.nepoznato.length };
+    });
     return izvoz;
   }
   const imeFajla = () => {
-    const firma = kljucNaziva(S.firma.naziv).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "dj").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "firma";
+    const firma = bezKvacica(S.firma.naziv).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "atelje";
     return `pilot-start-${firma}-${danas()}.json`;
   };
 
@@ -1034,7 +1029,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   }
 
   function stampaj() {
-    document.getElementById("stampa").innerHTML = `<h1>Upitnik za početak — ${esc(S.firma.naziv || "firma")}</h1><p>Odštampano ${datumCitljiv(danas())}</p><div class="sazetak">${sazetak()}</div>`;
+    document.getElementById("stampa").innerHTML = `<h1>Upitnik za početak — ${esc(S.firma.naziv || "atelje")}</h1><p>Odštampano ${datumCitljiv(danas())}</p><div class="sazetak">${sazetak()}</div>`;
     window.print();
   }
 
@@ -1056,6 +1051,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
         return poruka("Ovo nije fajl upitnika — izaberite fajl koji je sačuvan dugmetom „Sačuvaj fajl za konsultanta“.", "greska");
       }
       if (!o || o.format !== FORMAT) return poruka("Ovo nije fajl upitnika PILOT.", "greska");
+      if (o.vrsta !== VRSTA) return poruka("Ovo je upitnik za distributere — za atelje se popunjava ovaj upitnik, ispočetka.", "greska");
       const ucitaj = () => {
         S = spoji(o);
         posjeceni.clear();
@@ -1102,8 +1098,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
     set(put, el.type === "checkbox" ? el.checked : el.value);
     const dijelovi = put.split(".");
     const kljuc = dijelovi[dijelovi.length - 1];
-    // Režim i „rashladno“ mijenjaju granicu: predlog iz aplikacije, pa red iznova.
-    if (dijelovi.length === 3 && LISTE[dijelovi[0]] && (kljuc === "rezim" || kljuc === "rashladno")) {
+    // Režim sastojka i vrsta uređaja mijenjaju granicu: predlog iz aplikacije, pa red iznova.
+    if (dijelovi.length === 3 && LISTE[dijelovi[0]] && (kljuc === "rezim" || kljuc === "vrsta")) {
       const r = S[dijelovi[0]][dijelovi[1]];
       if (kljuc === "rezim") {
         const p = REZIMI[r.rezim];
@@ -1114,9 +1110,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
           r.min = "";
           r.max = "";
         }
-      } else if (r.rashladno && !t(r.min) && !t(r.max)) {
-        r.min = "0";
-        r.max = "4";
+      } else if (UREDJAJI[r.vrsta]) {
+        r.min = String(UREDJAJI[r.vrsta].min);
+        r.max = String(UREDJAJI[r.vrsta].max);
       }
       const stari = document.querySelector(`[data-red="${dijelovi[0]}.${dijelovi[1]}"]`);
       if (stari) {
@@ -1124,13 +1120,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
         document.getElementById(idPolja(put))?.focus();
       }
     }
-    // Kvačice koje otvaraju ili zatvaraju dio strane.
-    if (["nemaVozila", "nemaTermometra", "firma.direktorJeOdgovorno"].includes(put)) {
+    // Kvačica koja otvara ili zatvara dio strane.
+    if (put === "nemaTermometra") {
       iscrtajStranu();
       document.getElementById(idPolja(put))?.focus();
-    }
-    if (put.startsWith("magacini.") || put.startsWith("dobavljaci.")) {
-      // Spiskovi za izbor magacina/dobavljača se osvježe kad se ode na drugi korak.
     }
     kasnije();
   });
@@ -1147,6 +1140,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
       iscrtajStranu();
       const i = S[ime].length - 1;
       document.getElementById(idPolja(`${ime}.${i}.${LISTE[ime].kolone[0].k}`))?.focus();
+      sacuvaj();
+    } else if (akcija === "dodaj-uredjaj") {
+      // „+ Frižider“: naziv i granica iz vrste; drugi frižider dobija broj („Frižider 2“), da se razlikuju u mjerenjima.
+      const vrsta = el.getAttribute("data-vrsta");
+      const u = UREDJAJI[vrsta];
+      const zauzeto = new Set(S.uredjaji.map((r) => kljucNaziva(r.naziv)));
+      let naziv = u.naziv;
+      for (let n = 2; zauzeto.has(kljucNaziva(naziv)); n++) naziv = `${u.naziv} ${n}`;
+      S.uredjaji = [...S.uredjaji.filter((r) => !redPrazan("uredjaji", r)), { naziv, vrsta, min: String(u.min), max: String(u.max) }];
+      dodirnuti.add(`uredjaji.${S.uredjaji.length - 1}`);
+      iscrtajStranu();
       sacuvaj();
     } else if (akcija === "ukloni") {
       S[ime].splice(Number(el.getAttribute("data-i")), 1);
@@ -1175,22 +1179,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
       if (poslije) poslije.textContent = "";
       const brojac = document.querySelector(`[data-lista="${ime}"] .brojac`);
       if (brojac) brojac.textContent = `${puniRedovi(ime).length} ${LISTE[ime].vise} — dodato ${novi.length}, provjerite ih ispod`;
-    } else if (akcija === "dodaj-vodstvo") {
+    } else if (akcija === "dodaj-vlasnicu") {
       const f = S.firma;
-      const imena = new Set(S.zaposleni.map((r) => kljucNaziva(r.ime)));
-      const dodaj = (ime2, nalog, rukuje, mjesto) => {
-        if (!t(ime2) || imena.has(kljucNaziva(ime2))) return 0;
+      const vec = S.zaposleni.some((r) => kljucNaziva(r.ime) === kljucNaziva(f.odgovorno.ime));
+      if (t(f.odgovorno.ime) && !vec) {
         S.zaposleni = S.zaposleni.filter((r) => !redPrazan("zaposleni", r));
-        S.zaposleni.push({ ...noviRed("zaposleni"), ime: t(ime2), radnoMjesto: mjesto, nalog, rukujeHranom: rukuje });
-        imena.add(kljucNaziva(ime2));
-        return 1;
-      };
-      const n = dodaj(f.odgovorno.ime, "odgovorno", true, "odgovorno lice za bezbjednost hrane") + (f.direktorJeOdgovorno ? 0 : dodaj(f.direktor.ime, "direktor", false, "direktor"));
+        S.zaposleni.unshift({ ...noviRed("zaposleni"), ime: t(f.odgovorno.ime), radnoMjesto: "vlasnica", nalog: "vlasnica", rukujeHranom: true });
+      }
       iscrtajStranu();
       sacuvaj();
-      if (!n) {
-        const alat = document.querySelector('[data-akcija="dodaj-vodstvo"]');
-        if (alat) alat.textContent = t(f.odgovorno.ime) ? "Već su na spisku" : "Prvo upišite odgovorno lice u koraku 1";
+      if (!t(f.odgovorno.ime) || vec) {
+        const alat = document.querySelector('[data-akcija="dodaj-vlasnicu"]');
+        if (alat) alat.textContent = t(f.odgovorno.ime) ? "Već je na spisku" : "Prvo upišite vlasnicu u koraku 1";
       }
     } else if (akcija === "sacuvaj-fajl") sacuvajFajl();
     else if (akcija === "kopiraj") kopiraj();

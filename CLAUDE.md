@@ -5,7 +5,7 @@ Ovdje je sve što se ne vidi iz koda: mapa aplikacije, zašto je nešto tako, š
 dirati, šta je poznato da ne valja, i na čemu se već izgubilo vrijeme.
 
 Ažurira se pri svakoj većoj izmjeni. Ako nešto naučiš na teži način — upiši ovdje.
-Posljednji pregled koda i usklađivanje ovog fajla: **27.10.2026.** („Stanje poslovanja“ po rasporedu — dan, sedmica, mjesec, kvartal — kao dodatak, dopuna 41; P4 — prijem bez broja serije uz račun, dopuna 40; frižider, vitrina i zamrzivač kao posebne kontrolne tačke; skladište „Atelje“ na novoj bazi; stalni kupac u porudžbini; primjeri na ekranima za atelje; kontrolna lista za deploy u README; 26.10.2026 — atelje: uklonjeni vozila, isporuke, direktor i vozač iz koda; uloge Konsultant / Vlasnica / Zaposleni; demo `99_demo_atelje`; testovi prepravljeni za atelje — 622 + 49 provjera. Ispod je distributerska istorija: 11.10.2026 — jednostavan Kontrolni centar direktora, provjera znanja samo za one koji rukuju hranom; „Stanje poslovanja“ — izvještaj direktoru mejlom, Izvještaji samo kod konsultanta; upitnik za početak i `uvoz-start`, kontrolne tačke na svakoj bazi; 04.10. inspekcijski paket i „Riješeno je“ za neusaglašenost; 01.10. dorada posle probe vlasnice; talas 6 30.09.; ranije inspekcija i talas 5 29.09., revizija 25.09. i talasi 1–4) (Ranija verzija ovog fajla
+Posljednji pregled koda i usklađivanje ovog fajla: **27.10.2026.** (predaja klijentu za atelje: upitnik ateljea i `uvoz-start` — uređaji kao kontrolne tačke, sastojci sa alergenima; osnovni plan i predložene granice odmah uz `prvi-korisnik` i „Predloži osnovni plan“; „Stanje poslovanja“ po rasporedu — dan, sedmica, mjesec, kvartal — kao dodatak, dopuna 41; P4 — prijem bez broja serije uz račun, dopuna 40; frižider, vitrina i zamrzivač kao posebne kontrolne tačke; skladište „Atelje“ na novoj bazi; stalni kupac u porudžbini; primjeri na ekranima za atelje; kontrolna lista za deploy u README; 26.10.2026 — atelje: uklonjeni vozila, isporuke, direktor i vozač iz koda; uloge Konsultant / Vlasnica / Zaposleni; demo `99_demo_atelje`; testovi prepravljeni za atelje — 622 + 49 provjera. Ispod je distributerska istorija: 11.10.2026 — jednostavan Kontrolni centar direktora, provjera znanja samo za one koji rukuju hranom; „Stanje poslovanja“ — izvještaj direktoru mejlom, Izvještaji samo kod konsultanta; upitnik za početak i `uvoz-start`, kontrolne tačke na svakoj bazi; 04.10. inspekcijski paket i „Riješeno je“ za neusaglašenost; 01.10. dorada posle probe vlasnice; talas 6 30.09.; ranije inspekcija i talas 5 29.09., revizija 25.09. i talasi 1–4) (Ranija verzija ovog fajla
 opisivala je staru aplikaciju — `zapisi.js`, `promet.html`, `veza.js` — koje u ovom kodu nema.)
 
 ---
@@ -78,7 +78,9 @@ smiju raditi u isto vrijeme.
 | Stalni kupac iz Šifarnika popunjava ime, telefon i adresu dostave u novoj porudžbini (samo forma — porudžbina čuva svoj tekst) | ✓ 27.10.2026 |
 | Obrazac „broj sa granicom“ (krem, hlađenje, vitrina — P3), QR naljepnice | — |
 | Nov demo (`99_demo_atelje` — vidi gore zašto 99), testovi za atelje (622 API + 49 ekrana) | ✓ 26.10.2026 |
-| Upitnik za početak (`upitnik-start/`, `uvoz-start`) za atelje — još distributerski (vozila, magacioneri, direktor) | — |
+| Upitnik za početak za atelje (`upitnik-start/`: uređaji sa granicama, sastojci sa alergenima i „serija obavezna“, Vlasnica / Zaposleni, stalni kupci) i `uvoz-start` (uređaji → kontrolne tačke + pravilo + mjerenje u planu; distributerski upitnik se ne prima) | ✓ 27.10.2026 |
+| Osnovni plan monitoringa i predložene granice odmah uz prvi nalog (`prvi-korisnik`) i uz „Predloži osnovni plan“ (tačkama bez opšteg pravila) | ✓ 27.10.2026 |
+| „Stanje poslovanja“ po rasporedu (dan, sedmica, mjesec, kvartal) — dodatak, samo konsultant (dopuna 41) | ✓ 27.10.2026 |
 
 ### Pravila poslastičarnice (P1–P5) — uz invarijante distributera ispod
 
@@ -91,7 +93,9 @@ smiju raditi u isto vrijeme.
 - **P2. Torta se veže za serije sastojaka** (`porudzbina_lot`; faza 1 — lotovi ključnih sastojaka). U tortu ide samo
   PRIHVAĆEN lot sa važećim rokom; poslije predaje se veze ne mijenjaju. Bez toga nema odgovora „kome je otišla“.
 - **P3. Granica temperature pri predaji je opšte pravilo KKT 3 iz HACCP plana** (`pravilo_kontrole`, `artikal_id is
-  null`), nikad u kodu. Dostava bez temperature se ne prima (`TEMPERATURA_OBAVEZNA`); bez pravila — temperatura se
+  null`), nikad u kodu ocjene. (Predlog 0–6 °C — kao i 0–4 / −25 do −18 za uređaje — upisuje se kao pravilo samo uz
+  `prvi-korisnik` i „Predloži osnovni plan“, i samo tački bez opšteg pravila: `monitoringService.predlogGranice`, 27.10.2026;
+  ocjena čita samo pravilo.) Dostava bez temperature se ne prima (`TEMPERATURA_OBAVEZNA`); bez pravila — temperatura se
   zapiše uz porudžbinu, ali se ne ocjenjuje (`bezGranice`). Mjerenje ide POSLIJE predaje (FAIL → neusaglašenost,
   predaja ostaje); takva neusaglašenost ne traži ponovno mjerenje (torta je kod kupca — `stoFaliZaZatvaranje`).
 - **P4. Lot pri prijemu nije obavezan, ali trag jeste** — dobavljač + datum + račun/otpremnica (27.10.2026,
@@ -125,24 +129,24 @@ da je baza demo i inače odbije da krene.
 
 ## Kome se predaje aplikacija
 
-**Prvi nalog u klijentovoj firmi je `bzr` — odgovorno lice za bezbjednost hrane.** Ne direktor,
-ne magacioner.
+**Atelje (27.10.2026): prvi nalog je konsultantov, a odmah zatim konsultant otvara vlasnicu — `bzr`, odgovorno lice
+za bezbjednost hrane.** Ne zaposleni. Distributerski koraci (direktor `uprava`, magacioneri, vozači, upitnik sa
+magacinima i vozilima) više ne važe — tih uloga i ekrana u kodu nema.
 
 Zakon 59/2026 ne propisuje funkciju „odgovorno lice za bezbjednost hrane". Postoji **„odgovorno
 lice u pravnom licu" iz čl. 82** — pojam prekršajnog prava, lično plaća 500–2.000 €. Dok firma
-pisano ne odredi ko je to, to je izvršni direktor. *(likely — iz teksta kazni.)*
+pisano ne odredi ko je to, to je izvršni direktor — u ateljeu obično sama vlasnica. *(likely — iz teksta kazni.)*
 
 | # | Šta | Čime |
 |---|---|---|
-| 1 | Direktor potpiše rješenje o imenovanju | `/prilozi` → prva stavka |
-| 2 | Imenovanom licu se otvara nalog `bzr`, a konsultantu `izvodjac` (bez njega nema direktora, podataka firme ni obavještenja „bez četiri oka“) | `npm run prvi-korisnik -- … --konsultant …` |
-| 2a | Podaci firme (zaposleni, magacini, vozila, dobavljači, kupci, artikli, termometri) — distributer ih popuni u upitniku, konsultant ih uveze | `upitnik-start/Upitnik-za-pocetak.html` → `npm run uvoz-start -- --fajl … [--upisi]` |
-| 3 | To lice dobija Kontrolni centar kao prvu stranu | `/tabla`, automatski po ulozi |
-| 4 | Upisuje sve zaposlene; kod onih koji rukuju hranom — rok sanitarne knjižice | `/ljudi` → Svi zaposleni |
-| 5 | Magacioneri (`operater`) i vozači (`vozac`) dobijaju naloge — **otvara ih sam**, odmah pri unosu zaposlenog, sa početnom lozinkom i ceduljicom za štampu | `/ljudi` → Novo lice / „Otvori nalog" |
-| 6 | Direktor dobija `uprava` — svoj Kontrolni centar (semafor, četiri broja, zapisi po danu), Za inspekciju i poruke, bez unosa (#95); „Stanje poslovanja“ mu konsultant šalje mejlom | otvara konsultant |
-| 7 | Konsultant podešava HACCP plan: granice za frižider (`KKT2`), vitrinu (`KKT2-V`), zamrzivač (`KKT2-Z`) i predaju torte (`KKT3`), dodatni frižider = nova tačka `KKT2-…`; pa „Predloži osnovni plan", termometri i tekst kontrolnih tačaka. Kontrolna lista za prvi deploy — README, „Prije prvog deploya ateljea“ | `/haccp-plan` |
-| 8 | Svako na SVOM telefonu uključi obavještenja (na iPhoneu prvo „Dodaj na početni ekran") i pošalje probno | `/moja` → „Obavještenja na telefon" |
+| 1 | Konsultant pravi prvi nalog na NOVOJ bazi; alat uz njega napravi firmu, skladište „Atelje“, kontrolne tačke (KKT 1, frižider, vitrina, zamrzivač, KKT 3), **osnovni plan monitoringa i predložene granice** (frižider i vitrina 0–4 °C, zamrzivač −25 do −18 °C, predaja torte 0–6 °C) — zaposleni mjeri od prvog dana | `npm run prvi-korisnik -- --firma … --konsultant …` |
+| 2 | Konsultant otvara vlasnicu: lice + nalog „Vlasnica — odgovorno lice“ (njeno ime ide i u podatke firme, ako su prazni); vlasnica pri prvoj prijavi mijenja lozinku | `/ljudi` → Novo lice → „Otvori i nalog“ |
+| 3 | Vlasnica potpiše rješenje o imenovanju | `/prilozi` → prva stavka |
+| 4 | Vlasnica popuni upitnik ateljea (frižideri, vitrina i zamrzivač sa granicama, zaposleni sa knjižicama, dobavljači, sastojci sa alergenima i „serija obavezna“, stalni kupci, termometri); konsultant ga uveze — uređaji postaju tačke sa svojom granicom i mjerenjem u planu, nepostojeća vitrina/zamrzivač se isključi | `upitnik-start/Upitnik-za-pocetak.html` → `npm run uvoz-start -- --fajl … [--upisi]` |
+| 5 | Vlasnica otvara naloge zaposlenima — odmah pri unosu, sa početnom lozinkom i ceduljicom za štampu; kod onih koji rukuju hranom rok sanitarne knjižice | `/ljudi` → Novo lice / „Otvori nalog“ |
+| 6 | Konsultant provjeri HACCP plan (granice na kartici „Kontrolne tačke“, tekst — „Predloži tekst“) i termometre (prva provjera ledenom vodom); vlasnica potvrdi granice sastojaka. Na bazi napravljenoj prije 27.10.2026 (Aleks Cake): „Predloži osnovni plan“ pravi plan i upisuje iste granice tačkama koje ih nemaju. Kontrolna lista za prvi deploy — README, „Prije prvog deploya ateljea“ | `/haccp-plan`, `/sifarnici` |
+| 7 | Svako na SVOM telefonu uključi obavještenja (na iPhoneu prvo „Dodaj na početni ekran“) i pošalje probno | `/moja` → „Obavještenja na telefon“ |
+| 8 | *Dodatak, samo ako je plaćen:* „Stanje poslovanja“ vlasnici mejlom po rasporedu (dan, sedmica, mjesec, kvartal) — uključuje konsultant | `/stanje` → „Automatsko slanje“ |
 
 **Rješenje o imenovanju nije zakonski obrazac** i tako se i predstavlja — pisani trag ko
 sprovodi postupke iz čl. 36 i ko javlja UBH po čl. 28.
@@ -411,8 +415,8 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 
 | Alat | Šta radi |
 |---|---|
-| `npm run prvi-korisnik -- --firma … --ime … --korisnik … [--konsultant …]` | prvi nalozi u NOVOJ bazi: `bzr` i (preporučeno) `izvodjac`; jedna transakcija, audit, privremene lozinke. Ispiše u koju bazu upisuje; bazu koja već ima `bzr`/`izvodjac` odbija (demo iz `.env`!). Samo `--konsultant …` — konsultant naknadno |
-| `npm run uvoz-start -- --fajl … [--upisi]` | fajl iz upitnika (`upitnik-start/`) u bazu NOVOG klijenta, posle `prvi-korisnik` (#92). Bez `--upisi` samo pokaže (ista transakcija, pa rollback) |
+| `npm run prvi-korisnik -- --firma … --konsultant …` (+ `--ime … --korisnik …` za vlasnicu) | prvi nalozi u NOVOJ bazi: `izvodjac` i po želji `bzr` (inače vlasnicu otvara konsultant u Ljudi); jedna transakcija, audit, privremene lozinke; na novoj bazi i firma, „Atelje“, KKT 1–3 sa uređajima, osnovni plan i predložene granice. Ispiše u koju bazu upisuje; bazu koja već ima `bzr`/`izvodjac` odbija (demo iz `.env`!). Samo `--konsultant …` — konsultant naknadno, u bazi koja ima firmu |
+| `npm run uvoz-start -- --fajl … [--upisi]` | upitnik ateljea (`upitnik-start/`) u bazu NOVOG klijenta, posle `prvi-korisnik` (#92). Bez `--upisi` samo pokaže (ista transakcija, pa rollback) |
 | `npm run dnevni-pregled` | stanje svih klijenata iz `alati/klijenti.txt` (+ veličina baze i otpremnica); izlazni kod 1 ako je neko u zastoju ili mu je baza ≥ `BAZA_UPOZORENJE_MB` (400). `KLIJENTI_FAJL=` drugi spisak (test ga usmjerava na nepostojeći, da gleda samo `DATABASE_URL`) |
 | `alati/napravi-licencu.ts` | licencni ključ za ugovor (papirni trag, aplikacija ga ne provjerava) |
 | `npm run demo-lozinke` | nove lozinke tri demo naloga (konsultant, ana.b, marko.v), SAMO na demo bazi; upiše ih u `.env` (`DEMO_LOZINKA_*`) za `test:e2e` |
@@ -940,6 +944,8 @@ pod svojim brojem sa oznakom „ukinuto", da se brojevi ne pomjere.
     ne postaje pravilo (#39), osnovni plan izostavlja mjerenja. Do sada su nastajale SAMO uz demo podatke — na bazi pravog
     klijenta ih ne bi bilo. Sada: nova baza ih dobija u `prvi-korisnik` (uz firmu), postojeća bez njih u dopuni 36 (samo kad
     firma postoji — da `migriraj` pa `seed:demo` ne padne na istoj šifri). Test `alati` provjerava praznu bazu, ne demo.
+    **Atelje (27.10.2026):** nova baza uz tačke dobija i osnovni plan monitoringa i predložene granice uređaja i predaje
+    (`osnovniPlan` iz `prvi-korisnik`) — bez opšteg pravila tačke zaposleni ne može ni da izmjeri frižider (`PRAVILO_NE_POSTOJI`).
 92. **Uvoz upitnika samo dopunjuje, nikad ne prepisuje** (`alati/uvoz-start.ts`, 11.10.2026). Fajl iz `upitnik-start/`
     (format `pilot-upitnik-start`) ide u bazu klijenta u JEDNOJ transakciji; bez `--upisi` se na kraju poništi, pa je proba
     tačno ono što bi upis uradio. Odbija demo bazu (demo nalozi), bazu bez tabela i bazu bez `prvi-korisnik`. Postojeće
@@ -950,6 +956,14 @@ pod svojim brojem sa oznakom „ukinuto", da se brojevi ne pomjere.
     pravilo (#39) i `granica_potvrdio = false` (#5 — potvrđuje čovjek), loša granica → predlog režima (drugi režim bez
     granice — odbijen), šifra kod dobavljača → `artikal_dobavljaca` (isti `kljucArtikla` kao prijem), audit sa
     `izvor: alati/uvoz-start`. NE otvara naloge (#28), ne upisuje komore, kalibracije ni ritam rada — to ispiše konsultantu.
+    **Atelje (27.10.2026):** prima samo upitnik `vrsta: "atelje"` (distributerski — magacini, vozila, direktor — odbija). Uređaji
+    (frižider, vitrina, zamrzivač): prvi svake vrste preuzima tačku iz `prvi-korisnik` (KKT2, KKT2-V, KKT2-Z — ime iz upitnika,
+    i u stavci plana) dok se njome ne mjeri, svaki sljedeći je nova tačka (KKT2-F2, KKT2-V2…); granica iz upitnika postaje opšte
+    pravilo (predlog se zamjenjuje novom verzijom dok se tačkom ne mjeri, inače samo napomena); kad plan postoji — dnevno
+    mjerenje 2×. Vitrina ili zamrzivač iz `prvi-korisnik` kojih u upitniku nema — isključuju se (tačka i stavka plana), ako se
+    njima nije mjerilo. Sastojci nose `alergeni` (šifre računa upitnik — `alergeniSifre`, samo sa spiska `server/alergeni.ts`),
+    `alergeni_upisani` (samo kad je upitnik prepoznao sve; prazno = niko nije pogledao deklaraciju) i `zahtijeva_lot` („serija
+    obavezna“, P4). Podsjetnik za naloge samo za lica koja ga još nemaju.
 94. **Provjeru znanja radi samo zaposleni koji RUKUJE HRANOM** (`lice.rukuje_hranom`, 11.10.2026 — direktoru Đorđu Peroviću na
     demo bazi se nudila). Isto pravilo kao knjižica i obuka (#20): provjera je dokaz o obuci onih koji rade sa hranom (Uredba
     91/2026, Dio 13). Ko ne rukuje hranom — kartica „Otvorena je provjera znanja“ se ne pokazuje (`moj-termin` → `otvoren: false`),
@@ -1196,6 +1210,8 @@ repozitorijuma. Ovdje samo stanje.
 | Python izmjena kroz bash heredoc pukne sa `unexpected EOF while looking for matching` | navodnici i obrnuti apostrofi u tijelu skripte zbune bash | skriptu napisati u `.py` fajl (scratchpad) alatom za pisanje, pa `python fajl.py` iz PowerShell-a |
 | demo:lokalno posle zaustavljanja iz pregledača visi bez ijedne poruke (27.10.2026) | `preview_stop` ubije Node, a klaster ostane u „reinitializing“ (0xC0000142); oporavak pri sljedećem startu čeka 30 s na `log.txt` u folderu baze („sharing violation“) | posle zaustavljanja: `pg_ctl -D .testbaza -m fast stop`; ako je već zapelo — sačekati ~40 s, oporavak prođe sam |
 | izmjena stavke bi „bez serije · R-1 · …“ pretvorila u pravu seriju | prozor izmjene je slao postojeći `broj_lota` nazad, a server je svaki poslat broj smatrao novom serijom | polje je prazno za lot bez serije, šalje se samo upisano; server mijenja `bez_broja` samo kad se broj stvarno promijeni |
+| upitnik na telefonu: strana „Pregled i slanje“ široka 641 px umjesto 375 (27.10.2026) | tabela u `.tabela-omot` (overflow-x) je stavka grida `.sazetak` — stavka grida se ne sužava ispod širine sadržaja (`min-width: auto`), pa je okvir za skrol rastao sa tabelom | `.sazetak > div { min-width: 0; }`. Pouka: okvir sa `overflow-x: auto` unutar grida/fleksa treba `min-width: 0` na stavci |
+| upitnik otvoren iz pregledača kao `file://` u ugrađenom pregledaču — prazna strana | ugrađeni pregledač fajl van servera prikazuje kao statičan snimak (`data:`), bez skripte | provjera upitnika: `python -m http.server` u `upitnik-start/` pa `http://127.0.0.1:<port>/Upitnik-za-pocetak.html` |
 
 ### Gdje se zapravo testira
 

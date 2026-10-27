@@ -180,6 +180,7 @@ function PlanMonitoringa({ mijenja, setGreska }: { mijenja: boolean; setGreska: 
   const [rupe, setRupe] = useState<Record<string, Rupe>>({});
   const [otvorena, setOtvorena] = useState<string | null>(null);
   const [modal, setModal] = useState<StavkaPlana | "nova" | null>(null);
+  const [poruka, setPoruka] = useState("");
 
   const ucitaj = () => {
     api<StavkaPlana[]>("/plan-monitoringa").then(setStavke);
@@ -190,7 +191,11 @@ function PlanMonitoringa({ mijenja, setGreska }: { mijenja: boolean; setGreska: 
 
   const osnovni = async () => {
     try {
-      await api("/plan-monitoringa/osnovni", { method: "POST", telo: {} });
+      const r = await api<{ broj: number; granice: number }>("/plan-monitoringa/osnovni", { method: "POST", telo: {} });
+      setPoruka(
+        `Upisano ${r.broj} stavki plana.` +
+          (r.granice ? ` Predložene granice za ${r.granice} tačke (frižider i vitrina 0–4 °C, zamrzivač −25 do −18 °C, predaja torte 0–6 °C) — provjerite ih na kartici „Kontrolne tačke“.` : ""),
+      );
       ucitaj();
     } catch (e) {
       setGreska(e instanceof ApiGreska ? e.message : "Plan nije napravljen.");
@@ -216,6 +221,7 @@ function PlanMonitoringa({ mijenja, setGreska }: { mijenja: boolean; setGreska: 
           )}
         </div>
       )}
+      {poruka && <div className="nc-info" role="status" style={{ marginBottom: 12 }}>{poruka}</div>}
       <div className="panel full-panel">
         <div className="data-table-wrap">
           <table className="data-table">
