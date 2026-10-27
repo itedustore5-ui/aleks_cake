@@ -436,7 +436,9 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `npm run test:ci` | `TEST_DATABASE_URL` (mora biti localhost) — API testovi pa ekrani (`--sve`) | GitHub Actions (`.github/workflows/testovi.yml`) na svaki push na `main` |
 | `npm run test:e2e` | demo baza iz `.env`, server koji već radi | samo kad treba provjeriti baš demo bazu |
 
-**Atelje (27.10.2026): 27 testova, 636 provjera na čistoj bazi; ekrani 6 scenarija, 50 provjera.** `atelje_prijem` — P4 (bez
+**Atelje (27.10.2026): 28 testova, 649 provjera na čistoj bazi; ekrani 6 scenarija, 52 provjere.** `stanje` — i slanje po
+rasporedu (provjeru koju server radi svaki sat test pokreće u zasebnom procesu; test server ima `RASPORED_SLANJA=0`);
+`alati` — upitnik ateljea (uređaji → tačke, alergeni, serija, distributerski upitnik odbijen) i plan + granice uz `prvi-korisnik`. `atelje_prijem` — P4 (bez
 traga odbijeno, jaja bez serije odbijena, isti artikal bez serije dvaput, oznaka „bez serije · račun · datum“, pretraga po
 računu, serija dopisana kasnije, lot bez serije u torti) i uređaji (−19 °C u zamrzivaču prolazi, osnovni plan po uređaju). Tri demo naloga
 (`NALOZI` u `testovi/pomoc.mjs`: konsultant, ana — vlasnica, marko — zaposleni); drugog zaposlenog test otvara sam
