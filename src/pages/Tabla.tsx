@@ -8,6 +8,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { ListaZadataka } from "../components/Zadaci";
 import { AktivnostUzivo } from "../components/Aktivnost";
 import { ProvjeraZnanjaUlaz } from "../components/ProvjeraZnanjaUlaz";
+import { PrviKoraci } from "../components/PrviKoraci";
 import { mozeNa } from "../components/Layout";
 import { useAuth } from "../lib/auth";
 
@@ -101,6 +102,8 @@ export function Tabla() {
           <span>Uključite potvrdu u dva koraka — vaš nalog vidi sve podatke firme, a sada ga štiti samo lozinka. Moja strana → „Potvrda u dva koraka“ (2 minuta).</span>
         </button>
       )}
+      {/* Vlasnica sama podešava atelje (29.10.2026); konsultant vidi isto da je vodi. */}
+      {mozeBekap && <PrviKoraci />}
       <ProvjeraZnanjaUlaz />
       <div className="section-heading">
         <div>

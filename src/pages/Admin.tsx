@@ -3,8 +3,8 @@ import { Plus } from "lucide-react";
 import { api, ApiGreska } from "../lib/api";
 import { PageHeader, Modal } from "../components/Zajednicko";
 import { StatusBadge } from "../components/StatusBadge";
+import { FirmaForma, type Firma } from "../components/PodaciFirme";
 
-type Firma = { naziv: string; pib: string | null; adresa: string | null; grad: string | null; telefon: string | null; email: string | null; odgovorno_lice_ime: string | null };
 type Pitanje = { id: string; tema: string; tekst: string; ponudjeni_odgovori: string[]; tacan_indeks: number; aktivno: boolean };
 type Sesija = { id: string; naziv: string; broj_pitanja: number; otvoren: boolean; cuva_imena: boolean };
 
@@ -98,40 +98,6 @@ export function Admin() {
       {modalPitanje && <NovoPitanjeModal onClose={() => setModalPitanje(false)} onCreated={ucitaj} />}
       {modalSesija && <NovaSesijaModal onClose={() => setModalSesija(false)} onCreated={ucitaj} />}
     </>
-  );
-}
-
-function FirmaForma({ firma, onSaved }: { firma: Firma; onSaved: () => void }) {
-  const [vrijednosti, setVrijednosti] = useState(firma);
-  const [greska, setGreska] = useState("");
-
-  const posalji = async () => {
-    try {
-      await api("/firma", { method: "PATCH", telo: vrijednosti });
-      setGreska("");
-      onSaved();
-    } catch (e) {
-      setGreska(e instanceof ApiGreska ? e.message : "Podaci o firmi nisu sačuvani.");
-    }
-  };
-
-  return (
-    <div className="panel" style={{ maxWidth: 560 }}>
-      <div className="panel-header"><h2>Podaci o firmi</h2></div>
-      {greska && <div className="auth-error" style={{ margin: "0 20px 16px" }}>{greska}</div>}
-      <div className="form-grid">
-        <label>Naziv<input value={vrijednosti.naziv} onChange={(e) => setVrijednosti((v) => ({ ...v, naziv: e.target.value }))} /></label>
-        <label>PIB<input value={vrijednosti.pib ?? ""} onChange={(e) => setVrijednosti((v) => ({ ...v, pib: e.target.value }))} /></label>
-        <label>Adresa<input value={vrijednosti.adresa ?? ""} onChange={(e) => setVrijednosti((v) => ({ ...v, adresa: e.target.value }))} /></label>
-        <label>Grad<input value={vrijednosti.grad ?? ""} onChange={(e) => setVrijednosti((v) => ({ ...v, grad: e.target.value }))} /></label>
-        <label>Telefon<input value={vrijednosti.telefon ?? ""} onChange={(e) => setVrijednosti((v) => ({ ...v, telefon: e.target.value }))} /></label>
-        <label>Email<input value={vrijednosti.email ?? ""} onChange={(e) => setVrijednosti((v) => ({ ...v, email: e.target.value }))} /></label>
-        <label style={{ gridColumn: "1 / -1" }}>Odgovorno lice (ime za rješenje o imenovanju)<input value={vrijednosti.odgovorno_lice_ime ?? ""} onChange={(e) => setVrijednosti((v) => ({ ...v, odgovorno_lice_ime: e.target.value }))} /></label>
-      </div>
-      <div style={{ padding: "0 20px 20px" }}>
-        <button className="primary-button" onClick={posalji}>Sačuvaj</button>
-      </div>
-    </div>
   );
 }
 

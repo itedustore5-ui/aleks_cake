@@ -23,6 +23,7 @@ import { logIzmjena, logKreiranje } from "../server/services/auditService.js";
 import { sljedeciBroj } from "../server/services/brojeviService.js";
 import { uskladiPravilaArtikla } from "../server/services/pravilaService.js";
 import { kljucArtikla } from "../server/services/otpremnicaService.js";
+import { UREDJAJI, type VrstaUredjaja } from "../server/services/haccpPredlog.js";
 
 function argument(naziv: string): string | undefined {
   const i = process.argv.indexOf(`--${naziv}`);
@@ -54,14 +55,8 @@ const lista = (f: Fajl, ime: string): Red[] => (Array.isArray(f[ime]) ? (f[ime] 
 // Isti režimi i pretpostavljene granice kao u aplikaciji (GRANICA_REZIMA) i u upitniku.
 const PREDLOG: Record<string, [number, number]> = { rashladjeno: [0, 4], smrznuto: [-25, -18] };
 // Uređaji za čuvanje: prvi svake vrste je tačka koju pravi `prvi-korisnik` (KKT2, KKT2-V, KKT2-Z), svaki sljedeći nova
-// (KKT2-F2, KKT2-V2…). Šifra počinje sa KKT2 — po tome ih „Predloži osnovni plan“ prepoznaje. Granice kao predlog
-// osnovnog plana (monitoringService.predlogGranice).
-const UREDJAJ = {
-  frizider: { osnovna: "KKT2", prefiks: "KKT2-F", naziv: "Frižider", opis: "Temperatura frižidera sa kremovima, filovima i gotovim tortama", granica: [0, 4] },
-  vitrina: { osnovna: "KKT2-V", prefiks: "KKT2-V", naziv: "Vitrina", opis: "Temperatura vitrine sa tortama i kolačima u prodaji", granica: [0, 4] },
-  zamrzivac: { osnovna: "KKT2-Z", prefiks: "KKT2-Z", naziv: "Zamrzivač", opis: "Temperatura zamrzivača (smrznuto voće, biskvit, poluproizvodi)", granica: [-25, -18] },
-} as const;
-type VrstaUredjaja = keyof typeof UREDJAJ;
+// (KKT2-F2, KKT2-V2…). Šifre, opis i predložene granice — isti izvor kao aplikacija (server/services/haccpPredlog.ts).
+const UREDJAJ = UREDJAJI;
 const NAZIV_ULOGE: Record<string, string> = { zaposleni: "Zaposleni", vlasnica: "Vlasnica — odgovorno lice" };
 
 /** Ishod jedne grupe: šta je novo, šta postoji, šta je odbijeno i zašto, i napomene za konsultanta. */

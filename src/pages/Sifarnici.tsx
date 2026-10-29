@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { api, ApiGreska } from "../lib/api";
 import { PageHeader, Modal, ZakonskaOznaka } from "../components/Zajednicko";
@@ -34,7 +35,9 @@ const TABOVI = [
 ] as const;
 
 export function Sifarnici() {
-  const [tab, setTab] = useState<(typeof TABOVI)[number]["kod"]>("kupci");
+  // „Prvi koraci“ otvaraju baš karticu koja se popunjava (dobavljači, artikli).
+  const ulaz = useLocation().state as { tab?: (typeof TABOVI)[number]["kod"] } | null;
+  const [tab, setTab] = useState<(typeof TABOVI)[number]["kod"]>(ulaz?.tab ?? "kupci");
   const [kupci, setKupci] = useState<Kupac[]>([]);
   const [dobavljaci, setDobavljaci] = useState<Dobavljac[]>([]);
   const [artikli, setArtikli] = useState<Artikal[]>([]);

@@ -39,7 +39,8 @@ firmaRuter.patch(
       await klijent.query(
         `update firma set naziv = $1, pib = $2, adresa = $3, grad = $4, telefon = $5, email = $6, odgovorno_lice_ime = $7, updated_at = now()
          where id = $8`,
-        [ulaz.naziv, ulaz.pib ?? null, ulaz.adresa ?? null, ulaz.grad ?? null, ulaz.telefon ?? null, ulaz.email || null, ulaz.odgovornoLiceIme ?? null, id],
+        // Prazno polje je „nije upisano“ (null), ne prazan tekst — „Prvi koraci“ po tome znaju šta fali.
+        [ulaz.naziv.trim(), ulaz.pib?.trim() || null, ulaz.adresa?.trim() || null, ulaz.grad?.trim() || null, ulaz.telefon?.trim() || null, ulaz.email || null, ulaz.odgovornoLiceIme?.trim() || null, id],
       );
       await logIzmjenaReda(klijent, { korisnikId: request.korisnik!.id, entitetTip: "firma", entitetId: id, prije, poslije: await stanjeReda(klijent, "firma", id) });
     });

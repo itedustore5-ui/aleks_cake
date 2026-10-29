@@ -601,6 +601,44 @@ h2 { font-family: "Space Grotesk"; font-size: 15px; letter-spacing: -.02em; colo
 .stanje-primaoci input { flex: 1 1 260px; min-width: 0; height: 38px; border: 1px solid #dfe7ed; border-radius: 8px; padding: 0 10px; font-weight: 400; color: #182431; }
 .stanje-dugmad { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .stanje-dugmad .muted-text { font-size: 12px; flex: 1 1 240px; }
+/* „Prvi koraci“ (29.10.2026) — vlasnica sama podešava atelje. */
+.prvi-koraci { padding: 16px 18px; display: grid; gap: 12px; min-height: auto; margin-bottom: 18px; }
+.prvi-koraci-glava { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.prvi-koraci-glava h2 { font-size: 15px; margin: 0 0 2px; }
+.prvi-koraci-glava .muted-text { font-size: 12px; }
+.prvi-koraci-glava strong { font-size: 13px; white-space: nowrap; }
+.prvi-koraci-traka { height: 6px; border-radius: 99px; background: #e8eef3; overflow: hidden; }
+.prvi-koraci-traka span { display: block; height: 100%; background: #18815e; border-radius: 99px; }
+.prvi-koraci ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.prvi-korak { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 12px; border: 1px solid #dfe7ed; border-radius: 10px; background: #fff; }
+.prvi-korak .br { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: #f1f5f8; color: #5d6c7a; }
+.prvi-korak.gotovo .br { background: #18815e; color: #fff; }
+.prvi-korak strong { font-size: 13px; display: block; color: #182431; }
+.prvi-korak p { margin: 2px 0 0; font-size: 12px; color: #5d6c7a; }
+.prvi-korak .stanje { font-size: 12px; margin-top: 4px; color: #18815e; }
+.prvi-korak.fali .stanje { color: #a8641a; }
+.prvi-korak > button { white-space: nowrap; }
+.prvi-koraci-zatvoreno { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 18px; padding: 10px 14px; border: 1px solid #cfe8dc; border-radius: 10px; background: #e3f4ec; color: #18815e; font-weight: 600; font-size: 13px; cursor: pointer; text-align: left; }
+@media (max-width: 560px) {
+  .prvi-korak { grid-template-columns: 28px minmax(0, 1fr); }
+  .prvi-korak > button { grid-column: 2; justify-self: start; }
+}
+.uredjaji-modal { padding: 16px 20px; display: grid; gap: 12px; }
+.uredjaji-modal > p { margin: 0; font-size: 12px; }
+.uredjaj-red { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid #dfe7ed; border-radius: 10px; }
+.uredjaj-nov { background: #f6f8fb; border-style: dashed; }
+.uredjaj-nov > strong { font-size: 13px; }
+.uredjaj-polja { display: grid; grid-template-columns: minmax(0, 1fr) 90px 90px; gap: 8px; }
+.uredjaj-nov .uredjaj-polja { grid-template-columns: 130px minmax(0, 1fr) 90px 90px; }
+.uredjaj-polja label { display: grid; gap: 4px; font-size: 11px; font-weight: 600; color: #5d6c7a; min-width: 0; }
+.uredjaj-polja input, .uredjaj-polja select { height: 36px; min-width: 0; width: 100%; border: 1px solid #dfe7ed; border-radius: 8px; padding: 0 8px; font-weight: 400; color: #182431; background: #fff; }
+.uredjaj-dugmad { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12px; }
+.uredjaji-iskljuceni { display: grid; gap: 6px; font-size: 12px; }
+.uredjaj-iskljucen { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #5d6c7a; }
+@media (max-width: 560px) {
+  .uredjaj-polja, .uredjaj-nov .uredjaj-polja { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .uredjaj-polja .uredjaj-naziv { grid-column: 1 / -1; }
+}
 .stanje-raspored { display: grid; gap: 6px; border-top: 1px solid #dfe7ed; padding-top: 12px; }
 .stanje-raspored > label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; color: #5d6c7a; }
 .stanje-raspored > label > div { display: flex; gap: 8px; flex-wrap: wrap; }

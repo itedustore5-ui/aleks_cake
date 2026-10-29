@@ -4,7 +4,7 @@ import { Plus, KeyRound, Printer } from "lucide-react";
 import { api, ApiGreska } from "../lib/api";
 import { PageHeader, Modal, ZakonskaOznaka } from "../components/Zajednicko";
 import { StatusBadge } from "../components/StatusBadge";
-import { useAuth } from "../lib/auth";
+import { useAuth, NAZIV_ULOGE, type Uloga } from "../lib/auth";
 import { ProvjeraZnanjaKartica } from "../components/ProvjeraZnanjaKartica";
 import { useSkladista } from "../lib/skladista";
 
@@ -61,6 +61,17 @@ export function Ljudi() {
   const skladista = useSkladista();
   const postaviMaticno = (nalogId: string, skladisteId: string) =>
     api(`/nalozi/${nalogId}/skladiste`, { method: "PATCH", telo: { skladisteId: skladisteId || null } }).then(ucitaj);
+  // Konsultant mijenja ulogu postojećeg naloga (npr. vlasnica otvorena kao „Zaposleni“ → „Vlasnica“, 29.10.2026).
+  // Server briše sesije tog naloga (#27) — mora se ponovo prijaviti.
+  const promijeniUlogu = async (n: Nalog, uloga: string) => {
+    if (!window.confirm(`${n.korisnicko_ime}: nova uloga „${NAZIV_ULOGE[uloga as Uloga] ?? uloga}“. Odjaviće se sa svih uređaja i prijaviti ponovo.`)) return;
+    try {
+      await api(`/nalozi/${n.id}/uloga`, { method: "PATCH", telo: { uloga } });
+    } catch (e) {
+      window.alert(e instanceof ApiGreska ? e.message : "Uloga nije promijenjena — provjerite internet i pokušajte ponovo.");
+    }
+    ucitaj();
+  };
   const [lica, setLica] = useState<Lice[]>([]);
   const [plan, setPlan] = useState<PlanStavka[]>([]);
   const [nalozi, setNalozi] = useState<Nalog[]>([]);
@@ -249,7 +260,16 @@ export function Ljudi() {
                   <tr key={n.id}>
                     <td>{n.korisnicko_ime}</td>
                     <td className="muted-text">{n.lice_ime ?? "—"}</td>
-                    <td>{n.uloga}</td>
+                    <td>
+                      {korisnik?.uloga === "izvodjac" && n.aktivan && n.id !== korisnik.id && (n.uloga === "operater" || n.uloga === "bzr") ? (
+                        <select className="zadatak-dodijeli" aria-label={`Uloga — ${n.korisnicko_ime}`} value={n.uloga} onChange={(e) => void promijeniUlogu(n, e.target.value)}>
+                          <option value="operater">Zaposleni</option>
+                          <option value="bzr">Vlasnica — odgovorno lice</option>
+                        </select>
+                      ) : (
+                        NAZIV_ULOGE[n.uloga as Uloga] ?? n.uloga
+                      )}
+                    </td>
                     {skladista.vise && (
                       <td>
                         {n.aktivan && (smijeDirnutiNalog(n.uloga) || n.id === korisnik?.id) ? (

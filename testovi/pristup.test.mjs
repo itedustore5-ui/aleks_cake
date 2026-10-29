@@ -17,16 +17,19 @@ const MORA = {
     "/haccp-plan", "/plan-monitoringa", "/monitoring/danas", "/monitoring/pregled", "/mjerni-uredjaji", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/tabla/detalj/rokovi",
     "/tabla/detalj/porudzbine-alergeni", "/tabla/detalj/porudzbine", "/auth/2fa",
     "/van-mreze/odbijeno", "/inspekcija?od=2026-09-01&do=2026-09-30",
-    "/alergeni", "/porudzbine", "/porudzbine/sastojci", "/porudzbine/pretraga?q=PRD"],
+    "/alergeni", "/porudzbine", "/porudzbine/sastojci", "/porudzbine/pretraga?q=PRD",
+    "/prvi-koraci", "/uredjaji-cuvanja", "/kontrolne-tacke/predlog-teksta?sifra=KKT2"],
   marko: ["/prijem", "/zaliha", "/lotovi", "/zapisi", "/mjerenja", "/neusaglasenosti", "/zadaci", "/obavjestenja", "/skladista", "/lica/ja", "/poruke", "/poruke/primaoci",
     "/kupci", "/dobavljaci", "/artikli", "/zdravlje", "/monitoring/danas", "/mjerni-uredjaji", "/termometri", "/provjera-znanja/moj-termin",
     "/alergeni", "/porudzbine", "/porudzbine/sastojci"],
-  konsultant: ["/tabla", "/inspekcija", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/izvoz/porudzbine/pregled", "/porudzbine", "/stanje-poslovanja?vrsta=sedmica", "/audit", "/pitanja", "/nalozi", "/povlacenja", "/zdravlje", "/greske", "/auth/2fa", "/van-mreze/odbijeno"],
+  konsultant: ["/tabla", "/inspekcija", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/izvoz/porudzbine/pregled", "/porudzbine", "/stanje-poslovanja?vrsta=sedmica", "/audit", "/pitanja", "/nalozi", "/povlacenja", "/zdravlje", "/greske", "/auth/2fa", "/van-mreze/odbijeno",
+    "/prvi-koraci", "/uredjaji-cuvanja"],
 };
 
 const NE_SMIJE = {
   marko: ["/porudzbine/pretraga?q=PRD", "/stanje-poslovanja", "/greske", "/aktivnost", "/tabla", "/tabla/detalj/neusaglasenosti", "/lica", "/plan-obuke", "/pravila-kontrole", "/pitanja-firme", "/provjera-znanja/rezultati", "/izvoz/izvori", "/nalozi", "/audit", "/povlacenja", "/sledljivost/pretraga?q=PV", "/pitanja",
-    "/haccp-plan", "/plan-monitoringa", "/monitoring/pregled", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/van-mreze/odbijeno", "/inspekcija", "/inspekcija/paket.zip"],
+    "/haccp-plan", "/plan-monitoringa", "/monitoring/pregled", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/van-mreze/odbijeno", "/inspekcija", "/inspekcija/paket.zip",
+    "/prvi-koraci", "/uredjaji-cuvanja", "/kontrolne-tacke/predlog-teksta?sifra=KKT2"],
   ana: ["/pitanja", "/greske", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/stanje-poslovanja"], // izvještaji i stanje poslovanja su konsultantovi (11.10.2026) // banka pitanja je samo konsultantova (#14); dnevnik grešaka takođe (#80)
 };
 

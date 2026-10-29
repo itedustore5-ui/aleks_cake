@@ -7,6 +7,8 @@ import { tijelo, str } from "../validacija.js";
 import { logKreiranje, logIzmjenaReda, stanjeReda } from "../services/auditService.js";
 import { UCESTALOSTI, stavkePlana, stanjeDanas, pregledRupa, osnovniPlan } from "../services/monitoringService.js";
 import { listaUredjaja, zabiljeziProvjeru, stanjeVerifikacije, zabiljeziVerifikaciju, haccpPlan, VRSTE_VERIFIKACIJE } from "../services/haccpPlanService.js";
+import { predlogTeksta, VRSTE_UREDJAJA } from "../services/haccpPredlog.js";
+import { dodajUredjaj, izmijeniUredjaj, uredjajiCuvanja } from "../services/uredjajiService.js";
 
 // HACCP kao sistem (faza 3): plan monitoringa, "šta danas fali", mjerni uređaji, verifikacija
 // sistema, HACCP plan za štampu. Svaka ruta nosi svoje uloge (invarijanta #26).
@@ -184,6 +186,56 @@ haccpPlanRuter.patch(
       );
       await logIzmjenaReda(klijent, { korisnikId: request.korisnik!.id, entitetTip: "kontrolna_tacka", entitetId: id, prije: t, poslije: await stanjeReda(klijent, "kontrolna_tacka", id) });
     });
+    response.status(204).end();
+  }),
+);
+
+// Predlog teksta za HACCP plan („Predloži tekst“) — isti koji upisuje osnovni plan i nov uređaj (haccpPredlog).
+haccpPlanRuter.get(
+  "/kontrolne-tacke/predlog-teksta",
+  requireUloga(...VODSTVO),
+  asyncRuta(async (request, response) => {
+    response.json(predlogTeksta(typeof request.query.sifra === "string" ? request.query.sifra : ""));
+  }),
+);
+
+// ─── Frižideri, vitrina, zamrzivač (vlasnica, „Prvi koraci“) ─────────────────────────────────────
+// Isto što i kontrolna tačka + opšte pravilo + stavka plana, ali bez šifara: naziv, vrsta, granica (uredjajiService).
+const granicaSchema = { min: z.number().min(-40).max(30), max: z.number().min(-40).max(30) };
+const uredjajCuvanjaSchema = z
+  .object({ naziv: z.string().trim().min(2, "Upišite naziv (npr. „Frižider za kremove“).").max(200), vrsta: z.enum(VRSTE_UREDJAJA), ...granicaSchema })
+  .refine((u) => u.min < u.max, { message: "Granica „od“ mora biti niža od „do“.", path: ["min"] });
+
+haccpPlanRuter.get(
+  "/uredjaji-cuvanja",
+  requireUloga(...VODSTVO),
+  asyncRuta(async (_request, response) => {
+    response.json(await uredjajiCuvanja());
+  }),
+);
+
+haccpPlanRuter.post(
+  "/uredjaji-cuvanja",
+  requireUloga(...VODSTVO),
+  asyncRuta(async (request: AuthZahtjev, response) => {
+    const u = tijelo(uredjajCuvanjaSchema, request.body);
+    const r = await transakcija((klijent) => dodajUredjaj(klijent, request.korisnik!.id, u));
+    response.status(201).json(r);
+  }),
+);
+
+haccpPlanRuter.patch(
+  "/uredjaji-cuvanja/:id",
+  requireUloga(...VODSTVO),
+  asyncRuta(async (request: AuthZahtjev, response) => {
+    const u = tijelo(
+      z
+        .object({ naziv: z.string().trim().min(2).max(200).optional(), min: granicaSchema.min.optional(), max: granicaSchema.max.optional(), aktivan: z.boolean().optional() })
+        .refine((x) => (x.min === undefined) === (x.max === undefined), { message: "Upišite granicu od i do.", path: ["max"] })
+        .refine((x) => x.min === undefined || x.max === undefined || x.min < x.max, { message: "Granica „od“ mora biti niža od „do“.", path: ["min"] }),
+      request.body,
+    );
+    await transakcija((klijent) => izmijeniUredjaj(klijent, request.korisnik!.id, str(request.params.id), u));
     response.status(204).end();
   }),
 );

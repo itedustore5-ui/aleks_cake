@@ -158,7 +158,11 @@ Svaki klijent dobija **svoj** Supabase projekat i **svoj** Render web servis, sa
    `KKT2-Z`, predaja torte `KKT3`), **osnovni plan monitoringa i predložene granice** — zaposleni može da mjeri od prvog dana.
    Prijavite se kao konsultant → Ljudi → Novo lice → vlasnica sa nalogom „Vlasnica — odgovorno lice“ (njeno ime ide i u
    podatke firme); vlasnica u `/moja` mijenja lozinku i u `/ljudi` otvara naloge zaposlenima.
-   **Podaci ateljea iz upitnika:** vlasnica popuni `upitnik-start/Upitnik-za-pocetak.html` (atelje, frižideri i
+   **Najjednostavnije — vlasnica sama:** kad se prijavi, na Kontrolnom centru dobija spisak **„Prvi koraci“** (podaci ateljea,
+   plan jednim klikom, frižideri/vitrina/zamrzivač sa granicom, termometar, zaposleni, dobavljači, sastojci sa alergenima,
+   stalni kupci, rješenje, obavještenja) — svaki korak se sam označi kad je urađen. Pošaljite joj video snimljen po
+   scenariju `uputstva/video-prvi-koraci.md`; vi vidite isti spisak i znate gdje je stala.
+   **Ili podaci ateljea iz upitnika:** vlasnica popuni `upitnik-start/Upitnik-za-pocetak.html` (atelje, frižideri i
    zamrzivač, zaposleni, dobavljači, sastojci sa alergenima, stalni kupci, termometri) i pošalje fajl, a vi:
    ```powershell
    $env:DATABASE_URL="<adresa NOVE baze>"; npm run uvoz-start -- --fajl pilot-start-<firma>-<datum>.json

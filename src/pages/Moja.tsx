@@ -20,6 +20,13 @@ export function Moja() {
   const [brojPrijema, setBrojPrijema] = useState<number | null>(null);
   const [torteDanas, setTorteDanas] = useState<{ ukupno: number; zaIzradu: number } | null>(null);
 
+  // „Prvi koraci“ → „Obavještenja na ovom telefonu“: strana se otvori odmah na tom dijelu (učitava se sa zakašnjenjem).
+  useEffect(() => {
+    if (window.location.hash !== "#obavjestenja-telefon") return;
+    const t = setTimeout(() => document.getElementById("obavjestenja-telefon")?.scrollIntoView({ block: "start", behavior: "smooth" }), 400);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     if (korisnik?.lice_id) {
       api<Lice | null>("/lica/ja").then(setLice);
@@ -118,7 +125,10 @@ export function Moja() {
         )}
         <PromjenaLozinke />
         <DvaKoraka />
-        <PushObavjestenja />
+        {/* Sidro za „Prvi koraci“ → „Obavještenja na ovom telefonu“. */}
+        <div id="obavjestenja-telefon">
+          <PushObavjestenja />
+        </div>
       </div>
     </>
   );

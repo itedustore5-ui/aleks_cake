@@ -81,40 +81,6 @@ const granica = (g: Granica | null | undefined) => {
   return min !== null && max !== null ? `${min} do ${max} °C` : max !== null ? `najviše ${max} °C` : min !== null ? `najmanje ${min} °C` : "—";
 };
 
-// Predlog teksta za HACCP plan — konsultant ga prilagodi ateljeu (PLAN.md, dio 4). Granice se NE pišu ovdje:
-// dolaze iz pravila kontrole (P3), po Vodiču UBH.
-const PREDLOG: Record<string, { opasnost: string; korektivnaMjera: string; verifikacija: string }> = {
-  KKT1: {
-    opasnost: "Salmonela iz jaja; umnožavanje Listerije i drugih mikroorganizama ako mliječni sastojci stignu topliji od granice; kontaminacija kroz oštećenu ambalažu ili napukla jaja.",
-    korektivnaMjera: "Sastojak van granice se ne koristi — zadržava se (HOLD) do odluke odgovornog lica; dobavljač se obavještava; odluka i razlog se upisuju.",
-    verifikacija: "Odgovorno lice sedmično pregleda zapise prijema; termometar se provjerava mjesečno (ledena voda 0 °C) i kalibriše godišnje.",
-  },
-  KKT2: {
-    opasnost: "Umnožavanje mikroorganizama (Listeria, stafilokok) u kremovima, šlagu i mliječnim filovima kad je temperatura frižidera ili vitrine iznad granice.",
-    korektivnaMjera: "Proizvode premjestiti u ispravan frižider, pozvati servis, procijeniti koliko dugo su bili van granice i odlučiti o otpisu; upisati šta je urađeno.",
-    verifikacija: "Mjerenja dva puta dnevno; odgovorno lice sedmično pregleda zapise i provjerava da nema propuštenih dana.",
-  },
-  "KKT2-V": {
-    opasnost: "Umnožavanje mikroorganizama u tortama i kolačima sa kremom u vitrini — vrata se često otvaraju, a roba stoji cio dan.",
-    korektivnaMjera: "Torte premjestiti u frižider, provjeriti vrata i zaptivku, pozvati servis; procijeniti koliko su dugo bile van granice i odlučiti o otpisu; upisati šta je urađeno.",
-    verifikacija: "Mjerenja dva puta dnevno; odgovorno lice sedmično pregleda zapise.",
-  },
-  "KKT2-Z": {
-    opasnost: "Otapanje i ponovno zamrzavanje (smrznuto voće, biskvit, poluproizvodi) — umnožavanje mikroorganizama i gubitak kvaliteta.",
-    korektivnaMjera: "Robu premjestiti u ispravan zamrzivač; otopljeno se ne zamrzava ponovo — upotrijebiti odmah ili otpisati; pozvati servis; upisati šta je urađeno.",
-    verifikacija: "Mjerenja dva puta dnevno; odgovorno lice sedmično pregleda zapise.",
-  },
-  KKT3: {
-    opasnost: "Prekid hladnog lanca tokom dostave torte do kupca (sala, hotel).",
-    korektivnaMjera: "Torta van granice se ne predaje bez procjene odgovornog lica; otvara se neusaglašenost; prevoz (rashladna kutija, vrijeme) se mijenja prije sljedeće dostave.",
-    verifikacija: "Pregled temperatura pri predaji uz porudžbine; odgovorno lice provjerava da svaka dostava ima temperaturu.",
-  },
-};
-const PREDLOG_OPSTI = {
-  opasnost: "Umnožavanje mikroorganizama pri temperaturi van granice.",
-  korektivnaMjera: "Utvrditi uzrok, zaštititi proizvode (premjestiti ili zadržati), otvoriti neusaglašenost i upisati šta je urađeno.",
-  verifikacija: "Odgovorno lice sedmično pregleda zapise.",
-};
 
 const KARTICE = [
   { kod: "plan", naziv: "Plan monitoringa" },
@@ -194,7 +160,7 @@ function PlanMonitoringa({ mijenja, setGreska }: { mijenja: boolean; setGreska: 
       const r = await api<{ broj: number; granice: number }>("/plan-monitoringa/osnovni", { method: "POST", telo: {} });
       setPoruka(
         `Upisano ${r.broj} stavki plana.` +
-          (r.granice ? ` Predložene granice za ${r.granice} tačke (frižider i vitrina 0–4 °C, zamrzivač −25 do −18 °C, predaja torte 0–6 °C) — provjerite ih na kartici „Kontrolne tačke“.` : ""),
+          (r.granice ? ` Predložene granice za ${r.granice} tačke (frižider i vitrina 0–4 °C, zamrzivač −25 do −18 °C, predaja torte 0–6 °C) i tekst za HACCP plan — provjerite ih na kartici „Kontrolne tačke“.` : ""),
       );
       ucitaj();
     } catch (e) {
@@ -461,13 +427,17 @@ function TackaModal({ tacka, onClose, onSacuvano }: { tacka: Tacka | null; onClo
   const [max, setMax] = useState(tacka?.opstaGranica?.max_vrijednost != null ? String(Number(tacka.opstaGranica.max_vrijednost)) : "");
   const [greska, setGreska] = useState("");
 
-  const predlozi = () => {
-    const s = sifra.toUpperCase();
-    // Drugi frižider (KKT2-F2…) dobija tekst frižidera.
-    const p = PREDLOG[s] ?? (s.startsWith("KKT2") ? PREDLOG.KKT2 : PREDLOG_OPSTI);
-    setOpasnost(p.opasnost);
-    setKorektivnaMjera(p.korektivnaMjera);
-    setVerifikacija(p.verifikacija);
+  // Predlog teksta je na serveru (haccpPredlog) — isti koji upisuju osnovni plan i nov uređaj; drugi frižider
+  // (KKT2-F2…) dobija tekst frižidera. Granice se ovdje ne predlažu: dolaze iz pravila kontrole (P3).
+  const predlozi = async () => {
+    try {
+      const p = await api<{ opasnost: string; korektivnaMjera: string; verifikacija: string }>(`/kontrolne-tacke/predlog-teksta?sifra=${encodeURIComponent(sifra)}`);
+      setOpasnost(p.opasnost);
+      setKorektivnaMjera(p.korektivnaMjera);
+      setVerifikacija(p.verifikacija);
+    } catch (e) {
+      setGreska(e instanceof ApiGreska ? e.message : "Predlog nije učitan.");
+    }
   };
 
   const posalji = async () => {

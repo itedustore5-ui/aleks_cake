@@ -30,6 +30,7 @@ import { greskeRuter } from "./routes/greske.js";
 import { vanMrezeRuter } from "./routes/vanMreze.js";
 import { inspekcijaRuter } from "./routes/inspekcija.js";
 import { stanjeRuter } from "./routes/stanje.js";
+import { pocetakRuter } from "./routes/pocetak.js";
 import { porudzbineRuter } from "./routes/porudzbine.js";
 import { migracijeNaCekanju, primijeniMigracije } from "./migracije.js";
 import { opisGreske, pokreniCiscenjeGresaka, zapisiGresku } from "./services/greskeLogService.js";
@@ -137,6 +138,7 @@ app.use("/api", greskeRuter);
 app.use("/api", vanMrezeRuter);
 app.use("/api", inspekcijaRuter);
 app.use("/api", stanjeRuter);
+app.use("/api", pocetakRuter);
 app.use("/api", porudzbineRuter);
 
 app.use("/api", (_request: Request, response: Response, _next: NextFunction) => {
