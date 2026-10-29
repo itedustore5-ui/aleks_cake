@@ -331,7 +331,9 @@ provjerava server** (`requireUloga` po ruti) — meni samo sakriva.
 **Atelje (26.10.2026): tri uloge** — `izvodjac` (Konsultant), `bzr` (Vlasnica), `operater` (Zaposleni); `NAZIV_ULOGE` u
 `src/lib/auth.tsx`, grupe poruka u `porukeService`. Vlasnica otvara naloge samo zaposlenima; **konsultant u formi
 naloga (Ljudi) bira i „Vlasnica — odgovorno lice“** (27.10.2026 — ranije je forma nudila samo „Zaposleni“, pa posle
-`prvi-korisnik --firma … --konsultant …` vlasnica nije mogla dobiti nalog). Prvi nalog vlasnice upiše njeno ime i u
+`prvi-korisnik --firma … --konsultant …` vlasnica nije mogla dobiti nalog); **postojećem nalogu konsultant mijenja ulogu u
+Ljudi → Nalozi** (Zaposleni ↔ Vlasnica, 29.10.2026 — Aleks Cake: vlasnica otvorena kao „Zaposleni“ ne vidi „Prve korake“;
+`PATCH /nalozi/:id/uloga`, sesije tog naloga se brišu, #27). Prvi nalog vlasnice upiše njeno ime i u
 `firma.odgovorno_lice_ime`, ako je prazno (rješenje o imenovanju, HACCP plan). Redovi `uprava` i `vozac`
 ispod su distributerska istorija — tih uloga u kodu nema (vrijednosti ostaju u enumu baze).
 
@@ -439,7 +441,10 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `npm run test:ci` | `TEST_DATABASE_URL` (mora biti localhost) — API testovi pa ekrani (`--sve`) | GitHub Actions (`.github/workflows/testovi.yml`) na svaki push na `main` |
 | `npm run test:e2e` | demo baza iz `.env`, server koji već radi | samo kad treba provjeriti baš demo bazu |
 
-**Atelje (27.10.2026): 28 testova, 649 provjera na čistoj bazi; ekrani 6 scenarija, 52 provjere.** `stanje` — i slanje po
+**Atelje (29.10.2026): 29 testova, 661 provjera na čistoj bazi; ekrani 7 scenarija, 56 provjera.** `prvi_koraci` — spisak
+iz baze, uređaji bez šifara (šifra, granica sa verzijama, plan, tekst, „Nemamo ga“/„Vrati“), podaci ateljea (prazno = null, ime
+odgovornog lica ostaje), konsultant mijenja ulogu Zaposleni → Vlasnica; ekran `7_prvi_koraci` — spisak na Kontrolnom centru,
+zamrzivač dodat kroz prozor, podaci ateljea, sve na 375 px. `stanje` — i slanje po
 rasporedu (provjeru koju server radi svaki sat test pokreće u zasebnom procesu; test server ima `RASPORED_SLANJA=0`);
 `alati` — upitnik ateljea (uređaji → tačke, alergeni, serija, distributerski upitnik odbijen) i plan + granice uz `prvi-korisnik`. `atelje_prijem` — P4 (bez
 traga odbijeno, jaja bez serije odbijena, isti artikal bez serije dvaput, oznaka „bez serije · račun · datum“, pretraga po
@@ -1360,7 +1365,9 @@ izgled je gledan u pregledaču (375 px i računar). Prvo poslati sebi: Gmail na 
 direktor koristi (Outlook na računaru ne zna `@media` — tri kolone ostaju, to je u redu). Na besplatnom Renderu slanje ne radi.
 
 **Potvrda u dva koraka** — konsultant je uključuje na svakoj instanci klijenta (Moja strana), pa na Renderu postavi
-`OBAVEZNA_2FA=izvodjac` (i `bzr` kad odgovorno lice pristane). `dnevni-pregled` javlja ko je još bez nje.
+`OBAVEZNA_2FA=izvodjac` (i `bzr` kad odgovorno lice pristane). `dnevni-pregled` javlja ko je još bez nje. **Crvena traka
+„Uključite potvrdu u dva koraka“ na Kontrolnom centru je uklonjena 29.10.2026** (odluka vlasnice — smetala je vlasnici
+ateljea na prvoj strani); potvrda ostaje izbor na Mojoj strani, obavezna samo gdje je `OBAVEZNA_2FA`.
 
 ### Van koda
 

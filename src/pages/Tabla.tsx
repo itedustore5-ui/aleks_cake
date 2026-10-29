@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldAlert, AlertTriangle, Thermometer, PackageX, Clock3, BookOpen, ArrowDownToLine, Cake, PhoneCall, ClipboardList, DatabaseBackup, ClipboardCheck, Gauge, CalendarX } from "lucide-react";
+import { AlertTriangle, Thermometer, PackageX, Clock3, BookOpen, ArrowDownToLine, Cake, PhoneCall, ClipboardList, DatabaseBackup, ClipboardCheck, Gauge, CalendarX } from "lucide-react";
 import { api, ApiGreska, preuzmiFajl } from "../lib/api";
 import { lokalniDatum } from "../lib/vrijeme";
 import { PageHeader, Modal } from "../components/Zajednicko";
@@ -95,13 +95,8 @@ export function Tabla() {
   return (
     <>
       <PageHeader title="Kontrolni centar" description="Ovo nije forma za unos — ovo je pregled onoga što traži pažnju danas." />
-      {/* Nalog koji vidi sve podatke firme, a nema potvrdu u dva koraka (#81) — podsjetnik dok je ne uključi. */}
-      {korisnik && (korisnik.uloga === "izvodjac" || korisnik.uloga === "bzr") && korisnik.totp_ukljucen === false && (
-        <button type="button" className="upozorenje-traka" style={{ width: "100%", border: 0, cursor: "pointer", textAlign: "left" }} onClick={() => navigate("/moja#dva-koraka")}>
-          <ShieldAlert size={16} />
-          <span>Uključite potvrdu u dva koraka — vaš nalog vidi sve podatke firme, a sada ga štiti samo lozinka. Moja strana → „Potvrda u dva koraka“ (2 minuta).</span>
-        </button>
-      )}
+      {/* Podsjetnik „Uključite potvrdu u dva koraka“ je uklonjen (29.10.2026, odluka vlasnice — vlasnici ateljea smeta na
+          prvoj strani). Potvrda u dva koraka ostaje na Mojoj strani, za koga je hoće (#81); ko je nema, javlja dnevni-pregled. */}
       {/* Vlasnica sama podešava atelje (29.10.2026); konsultant vidi isto da je vodi. */}
       {mozeBekap && <PrviKoraci />}
       <ProvjeraZnanjaUlaz />

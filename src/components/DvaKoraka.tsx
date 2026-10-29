@@ -23,7 +23,7 @@ export function DvaKoraka({ poslije }: { poslije?: () => void }) {
   useEffect(() => {
     void ucitaj();
   }, []);
-  // Traka na Kontrolnom centru vodi na /moja#dva-koraka — panel se sam pokaže.
+  // Adresa /moja#dva-koraka otvara stranu baš na ovom panelu (ranije je tu vodila traka sa Kontrolnog centra).
   // Ponavlja se dok se Moja strana ne učita do kraja — liste iznad stižu kasnije i guraju panel naniže.
   useEffect(() => {
     if (!stanje?.dozvoljeno || window.location.hash !== "#dva-koraka") return;
