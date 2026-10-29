@@ -426,6 +426,7 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `alati/napravi-licencu.ts` | licencni ključ za ugovor (papirni trag, aplikacija ga ne provjerava) |
 | `npm run demo-lozinke` | nove lozinke tri demo naloga (konsultant, ana.b, marko.v), SAMO na demo bazi; upiše ih u `.env` (`DEMO_LOZINKA_*`) za `test:e2e` |
 | `npm run iskljuci-2fa -- --korisnik ime` | isključi 2FA nalogu bez telefona i rezervnih kodova (#81); prekida prijave, audit |
+| `npm run nova-lozinka -- --korisnik ime` | nova PRIVREMENA lozinka za postojeći nalog (29.10.2026 — konsultant koji zaboravi svoju nema drugi put: vlasnica ne smije dirati njegov nalog, #13). Ispiše je jednom, samo u terminalu; stara ne važi, prijave se prekidaju, audit `SIGURNOST`. Nepostojeće ime → spisak naloga u toj bazi. Vlasnici i zaposlenima — u aplikaciji (Ljudi → Nalozi → „Nova lozinka“) |
 | `npm run zakazi-bekap` | `npm run bekap` u Windows Task Scheduler — svaki dan 13:00 (`-Vrijeme`, `-Ukloni`); pokreće vlasnica |
 | `npm run demo:lokalno` | aplikacija na LOKALNOJ probnoj bazi sa demo podacima (http://localhost:5069, isti klaster kao `npm test`, baza `pilot_lokalno`) — za klik kroz ekrane bez žive baze |
 | `npm run bekap` (`alati/bekap.ts`) | `pg_dump` svake baze iz `klijenti.txt` (ili `DATABASE_URL`) u `bekap/<klijent>/`, samo šema `public`, **bez podataka sesija** (živi tokeni). Svaki fajl se odmah provjeri (`pg_restore --list`), stariji od 90 dana se brišu, ishod u `bekap/POSLJEDNJI-BEKAP.txt`, izlazni kod 1 ako ijedan klijent padne. `bekap/` je u `.gitignore`. Treba mu `pg_dump` ≥ verzije servera (traži najnoviji u `C:/Program Files/PostgreSQL`, ili `PG_DUMP=`). |
@@ -441,7 +442,8 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `npm run test:ci` | `TEST_DATABASE_URL` (mora biti localhost) — API testovi pa ekrani (`--sve`) | GitHub Actions (`.github/workflows/testovi.yml`) na svaki push na `main` |
 | `npm run test:e2e` | demo baza iz `.env`, server koji već radi | samo kad treba provjeriti baš demo bazu |
 
-**Atelje (29.10.2026): 29 testova, 661 provjera na čistoj bazi; ekrani 7 scenarija, 56 provjera.** `prvi_koraci` — spisak
+**Atelje (29.10.2026): 29 testova, 662 provjere na čistoj bazi; ekrani 7 scenarija, 56 provjera.** `alati` — i
+`nova-lozinka` (ispisana lozinka važi pri prijavi, stara ne, audit, nepostojeći nalog). `prvi_koraci` — spisak
 iz baze, uređaji bez šifara (šifra, granica sa verzijama, plan, tekst, „Nemamo ga“/„Vrati“), podaci ateljea (prazno = null, ime
 odgovornog lica ostaje), konsultant mijenja ulogu Zaposleni → Vlasnica; ekran `7_prvi_koraci` — spisak na Kontrolnom centru,
 zamrzivač dodat kroz prozor, podaci ateljea, sve na 375 px. `stanje` — i slanje po

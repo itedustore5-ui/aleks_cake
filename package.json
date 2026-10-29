@@ -24,6 +24,7 @@
     "bekap": "tsx alati/bekap.ts",
     "demo-lozinke": "tsx alati/demo-lozinke.ts",
     "iskljuci-2fa": "tsx alati/iskljuci-2fa.ts",
+    "nova-lozinka": "tsx alati/nova-lozinka.ts",
     "zakazi-bekap": "powershell -NoProfile -ExecutionPolicy Bypass -File alati/zakazi-bekap.ps1",
     "demo:lokalno": "node testovi/demo-lokalno.mjs"
   },

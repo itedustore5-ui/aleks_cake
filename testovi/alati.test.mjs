@@ -34,6 +34,18 @@ function alat(skripta, argumenti, env) {
 
 // Upitnik ateljea (27.10.2026): dva frižidera, zamrzivač sa svojom granicom, BEZ vitrine; sastojci sa alergenima
 // (šifre ih upitnik računa sam) i jaja sa obaveznom serijom.
+/** Da li se lozinka poklapa sa hešom — ista funkcija kao pri prijavi (server/lozinke.ts), u zasebnom procesu. */
+function lozinkaPoklapa(lozinka, hes) {
+  const skripta = `const m = await import("./server/lozinke.ts"); console.log("POKLAPA:" + (await m.provjeriLozinku(process.env.PROBA_LOZINKA, process.env.PROBA_HES)));`;
+  return new Promise((ok) => {
+    const p = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", skripta], { cwd: KORIJEN, env: { ...process.env, PROBA_LOZINKA: lozinka, PROBA_HES: hes } });
+    let izlaz = "";
+    p.stdout.on("data", (d) => (izlaz += d));
+    p.stderr.on("data", (d) => (izlaz += d));
+    p.on("close", () => ok(/POKLAPA:true/.test(izlaz)));
+  });
+}
+
 const UPITNIK = {
   format: "pilot-upitnik-start", vrsta: "atelje", verzija: 2, sacuvano: "2026-10-27T08:00:00.000Z",
   firma: { naziv: "Nova d.o.o.", pib: "02999888", adresa: "Obala 13. jula bb", grad: "Bar", registracija: "", odgovorno: { ime: "Jelena Nović", telefon: "067 555 111", email: "" } },
@@ -124,6 +136,22 @@ export async function pokreni({ provjeri }) {
         provjeri("…lozinke se ispišu jednom (dvije, po 14 znakova), šifra zaposlenog se ne ispisuje (#17)", (r.izlaz.match(/^\s+(odgovorno lice|konsultant)\s+\S+\s+\S{14}$/gm) ?? []).length === 2 && !/Šifra/.test(r.izlaz), r.izlaz.trim());
         const opet = await alat("alati/prvi-korisnik.ts", ["--konsultant", "drugi.konsultant"], { DATABASE_URL: nova });
         provjeri("…drugi konsultant u istoj bazi se odbija (jedan po bazi)", opet.kod === 1 && /već ima konsultantski nalog/.test(opet.izlaz), opet.izlaz.trim().slice(0, 160));
+
+        // ── nova-lozinka: konsultant je zaboravio lozinku (29.10.2026) ──
+        const prijeNl = (await k.query(`select id, lozinka_hash from korisnik where korisnicko_ime = 'konsultant.cg'`)).rows[0];
+        await k.query(`update korisnik set mora_promijeniti_lozinku = false where id = $1`, [prijeNl.id]);
+        const nl = await alat("alati/nova-lozinka.ts", ["--korisnik", "konsultant.cg"], { DATABASE_URL: nova });
+        const posleNl = (await k.query(`select lozinka_hash, mora_promijeniti_lozinku, lozinka_stanje from korisnik where id = $1`, [prijeNl.id])).rows[0];
+        const ispisana = nl.izlaz.match(/^\s+konsultant\.cg\s+(\S{14})$/m)?.[1];
+        const auditNl = (await k.query(`select count(*)::int as n from audit_log where entitet_id = $1 and nove_vrijednosti->>'izvor' = 'alati/nova-lozinka'`, [prijeNl.id])).rows[0].n;
+        const nema = await alat("alati/nova-lozinka.ts", ["--korisnik", "nema.takvog"], { DATABASE_URL: nova });
+        provjeri(
+          "nova-lozinka: konsultant dobija novu privremenu lozinku (ispisanu jednom, ona važi pri prijavi), stara ne važi, audit; nepostojeći nalog — kaže koji nalozi postoje, ništa ne mijenja",
+          nl.kod === 0 && !!ispisana && posleNl.lozinka_hash !== prijeNl.lozinka_hash && posleNl.mora_promijeniti_lozinku === true && posleNl.lozinka_stanje === "privremena" &&
+            (await lozinkaPoklapa(ispisana, posleNl.lozinka_hash)) && auditNl === 1 &&
+            nema.kod === 1 && /ne postoji/.test(nema.izlaz) && /konsultant\.cg \(konsultant\)/.test(nema.izlaz),
+          `${nl.kod} ispisana: ${!!ispisana} ${JSON.stringify({ ...posleNl, lozinka_hash: undefined })} audit ${auditNl} | ${nema.kod} ${nema.izlaz.trim().slice(0, 200)}`,
+        );
         const tacke = (await k.query(`select sifra from kontrolna_tacka`)).rows.map((x) => x.sifra).sort().join(",");
         provjeri(
           "Nova baza posle prvi-korisnik ima kontrolne tačke KKT 1–3, a za čuvanje svaki uređaj svoju (frižider, vitrina, zamrzivač)",
