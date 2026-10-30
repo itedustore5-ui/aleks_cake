@@ -9,7 +9,7 @@ import { logKreiranje, logIzmjenaReda, stanjeReda } from "./auditService.js";
 // Ranije je izvor bio slobodan tekst: greška u kucanju je prolazila, a veza je pokazivala u prazno.
 export const IZVORI_ZADATKA = ["neusaglasenost", "povlacenje", "rucno", "verifikacija_sistema"] as const;
 // „porudzbina“ — poslastičarnica, dopuna 39 (i CHECK tamo).
-export const IZVORI_OBAVJESTENJA = ["neusaglasenost", "povlacenje", "lot", "prijem", "zadatak", "poruka", "bekap_log", "mjerni_uredjaj", "verifikacija_sistema", "porudzbina"] as const;
+export const IZVORI_OBAVJESTENJA = ["neusaglasenost", "povlacenje", "lot", "prijem", "zadatak", "poruka", "bekap_log", "mjerni_uredjaj", "verifikacija_sistema", "porudzbina", "serija_vitrine"] as const;
 export type IzvorZadatka = (typeof IZVORI_ZADATKA)[number];
 export type IzvorObavjestenja = (typeof IZVORI_OBAVJESTENJA)[number];
 

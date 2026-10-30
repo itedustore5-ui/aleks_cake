@@ -6,8 +6,8 @@ export const naziv = "Ekrani: sve tri uloge, svaka strana na telefonu (375 px)";
 
 // Isto kao meni (STAVKE u src/components/Layout.tsx).
 const STRANE = {
-  marko: ["/moja", "/porudzbine", "/prijem", "/zalihe", "/haccp", "/neusaglasenosti", "/poruke"],
-  ana: ["/tabla", "/moja", "/porudzbine", "/prijem", "/zalihe", "/haccp", "/haccp-plan", "/neusaglasenosti", "/poruke", "/ljudi", "/sifarnici", "/sledljivost", "/prilozi", "/inspekcija", "/audit"],
+  marko: ["/moja", "/porudzbine", "/vitrina", "/prijem", "/zalihe", "/haccp", "/neusaglasenosti", "/poruke"],
+  ana: ["/tabla", "/moja", "/porudzbine", "/vitrina", "/prijem", "/zalihe", "/haccp", "/haccp-plan", "/neusaglasenosti", "/poruke", "/ljudi", "/sifarnici", "/sledljivost", "/prilozi", "/inspekcija", "/audit"],
 };
 STRANE.konsultant = [...STRANE.ana, "/izvjestaji", "/stanje", "/admin"];
 const IME = { marko: "Zaposleni", ana: "Vlasnica", konsultant: "Konsultant" };

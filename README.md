@@ -315,11 +315,33 @@ Lot pređe na HOLD (mjerenje van granice, povlačenje) → isporuke u pripremi s
 Istekao rok na zalihi → ne isporučuje se; kartica „Rok robe" na Kontrolnom centru;
   bzr dobija obavještenje jednom po lotu
 
+Vitrina (P6): Napravljeno (kolač, komada, rok, serije sastojaka) → „Prodat 1“ / „Upiši više“ / Otpis (razlog) po danu
+  → u vitrini = napravljeno − prodato − otpisano (računa se); posle roka se ne prodaje, samo otpis
+  → sastojak na HOLD (mjerenje, povlačenje) → „Skloni iz vitrine“ svima u ateljeu, prodaja odbijena
+
 Svaka kritična odluka piše u audit_log (imutabilan; dogadjaj se od faze 4 ne puni).
 ```
 
 Sledljivost unazad i unaprijed (`/sledljivost`) čita iz pogleda `v_sledljivost_naprijed` /
 `v_sledljivost_nazad` definisanih u `db/12_pogledi.sql`.
+
+### Vitrina — kolači iz vitrine (`/vitrina`, 30.10.2026)
+
+Kolači za prodaju iz vitrine nemaju kupca sa imenom, pa se prate po **seriji kolača i danu prodaje** (pravilo P6 u
+CLAUDE.md, dopuna 42). Jedan ekran za telefon, za zaposlenog i vlasnicu:
+
+- **„Napravljeno“** — kolač (isti kao ranije: rok i sastojci kao prošli put se predlože — prva serija po roku, čovjek
+  potvrđuje), koliko komada, rok, serije sastojaka dodirom (alergeni se odmah vide). Bez sastojaka se može sačuvati
+  (drugi dodir „Sačuvaj“), a kartica onda kaže „sastojci nisu upisani“ — dopisuju se u „Sastojci i upisi“.
+- **Kartice „U vitrini sada“** (prvo ono čiji rok prvi ističe): veliki broj „u vitrini X od Y“, **„Prodat 1“** jednim
+  dodirom tokom dana, **„Upiši više“** uveče, **„Otpis“** uz razlog (brzi izbor: istekao rok, oštećen, sastojak zadržan).
+  Pogrešan dodir: **„Poništi“** — svoj upis u 10 minuta; stariji ili tuđi poništava vlasnica uz razlog. Rok istekao ili
+  sastojak zadržan → crvena traka „Ne prodaje se — sklonite i upišite otpis“, nema „Prodat 1“.
+- **Istorija po danima** — napravljeno, prodato, otpis (zaposleni: juče i danas; vlasnica: danas, 7, 30 dana).
+- Kontrolni centar: kartica **„Vitrina: skloniti“** (istekao rok ili zadržan sastojak, a još je u vitrini) i
+  **„Vitrina danas — prodato“**; Moja strana zaposlenog: koliko je komada u vitrini i šta treba skloniti.
+- Sledljivost: serija sastojka → kolači iz vitrine → koliko je prodato kog dana; povlačenje vlasnici kaže koliko je
+  komada otišlo kupcima bez imena (obavještenje u radnji i na mrežama). Izvoz: „Kolači iz vitrine“ (i u ZIP-u paketa).
 
 ### Izmjena i uklanjanje
 
@@ -861,6 +883,8 @@ koji isporučuje demo lot bira onaj koji nije istekao (`nijeIstekao()`).
 | `inspekcija` | paket za period: prijem sa temperaturom i termometrom, mjerenje van granice i njegova neusaglašenost, zapis upisan dan kasnije („naknadno +1“) i ispravka (obje verzije), kontinuitet broji naknadne; period se provjerava na serveru (obrnut, duži od godine, budućnost); direktor ga izvlači; ZIP je ispravan (kontrolni zbir svakog fajla), bez audita, sa istim periodom |
 | `ekrani/6_inspekcija` | paket se sklopi na telefonu (12 odjeljaka, ne viri van ekrana), isključen odjeljak nestaje i brojevi idu redom, ZIP se preuzima, u štampi ostaje samo dokument |
 | `ekrani/3_bez_mreze` | vozač bez signala: aplikacija sačuvana na telefonu, D1 i predaja čekaju (i posle ponovnog otvaranja), signal → odu same, redom, sa oznakom |
+| `vitrina` | kolač po serijama sastojaka (istekao ili zadržan sastojak ne ide), isti ključ = isti kolač; „Prodat 1“, više, otpis uz razlog, nikad preko napravljenog; poništavanje (svoj u 10 min, stariji — vlasnica uz razlog, audit); sastojak se ne skida posle prodaje; ispravka komada sa „bilo → sada“; rok istekao → ne prodaje se, jučerašnja prodaja da; Kontrolni centar „skloniti“; istorija po danima (zaposleni od juče); povlačenje → „Skloni iz vitrine“, prodaja odbijena (osim „prije zadržavanja“), koliko je prodato kupcima bez imena; sledljivost lot → kolači po danu; izvoz po danu |
+| `ekrani/8_vitrina` | zaposleni na telefonu: „Napravljeno“ sa sastojkom dodirom (alergeni odmah), „Prodat 1“ (8 → 7, „Poništi“), otpis uz brzi razlog, „Sastojci i upisi“, istorija po danima — ništa ne viri van ekrana |
 | `talas5` | slika od 56 MP (mali fajl) odbijena prije obrade; izvoz bez Excel formula i sa vremenom po Podgorici; stari heš lozinke radi i pojača se; zdravlje javlja neprimijenjenu dopunu; dnevnik grešaka (pregledač, konsultant čita, 400 ne ide u dnevnik); potvrda u dva koraka — uključivanje, QR, rezervni kodovi, ponovljen kod ne važi, 5 pogrešnih = novi izazov, isključivanje, tajna nije u auditu ni bekapu, obavezna 2FA na drugom serveru |
 | `talas4` | bekap iz aplikacije se preuzima direktno, bez kopije u bazi (i stare kopije obrisane), bez heševa lozinki, sesija i ključeva, sa svim tabelama; podsjetnik za sedmični bekap; zdravlje javlja i bazu; neispravan JSON, identifikator, veza i šema → 400/409 sa porukom; bezbjednosna zaglavlja |
 | `talas3` | isporuka ne uzima rezervisanu robu, izmjena u okviru svoje rezervacije, otkaz (samo iz pripreme, uz razlog, ne vozač) oslobađa robu, ispravka kupca sa auditom; rok obavezan, serija jednom po prijemu, drugi rok iste serije → upozorenje; povlačenje cijele serije; otpremnica sa PIB-om i adresom isporuke; jedinstven PIB |

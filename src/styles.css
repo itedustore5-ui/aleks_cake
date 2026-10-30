@@ -739,3 +739,65 @@ label.potvrda-izvan input { width: auto; height: auto; margin: 0; }
 .podforma-polje { display: flex; flex-direction: column; gap: 5px; font-size: 10px; font-weight: 600; color: #6c7c88; }
 .podforma-polje input, .podforma-polje select, .podforma-polje textarea { border: 1px solid #dfe7ed; border-radius: 6px; padding: 8px 9px; font: inherit; font-size: 11px; color: #3d4d59; background: #fff; }
 .podforma .secondary-button { align-self: flex-start; }
+
+/* Vitrina (dopuna 42): kolači za prodaju iz vitrine — kartice sa velikim dugmićima za prst (telefon za vitrinom). */
+.vitrina-zbir { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; padding: 11px 14px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 11px; color: #586874; }
+.vitrina-zbir b { font-size: 16px; color: #1f3346; }
+.vitrina-zbir-naslov { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a98a2; }
+.vitrina-naslov { font-size: 14px; color: #1f3346; margin: 18px 0 10px; }
+.vitrina-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.vitrina-kartica { display: flex; flex-direction: column; gap: 9px; min-width: 0; padding: 14px; border: 1px solid #e3e9ee; border-left: 5px solid var(--green); border-radius: 12px; background: #fff; }
+.vitrina-kartica.rok-danas { border-left-color: var(--orange); }
+.vitrina-kartica.stop { border-left-color: var(--red); background: #fffafa; }
+.vitrina-kartica.rasprodato { border-left-color: #b8c2ca; background: #fafbfc; }
+.vitrina-vrh { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.vitrina-ime { font-size: 15px; font-weight: 700; color: #1f3346; overflow-wrap: anywhere; }
+.vitrina-meta { margin-top: 3px; font-size: 10px; color: #6c7c88; }
+.vitrina-broj { flex: 0 0 auto; text-align: right; line-height: 1.1; }
+.vitrina-broj strong { display: block; font-size: 26px; color: #1f3346; }
+.vitrina-broj span { font-size: 9px; color: var(--muted); }
+.vitrina-crveno { color: #b8434a; }
+.vitrina-narandzasto { color: #b26b0f; }
+.vitrina-stop { display: flex; gap: 6px; align-items: flex-start; padding: 9px 10px; border-radius: 8px; background: #fff0f0; color: #b8434a; font-size: 11px; font-weight: 600; line-height: 1.4; }
+.vitrina-stop svg { flex: 0 0 auto; margin-top: 1px; }
+.vitrina-oznake { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 10px; }
+.vitrina-dugmad { display: flex; gap: 6px; }
+.vitrina-dugmad button { flex: 1 1 0; min-width: 0; height: 50px; font-size: 12px; padding: 0 8px; }
+.vitrina-dugmad .vitrina-prodat { flex: 2 1 0; font-size: 14px; }
+.vitrina-dugmad .vitrina-otpis { color: #b8434a; }
+.vitrina-dugmad .vitrina-otpis.istaknuto { flex: 2 1 0; border-color: #f1c4c6; background: #fff0f0; }
+.vitrina-rasprodato { padding: 12px; border-radius: 8px; background: #f2f5f7; color: #6c7c88; font-size: 12px; font-weight: 700; text-align: center; }
+.vitrina-poruka { padding: 8px 10px; border-radius: 8px; background: #eaf7f1; color: #1b7a57; font-size: 11px; font-weight: 600; }
+.vitrina-dno { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.vitrina-dno .link-button { min-height: 32px; padding: 0; }
+.vitrina-sifra { margin-left: auto; font-size: 9px; }
+.vitrina-polje { display: flex; flex-direction: column; gap: 6px; min-width: 0; color: #6d7d88; font-size: 10px; font-weight: 600; }
+.vitrina-polje input { height: 35px; border: 1px solid #dfe7ed; border-radius: 6px; padding: 0 9px; color: #566974; font-size: 11px; background: #fff; }
+.broj-komada { display: grid; grid-template-columns: 46px minmax(0, 1fr) 46px; gap: 6px; }
+.broj-komada button { height: 42px; padding: 0; font-size: 20px; }
+.vitrina-polje .broj-komada input { height: 42px; text-align: center; font-size: 16px; font-weight: 700; color: #1f3346; }
+.razlozi-brzo { display: flex; flex-wrap: wrap; gap: 6px; }
+.razlozi-brzo .small-action { height: 34px; }
+.razlozi-brzo .small-action.izabrano { background: #315fda; color: #fff; }
+.vitrina-izabrani { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.vitrina-izabrani li { display: inline-flex; align-items: center; gap: 2px; padding: 3px 3px 3px 10px; border-radius: 999px; background: #edf3ff; color: #2c55b3; font-size: 10px; font-weight: 600; overflow-wrap: anywhere; }
+.vitrina-izabrani button { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 999px; background: transparent; color: inherit; }
+.vitrina-ponuda { max-height: 250px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #edf1f3; border-radius: 8px; background: #fff; }
+.vitrina-ponuda-red { display: flex; gap: 8px; align-items: flex-start; width: 100%; padding: 10px; border: 0; border-bottom: 1px solid #f1f4f6; background: transparent; color: #3d4d59; font: inherit; font-size: 11px; font-weight: 400; text-align: left; overflow-wrap: anywhere; }
+.vitrina-ponuda-red:hover { background: #f6f9ff; }
+.vitrina-ponuda-red svg { flex: 0 0 auto; margin-top: 1px; color: #315fdc; }
+.vitrina-ponuda-vise { padding: 10px; font-size: 10px; font-weight: 500; }
+.form-grid label.vitrina-potvrda { align-items: flex-start; padding: 10px; border: 1px solid #f1c4c6; border-radius: 8px; background: #fff7f7; color: #8e3a40; font-size: 11px; line-height: 1.4; }
+.primary-button.opasno { background: #c4474e; box-shadow: 0 4px 9px #c4474e25; }
+.primary-button.opasno:hover { background: #ad3c43; }
+.vitrina-brojevi { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
+.vitrina-brojevi div { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; border-radius: 8px; background: #f6f8fa; }
+.vitrina-brojevi strong { font-size: 18px; color: #1f3346; }
+.vitrina-brojevi span { font-size: 9px; color: var(--muted); }
+.vitrina-istorija { margin-top: 26px; }
+.vitrina-dan { padding: 12px 14px; margin-bottom: 10px; }
+.vitrina-dan h3 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; margin: 0 0 6px; font-size: 12px; color: #1f3346; }
+.vitrina-dan h3 > span:first-child::first-letter { text-transform: uppercase; }
+.vitrina-dan h3 .muted-text { font-size: 10px; font-weight: 500; }
+.vitrina-dan p { margin: 4px 0; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .vitrina-lista { grid-template-columns: minmax(0, 1fr); } .vitrina-brojevi strong { font-size: 16px; } .vitrina-polje input { height: 42px; font-size: 12px; } }

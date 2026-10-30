@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "react-router-dom";
-import { Search, Package, PackageCheck, Warehouse, Printer, AlertTriangle, Cake } from "lucide-react";
+import { Search, Package, PackageCheck, Warehouse, Printer, AlertTriangle, Cake, CakeSlice } from "lucide-react";
 import { api, ApiGreska } from "../lib/api";
 import { PageHeader, Modal, ZakonskaOznaka } from "../components/Zajednicko";
 import { StatusBadge } from "../components/StatusBadge";
@@ -22,6 +22,8 @@ type Kontakt = { id: string; kupac_naziv: string; kupac_telefon: string; kolicin
 /** Torta u kojoj je bila serija (poslastičarnica, dopuna 39). */
 type TortaSerije = { lot_id: string; porudzbina_id: string; porudzbina_broj: string; kupac_ime: string; kupac_telefon: string; dan: string; status: string; opis: string };
 type TortaPretraga = { id: string; broj: string; kupac_ime: string; kupac_telefon: string; status: string; opis: string; dan: string };
+/** Kolači iz vitrine u kojima je bila serija (dopuna 42) — kupci bez imena, pa koliko je prodato kog dana. */
+type KolacSerije = { id: string; broj: string; naziv: string; datum: string; komada: number; prodato: number; otpisano: number; ostalo: number; prodato_po_danima: string | null };
 type PovlacenjeDetalj = PovlacenjeRed & { razlog: string; kontakti: Kontakt[] };
 
 export function Sledljivost() {
@@ -44,6 +46,7 @@ export function Sledljivost() {
   // Torte po seriji lota (lot → torte → kupci) i torte nađene po kupcu, telefonu ili broju porudžbine.
   const [torteLota, setTorteLota] = useState<Record<string, TortaSerije[]>>({});
   const [torte, setTorte] = useState<TortaPretraga[]>([]);
+  const [vitrinaLota, setVitrinaLota] = useState<Record<string, KolacSerije[]>>({});
 
   const pretrazi = async (e: FormEvent) => {
     e.preventDefault();
@@ -54,8 +57,12 @@ export function Sledljivost() {
     setTorte(t);
     setPretrazeno(true);
     const lotovi = Array.from(new Set(r.map((x) => x.lot_id))).slice(0, 20);
-    const po = await Promise.all(lotovi.map((id) => api<TortaSerije[]>(`/sledljivost/lot/${id}/porudzbine`).catch(() => [] as TortaSerije[])));
+    const [po, vit] = await Promise.all([
+      Promise.all(lotovi.map((id) => api<TortaSerije[]>(`/sledljivost/lot/${id}/porudzbine`).catch(() => [] as TortaSerije[]))),
+      Promise.all(lotovi.map((id) => api<KolacSerije[]>(`/sledljivost/lot/${id}/vitrina`).catch(() => [] as KolacSerije[]))),
+    ]);
     setTorteLota(Object.fromEntries(lotovi.map((id, i) => [id, po[i]])));
+    setVitrinaLota(Object.fromEntries(lotovi.map((id, i) => [id, vit[i]])));
   };
 
   const otvoriPovlacenje = async (id: string) => {
@@ -135,6 +142,8 @@ export function Sledljivost() {
               <ChainNode ikonica={<Package size={14} />} oznaka="Lot" naziv={r.broj_lota} highlight />
               <div className="chain-line">→</div>
               <ChainNode ikonica={<Cake size={14} />} oznaka="Torte" naziv={String(torteLota[r.lot_id]?.length ?? 0)} podnaziv="kupci ispod" />
+              <div className="chain-line">→</div>
+              <ChainNode ikonica={<CakeSlice size={14} />} oznaka="Vitrina" naziv={String(vitrinaLota[r.lot_id]?.length ?? 0)} podnaziv="kolači ispod" />
             </div>
             {(torteLota[r.lot_id]?.length ?? 0) > 0 && (
               <div style={{ marginTop: 12 }}>
@@ -147,6 +156,22 @@ export function Sledljivost() {
                         <span className="muted-text"> · {t.dan.split("-").reverse().join(".")}. · {t.opis}</span>
                       </div>
                       <StatusBadge status={t.status} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {(vitrinaLota[r.lot_id]?.length ?? 0) > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <strong style={{ fontSize: 11 }}><CakeSlice size={13} style={{ verticalAlign: "-2px" }} /> Kolači iz vitrine sa ovom serijom — kupci su bez imena, zato po danu prodaje</strong>
+                <ul className="sastojci-lista">
+                  {vitrinaLota[r.lot_id].map((k) => (
+                    <li key={k.id}>
+                      <div>
+                        <strong>{k.naziv}</strong> · {k.broj} · napravljeno {k.datum.split("-").reverse().join(".")}. · {k.komada} kom.
+                        <span className="muted-text"> · prodato {k.prodato}{k.prodato_po_danima ? ` (${k.prodato_po_danima})` : ""} · otpis {k.otpisano}</span>
+                        {k.ostalo > 0 && <div className="sastojak-alergeni"><span className="alergeni-nisu">u vitrini još {k.ostalo} kom. — ako je serija sporna, skloniti i otpisati</span></div>}
+                      </div>
                     </li>
                   ))}
                 </ul>

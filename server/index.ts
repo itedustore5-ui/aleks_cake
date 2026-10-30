@@ -32,6 +32,7 @@ import { inspekcijaRuter } from "./routes/inspekcija.js";
 import { stanjeRuter } from "./routes/stanje.js";
 import { pocetakRuter } from "./routes/pocetak.js";
 import { porudzbineRuter } from "./routes/porudzbine.js";
+import { vitrinaRuter } from "./routes/vitrina.js";
 import { migracijeNaCekanju, primijeniMigracije } from "./migracije.js";
 import { opisGreske, pokreniCiscenjeGresaka, zapisiGresku } from "./services/greskeLogService.js";
 import { pokreniSlanjePush } from "./services/pushService.js";
@@ -140,6 +141,7 @@ app.use("/api", inspekcijaRuter);
 app.use("/api", stanjeRuter);
 app.use("/api", pocetakRuter);
 app.use("/api", porudzbineRuter);
+app.use("/api", vitrinaRuter);
 
 app.use("/api", (_request: Request, response: Response, _next: NextFunction) => {
   response.status(404).json({ error: { code: "RUTA_NE_POSTOJI", message: "Traženi API resurs ne postoji." } });

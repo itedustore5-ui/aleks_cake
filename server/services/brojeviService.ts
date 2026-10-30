@@ -2,7 +2,7 @@ import type { PoolClient } from "pg";
 import { danasCG } from "../vrijeme.js";
 
 // Tabela → kolona sa brojem. Ime ide direktno u SQL, zato samo sa ovog spiska.
-const KOLONA = { neusaglasenost: "broj", povlacenje: "broj", lice: "sifra", porudzbina: "broj" } as const;
+const KOLONA = { neusaglasenost: "broj", povlacenje: "broj", lice: "sifra", porudzbina: "broj", serija_vitrine: "broj" } as const;
 type Tabela = keyof typeof KOLONA;
 
 /** YYMMDD po podgoričkom vremenu — dio broja dokumenta (NC-260924-001). */

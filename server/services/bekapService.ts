@@ -20,6 +20,7 @@ const TABELE = [
   "prijem_dokument", "artikal_dobavljaca",
   "plan_monitoringa", "mjerni_uredjaj", "provjera_uredjaja", "verifikacija_sistema",
   "porudzbina", "porudzbina_lot",
+  "serija_vitrine", "serija_vitrine_lot", "serija_vitrine_promet",
   "izvjestaj_poslat",
 ] as const;
 // Kolone koje ne idu u bekap: heš lozinke (tajna) i sam fajl otpremnice (velik — on je u pg_dump bekapu).

@@ -23,6 +23,7 @@ import {
   FolderCheck,
   TrendingUp,
   Cake,
+  CakeSlice,
 } from "lucide-react";
 import { useAuth, NAZIV_ULOGE, type Uloga } from "../lib/auth";
 import { api } from "../lib/api";
@@ -37,6 +38,7 @@ const STAVKE: StavkaMenija[] = [
   { putanja: "/tabla", naziv: "Kontrolni centar", ikonica: <LayoutDashboard size={18} />, uloge: ["bzr", "izvodjac"] },
   { putanja: "/moja", naziv: "Moja strana", ikonica: <Smartphone size={18} />, uloge: ["bzr", "izvodjac", "operater"] },
   { putanja: "/porudzbine", naziv: "Porudžbine", ikonica: <Cake size={18} />, uloge: ["operater", "bzr", "izvodjac"] },
+  { putanja: "/vitrina", naziv: "Vitrina", ikonica: <CakeSlice size={18} />, uloge: ["operater", "bzr", "izvodjac"] },
   { putanja: "/prijem", naziv: "Prijem robe", ikonica: <ArrowDownToLine size={18} />, uloge: ["operater", "bzr", "izvodjac"] },
   { putanja: "/zalihe", naziv: "Zalihe", ikonica: <Boxes size={18} />, uloge: ["operater", "bzr", "izvodjac"] },
   { putanja: "/haccp", naziv: "HACCP / DHP", ikonica: <Gauge size={18} />, uloge: ["operater", "bzr", "izvodjac"] },

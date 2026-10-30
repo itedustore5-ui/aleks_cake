@@ -3,7 +3,7 @@ import { ApiGreska } from "../greske.js";
 import { logKreiranje, logPromjenaStatusa } from "./auditService.js";
 import { kreirajZadatak, obavijestiUlogu, zatvoriZadatkeIzvora } from "./zadaciService.js";
 import { sljedeciBroj, sljedeciBrojNc, danasKratko } from "./brojeviService.js";
-import { javiPorudzbineSaLotom } from "./lotBlokadaService.js";
+import { javiPorudzbineSaLotom, javiVitrinuSaLotom } from "./lotBlokadaService.js";
 import { SERIJA_LOTA } from "./sqlDijelovi.js";
 
 /** Povlačenje počinje telefonom (čl. 28) — kontakti se snimaju iz stvarno predatih torti, ne unose se
@@ -58,9 +58,20 @@ export async function pokreniPovlacenje(lotId: string, razlog: string, korisnikI
         [id, povlacenjeId, korisnikId, id === lotId ? "HOLD zbog povlačenja" : "HOLD zbog povlačenja serije (isti lot iz drugog prijema)"],
       );
       if (status !== "HOLD") await logPromjenaStatusa(klijent, { korisnikId, entitetTip: "lot", entitetId: id, stareVrijednosti: { status }, noveVrijednosti: { status: "HOLD", povlacenje: broj } });
-      // Torte u izradi sa ovim lotom ne smiju kupcu — ko ih je upisao i vlasnica saznaju odmah.
+      // Torte u izradi sa ovim lotom ne smiju kupcu — ko ih je upisao i vlasnica saznaju odmah; kolači iz vitrine se sklanjaju.
       await javiPorudzbineSaLotom(klijent, id, `Pokrenuto povlačenje ${broj}: ${razlog}`, korisnikId);
+      await javiVitrinuSaLotom(klijent, id, `Pokrenuto povlačenje ${broj}: ${razlog}`, korisnikId);
     }
+
+    // Kolači iz vitrine se prodaju kupcima bez imena (dopuna 42) — njih nema koga zvati, pa vlasnica mora znati koliko je
+    // otišlo, da obavještenje stavi u radnju i na mreže.
+    const vitrinaProdato = (
+      await klijent.query<{ n: number }>(
+        `select coalesce(sum(p.prodato), 0)::int as n from serija_vitrine_promet p
+         where p.serija_id in (select sl.serija_id from serija_vitrine_lot sl where sl.lot_id = any($1))`,
+        [serija],
+      )
+    ).rows[0].n;
 
     const brojNc = await sljedeciBrojNc(klijent);
     const nc = await klijent.query<{ id: string }>(
@@ -77,7 +88,7 @@ export async function pokreniPovlacenje(lotId: string, razlog: string, korisnikI
     });
     await obavijestiUlogu(klijent, "bzr", {
       naslov: "Pokrenuto povlačenje",
-      poruka: `${broj} — ${brojKontakata} kupaca treba obavijestiti.`,
+      poruka: `${broj} — ${brojKontakata} kupaca treba obavijestiti.${vitrinaProdato > 0 ? ` Iz vitrine je prodato ${vitrinaProdato} kom. kupcima bez imena — stavite obavještenje u radnji i na mrežama.` : ""}`,
       ozbiljnost: "VISOK",
       izvorTip: "povlacenje",
       izvorId: povlacenjeId,
@@ -85,7 +96,7 @@ export async function pokreniPovlacenje(lotId: string, razlog: string, korisnikI
 
     await logKreiranje(klijent, { korisnikId, entitetTip: "povlacenje", entitetId: povlacenjeId, noveVrijednosti: { broj, lotId, razlog, lotovaUSeriji: serija.length } });
 
-    return { id: povlacenjeId, broj, brojKontakata, lotovaUSeriji: serija.length, neusaglasenostId: nc.rows[0].id };
+    return { id: povlacenjeId, broj, brojKontakata, lotovaUSeriji: serija.length, vitrinaProdato, neusaglasenostId: nc.rows[0].id };
   });
 }
 

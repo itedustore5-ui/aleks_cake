@@ -24,12 +24,27 @@ async function haccpRokovi() {
 }
 const HITNO = ["ISTEKLA", "NEISPRAVAN", "KASNI", "NIJE_RADJENO"];
 
+/** Kolači iz vitrine (dopuna 42) koje treba skloniti: još ih ima u vitrini, a rok je istekao ili je sastojak zadržan.
+ * Isti uslov za broj na kartici i za listu iza njega ($1 = danas). */
+const SQL_VITRINA_SKLONITI = `
+  select s.broj, s.naziv, to_char(s.datum, 'DD.MM.YYYY.') as napravljeno, to_char(s.rok, 'DD.MM.YYYY.') as rok, x.ostalo::text as ostalo,
+         case when x.zadrzani is not null then 'zadržan sastojak: ' || x.zadrzani else 'istekao rok' end as razlog
+  from serija_vitrine s
+  cross join lateral (
+    select s.komada - coalesce((select sum(p.prodato + p.otpisano) from serija_vitrine_promet p where p.serija_id = s.id), 0) as ostalo,
+           (select string_agg(a.naziv || ' (lot ' || l.broj_lota || ')', ', ' order by a.naziv) from serija_vitrine_lot sl
+              join lot l on l.id = sl.lot_id join artikal a on a.id = l.artikal_id
+            where sl.serija_id = s.id and l.status in ('HOLD', 'ODBIJEN')) as zadrzani
+  ) x
+  where x.ostalo > 0 and (s.rok < $1::date or x.zadrzani is not null)
+  order by s.rok, s.naziv`;
+
 /** Brojevi na karticama. Dan po podgoričkom vremenu (invarijanta #11) — current_date u bazi je
  * UTC, pa bi između ponoći i 1–2h tabla pokazivala jučerašnje brojke. */
 export async function pregledTable() {
   const danas = danasCG();
   const [monitoring, rokovi, robaRok] = await Promise.all([stanjeDanas(), haccpRokovi(), brojPoRoku()]);
-  const [nc, temp, bezAlergena, lotovi, zadaci, zadaciOtvoreni, prijemi, porudzbine, knjizice, povlacenja, zapisi] = await Promise.all([
+  const [nc, temp, bezAlergena, lotovi, zadaci, zadaciOtvoreni, prijemi, porudzbine, knjizice, povlacenja, zapisi, vitrinaSkloniti, vitrina] = await Promise.all([
     upit(`select ozbiljnost, count(*)::int as broj from neusaglasenost where status not in ('ZATVORENA') group by ozbiljnost`),
     upit(`select count(*)::int as broj from mjerenje_temperature where rezultat = 'FAIL' and izmjereno_at > now() - interval '24 hours'`),
     // Torte za danas i sutra kojima alergeni još nisu potvrđeni (P1) — da se ne otkrije tek na vratima.
@@ -43,6 +58,13 @@ export async function pregledTable() {
     upit(`select count(*)::int as broj from v_lica where knjizica_status in ('ISTEKLA', 'USKORO')`),
     upit(`select count(*)::int as broj from povlacenje where status = 'U_TOKU'`),
     upit(`select count(*)::int as broj from zapis where datum = $1`, [danas]),
+    upit(`select count(*)::int as broj from (${SQL_VITRINA_SKLONITI}) v`, [danas]),
+    upit<{ napravljeno: number; prodato: number; otpisano: number }>(
+      `select coalesce((select sum(komada) from serija_vitrine where datum = $1::date), 0)::int as napravljeno,
+              coalesce((select sum(prodato) from serija_vitrine_promet where datum = $1::date), 0)::int as prodato,
+              coalesce((select sum(otpisano) from serija_vitrine_promet where datum = $1::date), 0)::int as otpisano`,
+      [danas],
+    ),
   ]);
 
   return {
@@ -63,11 +85,14 @@ export async function pregledTable() {
       // Rok sastojka na zalihi (R-02): istekao ne ide u tortu, uskoro = narednih 7 dana.
       robaIstekao: robaRok.istekao,
       robaUskoro: robaRok.uskoro,
+      // Vitrina (dopuna 42): kolač sa isteklim rokom ili zadržanim sastojkom koji je još u vitrini.
+      vitrinaSkloniti: vitrinaSkloniti.rows[0]?.broj ?? 0,
     },
     operativno: {
       prijemiDanas: prijemi.rows[0]?.broj ?? 0,
       porudzbineDanas: porudzbine.rows[0]?.broj ?? 0,
       zapisiDanas: zapisi.rows[0]?.broj ?? 0,
+      vitrinaDanas: vitrina.rows[0],
     },
   };
 }
@@ -98,6 +123,15 @@ select * from (
   select p.otkazano_at, 'porudzbina', (select ime from ime where id = p.otkazao_korisnik_id),
          'Porudžbina otkazana — ' || p.broj || ' · ' || p.kupac_ime || ': ' || coalesce(p.razlog_otkaza, ''), 'upozorenje', '/porudzbine'
     from porudzbina p where p.otkazano_at > now() - $1::interval
+  union all
+  -- Vitrina: šta je napravljeno i šta je otpisano (prodaja ide „Prodat 1“ po komadu — u aktivnost bi zatrpala sve ostalo).
+  select s.created_at, 'vitrina', (select ime from ime where id = s.uneo_korisnik_id),
+         'U vitrini: ' || s.naziv || ' — ' || s.komada || ' kom. (' || s.broj || ')', 'info', '/vitrina'
+    from serija_vitrine s where s.created_at > now() - $1::interval
+  union all
+  select p.created_at, 'vitrina', (select ime from ime where id = p.uneo_korisnik_id),
+         'Otpis iz vitrine — ' || s.naziv || ' ' || p.otpisano || ' kom.: ' || coalesce(p.razlog_otpisa, ''), 'upozorenje', '/vitrina'
+    from serija_vitrine_promet p join serija_vitrine s on s.id = p.serija_id where p.otpisano > 0 and p.created_at > now() - $1::interval
   union all
   select nc.created_at, 'neusaglasenost', (select ime from ime where id = nc.prijavio_korisnik_id), 'Neusaglašenost ' || nc.broj || ' — ' || nc.opis,
          case when nc.ozbiljnost::text = 'VISOK' then 'problem' else 'upozorenje' end, '/neusaglasenosti'
@@ -211,6 +245,16 @@ const DETALJ: Record<string, { naslov: string; kolone: Kolona[]; sql: string; sa
                  ${IME("p.predao_korisnik_id")} as predao, ${VRIJEME("p.predato_at")} as predato
           from porudzbina p where (p.preuzimanje_at at time zone 'Europe/Podgorica')::date = $1 and p.status <> 'OTKAZANA'
           order by p.preuzimanje_at`,
+  },
+  vitrina: {
+    naslov: "Vitrina — kolači koje treba skloniti (istekao rok ili zadržan sastojak)",
+    prazno: "U vitrini nema kolača koje treba skloniti.",
+    saDanom: true,
+    kolone: [
+      { kljuc: "broj", naziv: "Broj" }, { kljuc: "naziv", naziv: "Kolač" }, { kljuc: "napravljeno", naziv: "Napravljeno" }, { kljuc: "rok", naziv: "Rok" },
+      { kljuc: "ostalo", naziv: "U vitrini" }, { kljuc: "razlog", naziv: "Zašto" },
+    ],
+    sql: SQL_VITRINA_SKLONITI,
   },
   "rok-robe": {
     naslov: "Rok trajanja sastojaka na zalihi — istekao ili ističe za 7 dana",

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { KeyRound, BookOpen, CheckCircle2, ArrowDownToLine, Cake, ChevronRight, AlertTriangle } from "lucide-react";
+import { KeyRound, BookOpen, CheckCircle2, ArrowDownToLine, Cake, CakeSlice, ChevronRight, AlertTriangle } from "lucide-react";
 import { api, ApiGreska } from "../lib/api";
 import { PageHeader } from "../components/Zajednicko";
 import { StatusBadge } from "../components/StatusBadge";
@@ -19,6 +19,7 @@ export function Moja() {
   const [lice, setLice] = useState<Lice | null>(null);
   const [brojPrijema, setBrojPrijema] = useState<number | null>(null);
   const [torteDanas, setTorteDanas] = useState<{ ukupno: number; zaIzradu: number } | null>(null);
+  const [vitrina, setVitrina] = useState<{ vrsta: number; komada: number; skloniti: number } | null>(null);
 
   // „Prvi koraci“ → „Obavještenja na ovom telefonu“: strana se otvori odmah na tom dijelu (učitava se sa zakašnjenjem).
   useEffect(() => {
@@ -37,6 +38,11 @@ export function Moja() {
       api<{ dan: string; status: string }[]>("/porudzbine").then((r) => {
         const danas = r.filter((p) => p.dan === lokalniDatum() && p.status !== "OTKAZANA");
         setTorteDanas({ ukupno: danas.length, zaIzradu: danas.filter((p) => p.status === "PRIMLJENA" || p.status === "U_IZRADI").length });
+      }).catch(() => undefined);
+      // Vitrina (dopuna 42): koliko je kolača sada u vitrini i koliko treba skloniti (istekao rok, zadržan sastojak).
+      api<{ serije: { ostalo: number; istekao: boolean; zadrzani: string[]; rasprodato: boolean }[] }>("/vitrina").then((r) => {
+        const u = r.serije.filter((s) => !s.rasprodato);
+        setVitrina({ vrsta: u.length, komada: u.reduce((z, s) => z + s.ostalo, 0), skloniti: u.filter((s) => s.istekao || s.zadrzani.length > 0).length });
       }).catch(() => undefined);
     }
   }, [korisnik?.lice_id, korisnik?.uloga]);
@@ -74,6 +80,14 @@ export function Moja() {
                 <span>Torte danas</span>
                 <strong>{torteDanas ? torteDanas.ukupno : "…"}</strong>
                 <small>{torteDanas && torteDanas.zaIzradu > 0 ? `još za predaju: ${torteDanas.zaIzradu}` : "Otvori porudžbine"}</small>
+              </div>
+            </button>
+            <button className="stat-card" style={{ textAlign: "left" }} onClick={() => navigate("/vitrina")}>
+              <div className="stat-icon violet"><CakeSlice size={18} /></div>
+              <div className="stat-copy">
+                <span>Vitrina (komada)</span>
+                <strong>{vitrina ? vitrina.komada : "…"}</strong>
+                <small>{vitrina && vitrina.skloniti > 0 ? `skloniti: ${vitrina.skloniti} — istekao rok ili zadržan sastojak` : vitrina && vitrina.vrsta > 0 ? `${vitrina.vrsta} vrsta kolača — prodato, otpis` : "Napravljeno, prodato, otpis"}</small>
               </div>
             </button>
             <button className="stat-card" style={{ textAlign: "left" }} onClick={() => navigate("/prijem")}>

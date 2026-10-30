@@ -3,7 +3,7 @@ import { ApiGreska } from "../greske.js";
 import { logKreiranje, logPromjenaStatusa } from "./auditService.js";
 import { kreirajZadatak, obavijestiUlogu } from "./zadaciService.js";
 import { sljedeciBrojNc } from "./brojeviService.js";
-import { javiPorudzbineSaLotom } from "./lotBlokadaService.js";
+import { javiPorudzbineSaLotom, javiVitrinuSaLotom } from "./lotBlokadaService.js";
 import { skladisteUnosa } from "./skladisteService.js";
 import { vrijemeVanMreze } from "../vanMreze.js";
 
@@ -176,6 +176,7 @@ export async function zabiljeziMjerenje(pravilo: Pick<PraviloKontrole, "min_vrij
           noveVrijednosti: { status: "HOLD", razlog: "temperatura_van_opsega" },
         });
         await javiPorudzbineSaLotom(klijent, ulaz.lotId, `Temperatura van granice (${ulaz.vrijednost} °C) — sastojak je zadržan`, ulaz.izmjerioKorisnikId);
+        await javiVitrinuSaLotom(klijent, ulaz.lotId, `Temperatura van granice (${ulaz.vrijednost} °C) — sastojak je zadržan`, ulaz.izmjerioKorisnikId);
       }
     }
 

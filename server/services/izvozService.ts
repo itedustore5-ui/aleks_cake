@@ -10,6 +10,8 @@ export const IZVORI_IZVOZA = [
   // Poslastičarnica (dopuna 39): torta → kupac sa telefonom, potvrđeni alergeni, serije sastojaka, predaja.
   // (Isporuke i kontrole vozila distributera su skinute sa spiska — PLAN.md 8.3; pogledi ostaju u bazi.)
   { kod: "porudzbine", naziv: "Porudžbine torti", izvor: "v_izvoz_porudzbine" },
+  // Kolači iz vitrine (dopuna 42): serija → koliko napravljeno, prodato po danima, otpisano, sastojci po seriji, alergeni.
+  { kod: "vitrina", naziv: "Kolači iz vitrine", izvor: "v_izvoz_vitrina" },
   // Nalaz R-20: bez ovih izvora inspektor nije dobijao provjere mjera, termometre, verifikaciju
   // sistema ni dnevnik kretanja zaliha — sve je bilo u bazi, ali ne i u izvozu.
   { kod: "kretanja_zalihe", naziv: "Kretanja zaliha", izvor: "v_izvoz_kretanja_zalihe" },

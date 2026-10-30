@@ -37,6 +37,7 @@ const IZVOR: Record<string, { putanja: string; naziv: string }> = {
   neusaglasenost: { putanja: "/neusaglasenosti", naziv: "neusaglašenost" },
   povlacenje: { putanja: "/sledljivost", naziv: "povlačenje" },
   porudzbina: { putanja: "/porudzbine", naziv: "porudžbina" },
+  serija_vitrine: { putanja: "/vitrina", naziv: "vitrina" },
   prijem: { putanja: "/prijem", naziv: "prijem" },
   lot: { putanja: "/prijem", naziv: "prijem" },
   zadatak: { putanja: "/moja", naziv: "zadatak" },

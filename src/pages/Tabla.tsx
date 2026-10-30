@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Thermometer, PackageX, Clock3, BookOpen, ArrowDownToLine, Cake, PhoneCall, ClipboardList, DatabaseBackup, ClipboardCheck, Gauge, CalendarX } from "lucide-react";
+import { AlertTriangle, Thermometer, PackageX, Clock3, BookOpen, ArrowDownToLine, Cake, CakeSlice, PhoneCall, ClipboardList, DatabaseBackup, ClipboardCheck, Gauge, CalendarX } from "lucide-react";
 import { api, ApiGreska, preuzmiFajl } from "../lib/api";
 import { lokalniDatum } from "../lib/vrijeme";
 import { PageHeader, Modal } from "../components/Zajednicko";
@@ -32,8 +32,9 @@ type TablaPodaci = {
     haccpRokovi: number;
     robaIstekao: number;
     robaUskoro: number;
+    vitrinaSkloniti: number;
   };
-  operativno: { prijemiDanas: number; porudzbineDanas: number; zapisiDanas: number };
+  operativno: { prijemiDanas: number; porudzbineDanas: number; zapisiDanas: number; vitrinaDanas: { napravljeno: number; prodato: number; otpisano: number } };
 };
 
 /** Kontrolni centar vlasnice i konsultanta (direktorov pregled je uklonjen — PLAN.md 8.3). */
@@ -76,6 +77,8 @@ export function Tabla() {
     { naslov: "Temperature van opsega (24h)", vrijednost: k.temperatureVanOpsega, ikonica: <Thermometer size={18} />, putanja: "/haccp", detalj: "temperature", tona: k.temperatureVanOpsega > 0 ? "danger" : "warning" },
     // P1: torta za danas ili sutra kojoj alergeni još nisu potvrđeni — ne smije se otkriti tek na vratima.
     { naslov: "Torte (danas, sutra) bez potvrđenih alergena", vrijednost: k.porudzbineBezAlergena, ikonica: <Cake size={18} />, putanja: "/porudzbine", detalj: "porudzbine-alergeni", tona: k.porudzbineBezAlergena > 0 ? "danger" : "warning" },
+    // Vitrina (dopuna 42): kolač kome je istekao rok ili mu je sastojak zadržan, a još je u vitrini — skloniti i otpisati.
+    { naslov: "Vitrina: skloniti (istekao rok, zadržan sastojak)", vrijednost: k.vitrinaSkloniti, ikonica: <CakeSlice size={18} />, putanja: "/vitrina", detalj: "vitrina", tona: k.vitrinaSkloniti > 0 ? "danger" : "warning" },
     { naslov: "Lotovi na HOLD-u", vrijednost: k.lotoviNaHoldu, ikonica: <PackageX size={18} />, putanja: "/zalihe", stanje: { status: "HOLD" }, tona: k.lotoviNaHoldu > 0 ? "danger" : "warning" },
     // Rok sastojka (R-02): istekao ne ide u tortu, a stoji u zalihama dok ga neko ne otpiše.
     { naslov: `Rok sastojaka: isteklo ${k.robaIstekao} · ističe za 7 dana ${k.robaUskoro}`, vrijednost: k.robaIstekao + k.robaUskoro, ikonica: <CalendarX size={18} />, putanja: "/zalihe", stanje: { status: "PRIHVACEN", rok: k.robaIstekao > 0 ? "istekao" : "uskoro" }, detalj: "rok-robe", tona: k.robaIstekao > 0 ? "danger" : "warning" },
@@ -140,6 +143,16 @@ export function Tabla() {
           <div className="stat-copy">
             <span>Torte danas</span>
             <strong>{podaci.operativno.porudzbineDanas}</strong>
+          </div>
+        </button>
+        <button className="stat-card" onClick={() => otvori("/vitrina")} style={{ textAlign: "left" }}>
+          <div className="stat-icon violet">
+            <CakeSlice size={18} />
+          </div>
+          <div className="stat-copy">
+            <span>Vitrina danas — prodato</span>
+            <strong>{podaci.operativno.vitrinaDanas.prodato}</strong>
+            <small>napravljeno {podaci.operativno.vitrinaDanas.napravljeno} · otpis {podaci.operativno.vitrinaDanas.otpisano}</small>
           </div>
         </button>
         <button className="stat-card" onClick={() => otvori("/haccp", "zapisi")} style={{ textAlign: "left" }}>

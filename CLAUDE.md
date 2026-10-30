@@ -5,7 +5,7 @@ Ovdje je sve što se ne vidi iz koda: mapa aplikacije, zašto je nešto tako, š
 dirati, šta je poznato da ne valja, i na čemu se već izgubilo vrijeme.
 
 Ažurira se pri svakoj većoj izmjeni. Ako nešto naučiš na teži način — upiši ovdje.
-Posljednji pregled koda i usklađivanje ovog fajla: **29.10.2026.** („Prvi koraci“ — vlasnica sama podešava atelje uz video uputstvo, `uputstva/video-prvi-koraci.md`; frižider/vitrina/zamrzivač bez šifara; tekst i granice HACCP predloga na jednom mjestu, `haccpPredlog`; podaci firme se više ne brišu pri čuvanju; 27.10.2026 — predaja klijentu za atelje: upitnik ateljea i `uvoz-start` — uređaji kao kontrolne tačke, sastojci sa alergenima; osnovni plan i predložene granice odmah uz `prvi-korisnik` i „Predloži osnovni plan“; „Stanje poslovanja“ po rasporedu — dan, sedmica, mjesec, kvartal — kao dodatak, dopuna 41; P4 — prijem bez broja serije uz račun, dopuna 40; frižider, vitrina i zamrzivač kao posebne kontrolne tačke; skladište „Atelje“ na novoj bazi; stalni kupac u porudžbini; primjeri na ekranima za atelje; kontrolna lista za deploy u README; 26.10.2026 — atelje: uklonjeni vozila, isporuke, direktor i vozač iz koda; uloge Konsultant / Vlasnica / Zaposleni; demo `99_demo_atelje`; testovi prepravljeni za atelje — 622 + 49 provjera. Ispod je distributerska istorija: 11.10.2026 — jednostavan Kontrolni centar direktora, provjera znanja samo za one koji rukuju hranom; „Stanje poslovanja“ — izvještaj direktoru mejlom, Izvještaji samo kod konsultanta; upitnik za početak i `uvoz-start`, kontrolne tačke na svakoj bazi; 04.10. inspekcijski paket i „Riješeno je“ za neusaglašenost; 01.10. dorada posle probe vlasnice; talas 6 30.09.; ranije inspekcija i talas 5 29.09., revizija 25.09. i talasi 1–4) (Ranija verzija ovog fajla
+Posljednji pregled koda i usklađivanje ovog fajla: **30.10.2026.** (Vitrina — kolači iz vitrine po seriji sastojaka, „Prodat 1“, otpis, istorija po danima, „Skloni iz vitrine“, pravilo P6, dopuna 42; 29.10.2026 — „Prvi koraci“ — vlasnica sama podešava atelje uz video uputstvo, `uputstva/video-prvi-koraci.md`; frižider/vitrina/zamrzivač bez šifara; tekst i granice HACCP predloga na jednom mjestu, `haccpPredlog`; podaci firme se više ne brišu pri čuvanju; 27.10.2026 — predaja klijentu za atelje: upitnik ateljea i `uvoz-start` — uređaji kao kontrolne tačke, sastojci sa alergenima; osnovni plan i predložene granice odmah uz `prvi-korisnik` i „Predloži osnovni plan“; „Stanje poslovanja“ po rasporedu — dan, sedmica, mjesec, kvartal — kao dodatak, dopuna 41; P4 — prijem bez broja serije uz račun, dopuna 40; frižider, vitrina i zamrzivač kao posebne kontrolne tačke; skladište „Atelje“ na novoj bazi; stalni kupac u porudžbini; primjeri na ekranima za atelje; kontrolna lista za deploy u README; 26.10.2026 — atelje: uklonjeni vozila, isporuke, direktor i vozač iz koda; uloge Konsultant / Vlasnica / Zaposleni; demo `99_demo_atelje`; testovi prepravljeni za atelje — 622 + 49 provjera. Ispod je distributerska istorija: 11.10.2026 — jednostavan Kontrolni centar direktora, provjera znanja samo za one koji rukuju hranom; „Stanje poslovanja“ — izvještaj direktoru mejlom, Izvještaji samo kod konsultanta; upitnik za početak i `uvoz-start`, kontrolne tačke na svakoj bazi; 04.10. inspekcijski paket i „Riješeno je“ za neusaglašenost; 01.10. dorada posle probe vlasnice; talas 6 30.09.; ranije inspekcija i talas 5 29.09., revizija 25.09. i talasi 1–4) (Ranija verzija ovog fajla
 opisivala je staru aplikaciju — `zapisi.js`, `promet.html`, `veza.js` — koje u ovom kodu nema.)
 
 ---
@@ -82,8 +82,9 @@ smiju raditi u isto vrijeme.
 | Osnovni plan monitoringa i predložene granice odmah uz prvi nalog (`prvi-korisnik`) i uz „Predloži osnovni plan“ (tačkama bez opšteg pravila) | ✓ 27.10.2026 |
 | „Stanje poslovanja“ po rasporedu (dan, sedmica, mjesec, kvartal) — dodatak, samo konsultant (dopuna 41) | ✓ 27.10.2026 |
 | **„Prvi koraci“ — vlasnica sama podešava atelje** (bez upitnika i uvoza; konsultant joj šalje video, `uputstva/video-prvi-koraci.md`): spisak od 10 koraka na Kontrolnom centru, provjera iz baze; uređaji bez šifara; podaci ateljea u prozoru | ✓ 29.10.2026 |
+| **Vitrina — kolači iz vitrine** (kupci bez imena): „Napravljeno“ sa serijama sastojaka, „Prodat 1“ jednim dodirom, „Upiši više“, otpis uz razlog, istorija po danima; „Skloni iz vitrine“ kad je sastojak zadržan; sledljivost lot → kolači → prodato po danima; kartice na Kontrolnom centru i Mojoj strani; izvoz — dopuna 42, `/vitrina`, pravilo P6, test `vitrina`, ekran `8_vitrina` | ✓ 30.10.2026 |
 
-### Pravila poslastičarnice (P1–P5) — uz invarijante distributera ispod
+### Pravila poslastičarnice (P1–P6) — uz invarijante distributera ispod
 
 - **P1. Alergeni porudžbine se potvrđuju prije predaje** (`porudzbinaService.potvrdiAlergene`, `predajPorudzbinu`;
   CHECK `chk_porudzbina_predata` u bazi). Predlog = unija alergena artikala iz lotova torte. Alergen iz sastojka se
@@ -113,6 +114,20 @@ smiju raditi u isto vrijeme.
   NE važi #26 („samo svoje“). Teren vidi od juče naprijed (`ogranicenjeDatuma` po danu preuzimanja) i sve još otvorene.
   Predaja u trenutku predaje odbija zadržan sastojak (`SASTOJAK_ZADRZAN`, kao #48); povlačenje zove kupce PREDATIH
   torti serije (`povlacenje_kontakt.porudzbina_id`), a onima u izradi šalje „Ne predajte tortu“ (`javiPorudzbineSaLotom`).
+- **P6. Kolači iz vitrine se prate po SERIJI kolača i DANU prodaje** (30.10.2026, `vitrinaService`, dopuna 42) — kupci su
+  bez imena, pa sledljivost (čl. 27) ide do „koliko je prodato kog dana“. Serija (`serija_vitrine`, broj `VIT-…` iz
+  `sljedeciBroj`) se veže za serije sastojaka kao torta (P2 — samo PRIHVAĆEN lot sa rokom važećim na DAN IZRADE); bez
+  sastojaka se prima (kartica kaže „sastojci nisu upisani“), zaboravljen se dopisuje dok je kolač u vitrini, a skida se samo
+  dok se kolač nije prodavao (`SASTOJAK_OSTAJE` — bolje sastojak viška nego povlačenje bez kolača). **U vitrini = napravljeno
+  − prodato − otpisano** — računa se, ne upisuje; red serije `for update`, zbir nikad preko napravljenog (`NEMA_U_VITRINI`).
+  Promet (`serija_vitrine_promet`) je jedan upis po dodiru („Prodat 1“) i ne mijenja se (#1); otpis traži razlog (CHECK u
+  bazi); posle roka se ne prodaje (`ROK_ISTEKAO`, otpis da); dan upisa u prozoru uloge (#9), ne prije dana izrade.
+  **Zadržan sastojak** (mjerenje van granice, povlačenje): prodaja se odbija (`SASTOJAK_ZADRZAN`), osim uz izričito
+  `prijeZadrzavanja` (prodato prije zadržavanja — audit), a SVI aktivni zaposleni i vlasnica (osim onog ko je pokrenuo)
+  dobijaju „Skloni iz vitrine“ (`javiVitrinuSaLotom`, uz `javiPorudzbineSaLotom`); povlačenje vlasnici kaže koliko je komada
+  otišlo kupcima bez imena (`vitrinaProdato` — obavještenje u radnji i na mrežama). **Poništavanje** pogrešnog upisa:
+  svoj u 10 minuta bez pitanja, inače samo vodstvo, uz razlog (≥ 5 znakova), u svom prozoru; red se briše, a audit pamti
+  šta je poništeno, ko i zašto. Vide svi u ateljeu (kao P5); istoriju zaposleni od juče (#6), vodstvo do godinu dana.
 
 ---
 
@@ -309,6 +324,7 @@ PostgreSQL   tabele + pogledi (v_*) · migracije db/NN_*.sql, stanje u schema_mi
 | Isporuka — KKT 3 | `/isporuka`; otpremnica za štampu `/isporuka/:id/otpremnica` (`OtpremnicaStampa.tsx`) | `isporuka.ts` | `isporukaService` (rezervacija, otkaz, `otpremnicaZaStampu`) + `lotBlokadaService` („Ne predajte lot“, manjak rezervacije), `kljucService` | `isporuka` (+ otkaz), `isporuka_stavka`, `kljuc_zahtjeva`, `v_zaliha_dostupna` (+ rezervisano, slobodno) |
 | Sledljivost, povlačenje | `/sledljivost` (+ torte serije i pretraga torti) | `sledljivost.ts`, `povlacenje.ts` | `sledljivostService`, `povlacenjeService` | `povlacenje`, `povlacenje_kontakt` (+ `porudzbina_id`), `v_sledljivost_*` |
 | **Porudžbine torti** (poslastičarnica, P1–P5) | `/porudzbine` — kartice „Za izradu / Danas / Sutra / Sve“, prozor: sastojci po seriji, alergeni, sastav za kupca, predaja, otkaz, reklamacija | `porudzbine.ts` (+ `/alergeni` u `sifarnici.ts`) | `porudzbinaService`, `lotBlokadaService.javiPorudzbineSaLotom`; spisak alergena `server/alergeni.ts` | `porudzbina`, `porudzbina_lot`, `artikal.alergeni`, `v_sledljivost_porudzbine`, `v_izvoz_porudzbine` |
+| **Vitrina — kolači iz vitrine** (P6, 30.10.2026) | `/vitrina` (`Vitrina.tsx`) — JEDAN ekran za telefon: „Napravljeno“ (naziv, komada, rok, sastojci dodirom; isti kolač kao ranije predloži rok i FEFO serije), kartice „U vitrini sada“ sa „Prodat 1“ / „Upiši više“ / „Otpis“ i „Poništi“, prozor „Sastojci i upisi“, istorija po danima; kartica na Mojoj strani zaposlenog; „Vitrina: skloniti“ i „Vitrina danas“ na Kontrolnom centru; kolači serije na `/sledljivost` | `vitrina.ts` (+ `/sledljivost/lot/:id/vitrina`; sastojci za izbor — `/porudzbine/sastojci`) | `vitrinaService`, `lotBlokadaService.javiVitrinuSaLotom`, `tablaService` (`SQL_VITRINA_SKLONITI`, aktivnost) | `serija_vitrine`, `serija_vitrine_lot`, `serija_vitrine_promet`, `v_izvoz_vitrina` |
 | Zadaci, obavještenja, poruke (šalju SVI — #67; na `/poruke` primljene i poslate zajedno, po vremenu — `/poruke/primljene`) | `/moja`, `/tabla`, `/poruke` | `zadaci.ts`, `poruke.ts` | `zadaciService`, `porukeService` | `zadatak`, `obavjestenje`, `poruka` |
 | Obavještenja na telefon (push) | `/moja` → „Obavještenja na telefon"; `public/sw.js`, `public/manifest.webmanifest` | `push.ts` | `pushService` | `push_pretplata`, `web_push_kljuc`, `obavjestenje.push_poslato_at` |
 | Kontrolni centar, aktivnost | `/tabla` (direktor: `DirektorPregled.tsx`, `/tabla/direktor` — #95) | `tabla.ts` | `tablaService` (+ `monitoringService`, `haccpPlanService` za kartice „Danas fali po planu", „HACCP rokovi"); direktor — `stanjeService.pregledDirektora` | čita sve (aktivnost = unija domenskih tabela) |
@@ -342,7 +358,7 @@ ispod su distributerska istorija — tih uloga u kodu nema (vrijednosti ostaju u
 | `izvodjac` | konsultantkinja | `/tabla` | 30 dana | sve što i `bzr` + Podešavanje, banka pitanja konsultanta; otvara sve naloge osim `izvodjac`; **Izvještaji (izvoz) i Stanje poslovanja** — samo on (#93) |
 | `bzr` | vlasnica (odgovorno lice) | `/tabla` | 7 | odluke o prijemu, odluka o zadržanom lotu (pusti / odbij), mjere i provjera neusaglašenosti, povlačenje, nalozi zaposlenih (`operater`), pitanja firme, HACCP plan (plan monitoringa, termometri, verifikacija), inspekcijski paket, poruke, porudžbine |
 | `uprava` | direktor | `/tabla` | — (samo gleda) | SVOJ Kontrolni centar (#95): semafor „šta traži vašu odluku“, četiri broja za 7 dana, zapisi po danu za 14 dana, povlačenje u toku, aktivnost uživo (sklopljena); inspekcijski paket, poruke, Moja strana. Bez zaliha, HACCP plana i sledljivosti u meniju, bez zadataka, unosa i provjere znanja (ako ne rukuje hranom — #94) |
-| `operater` | zaposleni (poslastičar, prodavačica) | `/moja` | 1 | porudžbine torti (sve u ateljeu — P5: sastojci, alergeni, predaja), prijem, zalihe i otpis, obrasci P3–P10 (i ispravka SVOG zapisa — #57), prijava problema, SVOJA korektivna mjera; „Danas po planu" i „Torte danas" na Mojoj strani; provjera termometra (API) |
+| `operater` | zaposleni (poslastičar, prodavačica) | `/moja` | 1 | porudžbine torti (sve u ateljeu — P5: sastojci, alergeni, predaja), vitrina (napravljeno, prodato, otpis — P6; svoj pogrešan dodir poništava u 10 min), prijem, zalihe i otpis, obrasci P3–P10 (i ispravka SVOG zapisa — #57), prijava problema, SVOJA korektivna mjera; „Danas po planu" i „Torte danas" na Mojoj strani; provjera termometra (API) |
 | `vozac` | vozač | `/moja` | 1 | isporuka i potvrda sa temperaturom (KKT 3) — samo dodijeljene (#51), kontrola vozila D1 (sa temperaturom — #55), prijava problema, SVOJA mjera; „Danas po planu" |
 
 `PROZOR`, `NA_TERENU`, `ogranicenjeDatuma()`, `provjeriProzorUpisa()`, `izvrsilacZa()`,
@@ -403,6 +419,7 @@ ispod su distributerska istorija — tih uloga u kodu nema (vrijednosti ostaju u
 | `38_alergeni_cg` | **poslastičarnica:** `artikal.alergeni` (14 šifara, CHECK — isti spisak kao `server/alergeni.ts`), `artikal.alergeni_upisani` |
 | `40_bez_serije_cg` | **poslastičarnica (P4):** `lot.bez_broja` (lot upisan bez broja serije — oznaka je račun/otpremnica); `artikal.zahtijeva_lot` podrazumijevano `false` |
 | `41_stanje_raspored_cg` | „Stanje poslovanja“ po rasporedu (dodatak): `firma.izvjestaj_ritam` (dan/sedmica/mjesec/kvartal, CHECK) i `izvjestaj_ritam_od`; `izvjestaj_poslat.automatski` + jedinstven period po rasporedu — #93 |
+| `42_vitrina_cg` | **poslastičarnica (P6):** `serija_vitrine` (broj, naziv, datum izrade, komada, rok ≥ datum), `serija_vitrine_lot` (serije sastojaka), `serija_vitrine_promet` (prodato / otpisano po danu, razlog otpisa — CHECK); RLS na sve tri; izvor `serija_vitrine` u CHECK-u obavještenja (#36); `v_izvoz_vitrina` (promet sabran po danu, alergeni nazivima) |
 | `39_porudzbina_cg` | **poslastičarnica:** `porudzbina` (statusi tekst + CHECK, P1 u CHECK-u), `porudzbina_lot`, `povlacenje_kontakt.porudzbina_id`, izvor `porudzbina` u CHECK-ovima neusaglašenosti i obavještenja (#36), `v_sledljivost_porudzbine`, `v_izvoz_porudzbine` (alergeni nazivima), RLS |
 | `37_stanje_poslovanja_cg` | `firma.izvjestaj_primaoci` (kome ide „Stanje poslovanja“), `izvjestaj_poslat` (ko je, kad i kome poslao koji period; RLS) — #93 |
 | `36_kontrolne_tacke_cg` | KKT 1–3 za bazu koja već ima firmu, a nema tačke (na novoj ih pravi `prvi-korisnik`, na demo `13_demo_cg`) + pravila za artikle sa granicom bez pravila (#91) |
@@ -442,7 +459,11 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `npm run test:ci` | `TEST_DATABASE_URL` (mora biti localhost) — API testovi pa ekrani (`--sve`) | GitHub Actions (`.github/workflows/testovi.yml`) na svaki push na `main` |
 | `npm run test:e2e` | demo baza iz `.env`, server koji već radi | samo kad treba provjeriti baš demo bazu |
 
-**Atelje (29.10.2026): 29 testova, 662 provjere na čistoj bazi; ekrani 7 scenarija, 56 provjera.** `alati` — i
+**Atelje (30.10.2026): 30 testova, 715 provjera na čistoj bazi; ekrani 8 scenarija, 64 provjere.** `vitrina` (P6) —
+kolač po serijama sastojaka, „Prodat 1“ / više / otpis, nikad preko napravljenog, poništavanje (svoj u 10 min, stariji —
+vlasnica uz razlog), rok, istorija (zaposleni od juče), „skloniti“ na Kontrolnom centru, povlačenje → „Skloni iz vitrine“ i
+prodaja odbijena, sledljivost lot → kolači, izvoz po danu; ekran `8_vitrina` — zaposleni na 375 px („Napravljeno“, „Prodat 1“,
+otpis, „Sastojci i upisi“, istorija); `1_uloge` otvara i `/vitrina` za sve tri uloge. `alati` — i
 `nova-lozinka` (ispisana lozinka važi pri prijavi, stara ne, audit, nepostojeći nalog). `prvi_koraci` — spisak
 iz baze, uređaji bez šifara (šifra, granica sa verzijama, plan, tekst, „Nemamo ga“/„Vrati“), podaci ateljea (prazno = null, ime
 odgovornog lica ostaje), konsultant mijenja ulogu Zaposleni → Vlasnica; ekran `7_prvi_koraci` — spisak na Kontrolnom centru,
