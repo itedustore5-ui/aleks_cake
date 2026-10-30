@@ -103,6 +103,18 @@ function oSastojcima(sastojci: Sastojak[]) {
 
 // ── Čitanje ──
 
+/** Koliko je kolača tog dana napravljeno, prodato i otpisano — isti broj na ekranu Vitrina i na Kontrolnom centru. */
+export async function zbirVitrine(dan: string) {
+  return (
+    await upit<{ napravljeno: number; prodato: number; otpisano: number }>(
+      `select coalesce((select sum(komada) from serija_vitrine where datum = $1::date), 0)::int as napravljeno,
+              coalesce((select sum(prodato) from serija_vitrine_promet where datum = $1::date), 0)::int as prodato,
+              coalesce((select sum(otpisano) from serija_vitrine_promet where datum = $1::date), 0)::int as otpisano`,
+      [dan],
+    )
+  ).rows[0];
+}
+
 /** Ekran „Vitrina“: šta je sada u vitrini (prvo ono čiji rok prvi ističe), današnji zbir i nazivi za formu.
  * Kolač koji je upravo rasprodat ostaje na ekranu dok traje „Poništi“ — da se pogrešan posljednji dodir ispravi. */
 export async function vitrinaSada(korisnik: SesijskiKorisnik) {
@@ -145,17 +157,11 @@ export async function vitrinaSada(korisnik: SesijskiKorisnik) {
        ) x order by lower(x.naziv) limit 200`,
       [danas],
     ),
-    upit<{ napravljeno: number; prodato: number; otpisano: number }>(
-      `select coalesce((select sum(komada) from serija_vitrine where datum = $1::date), 0)::int as napravljeno,
-              coalesce((select sum(prodato) from serija_vitrine_promet where datum = $1::date), 0)::int as prodato,
-              coalesce((select sum(otpisano) from serija_vitrine_promet where datum = $1::date), 0)::int as otpisano`,
-      [danas],
-    ),
+    zbirVitrine(danas),
   ]);
   const sastojci = await sastojciSerija(serije.rows.map((s) => s.id));
   return {
-    danas,
-    zbirDanas: zbir.rows[0],
+    zbirDanas: zbir,
     serije: serije.rows.map((s) => ({ ...s, rasprodato: s.ostalo <= 0, ...oSastojcima(sastojci.get(s.id) ?? []) })),
     nazivi: nazivi.rows,
   };
@@ -190,7 +196,7 @@ export async function detaljSerije(id: string, korisnik: SesijskiKorisnik) {
     otpisano,
     ostalo: s.komada - prodato - otpisano,
     // Ekran unaprijed zna šta smije: svoj svjež upis — bez pitanja; ostalo — odgovorno lice uz razlog, u svom prozoru.
-    promet: promet.map((p) => ({ ...p, mozePonistiti: p.svoj_svjez || (vodstvo && danaUnazad(p.datum) <= PROZOR[korisnik.uloga]), trebaRazlog: !p.svoj_svjez })),
+    promet: promet.map(({ svoj_svjez, ...p }) => ({ ...p, mozePonistiti: svoj_svjez || (vodstvo && danaUnazad(p.datum) <= PROZOR[korisnik.uloga]), trebaRazlog: !svoj_svjez })),
     ...oSastojcima((await sastojciSerija([id])).get(id) ?? []),
   };
 }
@@ -260,7 +266,7 @@ export async function istorijaVitrine(korisnik: SesijskiKorisnik, odUlaz?: strin
 
 // ── Upis ──
 
-export type SerijaUlaz = { naziv: string; komada: number; rok: string; datum?: string; napomena?: string; izvrsilac?: string; lotIds: string[] };
+export type SerijaUlaz = { naziv: string; komada: number; rok: string; datum?: string; napomena?: string; lotIds: string[] };
 
 /** „Napravljeno“: nova serija kolača u vitrini, sa serijama sastojaka. Broj iz `sljedeciBroj` (#34). */
 export async function kreirajSeriju(ulaz: SerijaUlaz, korisnik: SesijskiKorisnik, kljuc?: string) {
@@ -279,7 +285,7 @@ export async function kreirajSeriju(ulaz: SerijaUlaz, korisnik: SesijskiKorisnik
       await klijent.query<{ id: string }>(
         `insert into serija_vitrine (broj, naziv, datum, komada, rok, napomena, izvrsilac, uneo_korisnik_id)
          values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
-        [broj, naziv, datum, ulaz.komada, ulaz.rok, ulaz.napomena?.trim() || null, izvrsilacZa(korisnik, ulaz.izvrsilac), korisnik.id],
+        [broj, naziv, datum, ulaz.komada, ulaz.rok, ulaz.napomena?.trim() || null, izvrsilacZa(korisnik, null), korisnik.id],
       )
     ).rows[0].id;
     const sastojci: string[] = [];

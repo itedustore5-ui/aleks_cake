@@ -39,7 +39,7 @@ type Kolac = {
 };
 type Naziv = { naziv: string; rok_dana: number; artikli: string[] };
 type Zbir = { napravljeno: number; prodato: number; otpisano: number };
-type Stanje = { danas: string; zbirDanas: Zbir; serije: Kolac[]; nazivi: Naziv[] };
+type Stanje = { zbirDanas: Zbir; serije: Kolac[]; nazivi: Naziv[] };
 type Ponuda = { lot_id: string; broj_lota: string; rok: string | null; artikal: string; alergeni: string[]; alergeni_upisani: boolean; dobavljac: string };
 type Upis = { id: string; datum: string; prodato: number; otpisano: number; razlog_otpisa: string | null; uneo: string; upisano: string; mozePonistiti: boolean; trebaRazlog: boolean };
 type DetaljKolaca = {
@@ -841,7 +841,8 @@ function IstorijaVitrine({ vodstvo, osvjezenje }: { vodstvo: boolean; osvjezenje
         </div>
       )}
       {greska && <div className="auth-error" role="alert">{greska}</div>}
-      {ist && ist.dani.length > 0 && (
+      {/* Zbir perioda samo kad ima više dana — za jedan dan je isto što piše u zaglavlju tog dana. */}
+      {ist && ist.dani.length > 1 && (
         <div className="vitrina-zbir">
           <span className="vitrina-zbir-naslov">{periodi.find((p) => p.dana === dana)?.naziv ?? "Period"}</span>
           <span>napravljeno <b>{ist.ukupno.napravljeno}</b></span>

@@ -5,6 +5,7 @@ import { stanjeDanas } from "./monitoringService.js";
 import { listaUredjaja, stanjeVerifikacije } from "./haccpPlanService.js";
 import { IZVOR_OZNAKA, IME } from "./sqlDijelovi.js";
 import { brojPoRoku, SQL_ROK_ROBE } from "./rokoviService.js";
+import { zbirVitrine } from "./vitrinaService.js";
 
 // Kontrolni centar: brojevi na karticama, „Aktivnost uživo" i lista iza svakog broja
 // (faza 4: SQL iz rute u servis). Ruta samo provjeri ulogu.
@@ -59,12 +60,7 @@ export async function pregledTable() {
     upit(`select count(*)::int as broj from povlacenje where status = 'U_TOKU'`),
     upit(`select count(*)::int as broj from zapis where datum = $1`, [danas]),
     upit(`select count(*)::int as broj from (${SQL_VITRINA_SKLONITI}) v`, [danas]),
-    upit<{ napravljeno: number; prodato: number; otpisano: number }>(
-      `select coalesce((select sum(komada) from serija_vitrine where datum = $1::date), 0)::int as napravljeno,
-              coalesce((select sum(prodato) from serija_vitrine_promet where datum = $1::date), 0)::int as prodato,
-              coalesce((select sum(otpisano) from serija_vitrine_promet where datum = $1::date), 0)::int as otpisano`,
-      [danas],
-    ),
+    zbirVitrine(danas),
   ]);
 
   return {
@@ -92,7 +88,7 @@ export async function pregledTable() {
       prijemiDanas: prijemi.rows[0]?.broj ?? 0,
       porudzbineDanas: porudzbine.rows[0]?.broj ?? 0,
       zapisiDanas: zapisi.rows[0]?.broj ?? 0,
-      vitrinaDanas: vitrina.rows[0],
+      vitrinaDanas: vitrina,
     },
   };
 }

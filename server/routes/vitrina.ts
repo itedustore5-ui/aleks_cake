@@ -48,7 +48,6 @@ vitrinaRuter.post("/vitrina", requireUloga(...ATELJE), asyncRuta(async (request:
     z.object({
       ...osnovaSchema,
       datum: DATUM.optional(),
-      izvrsilac: z.string().max(200).optional(),
       lotIds: z.array(z.string().uuid("Izaberite sastojak sa spiska.")).max(50, "Najviše 50 sastojaka.").default([]),
     }),
     request.body,
