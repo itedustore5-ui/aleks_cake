@@ -459,7 +459,8 @@ Postojeći fajl se **nikad ne mijenja** — ispravka je nov fajl sa sljedećim b
 | `npm run test:ci` | `TEST_DATABASE_URL` (mora biti localhost) — API testovi pa ekrani (`--sve`) | GitHub Actions (`.github/workflows/testovi.yml`) na svaki push na `main` |
 | `npm run test:e2e` | demo baza iz `.env`, server koji već radi | samo kad treba provjeriti baš demo bazu |
 
-**Atelje (30.10.2026): 30 testova, 715 provjera na čistoj bazi; ekrani 8 scenarija, 64 provjere.** `vitrina` (P6) —
+**Atelje (30.10.2026): 30 testova, 717 provjera na čistoj bazi; ekrani 8 scenarija, 64 provjere.** `dorada` — audit trag samo
+konsultant (vlasnica 403); `inspekcija` — dani prije početka rada se ne broje kao radni dani bez zapisa. `vitrina` (P6) —
 kolač po serijama sastojaka, „Prodat 1“ / više / otpis, nikad preko napravljenog, poništavanje (svoj u 10 min, stariji —
 vlasnica uz razlog), rok, istorija (zaposleni od juče), „skloniti“ na Kontrolnom centru, povlačenje → „Skloni iz vitrine“ i
 prodaja odbijena, sledljivost lot → kolači, izvoz po danu; ekran `8_vitrina` — zaposleni na 375 px („Napravljeno“, „Prodat 1“,

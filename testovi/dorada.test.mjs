@@ -234,7 +234,8 @@ export async function pokreni({ provjeri }) {
         samoAna.length > 0 && samoAna.every((a) => a.korisnik_id === NALOZI.ana.id && a.akcija === "KREIRANJE") && trazi.length > 0,
       `${samoAna.length} ${trazi.length}`,
     );
-    provjeri("…budući period — prazno", (await ana(`/audit?od=${sutra}`)).tijelo.length === 0);
+    provjeri("…budući period — prazno", (await konsultant(`/audit?od=${sutra}`)).tijelo.length === 0);
+    provjeri("Audit trag vidi samo konsultant — vlasnica 403 (30.10.2026)", (await ana(`/audit?od=${sutra}`)).status === 403);
 
     // ── Pitanje firme: nova verzija ──────────────────────────────────────────────────────────
     const pit = { tema: "Prijem", tekst: `${oznaka} Na kojoj temperaturi se prima jogurt?`, ponudjeniOdgovori: ["0–4 °C", "8–10 °C"], tacanIndeks: 0 };
