@@ -73,7 +73,7 @@ export async function pokreni({ provjeri }) {
     await marko(`/prijem/${pr.tijelo.id}/lot/${lotB}`, { method: "PATCH", telo: { brojLota: `${oznaka}-LB2`, primljenaKolicina: 4 } });
     const al = await zadnjiAudit(lotB);
     provjeri("R-06: ispravka stavke prijema — stari lot i količina", al?.s?.broj_lota === `${oznaka}-LB` && Number(al?.s?.primljena_kolicina) === 5 && Number(al?.n?.primljena_kolicina) === 4, JSON.stringify(al));
-    const auditEkran = (await ana("/audit?entitetTip=artikal")).tijelo.find((r) => r.entitet_id === trag.artikal && r.akcija === "IZMJENA");
+    const auditEkran = (await konsultant("/audit?entitetTip=artikal")).tijelo.find((r) => r.entitet_id === trag.artikal && r.akcija === "IZMJENA");
     provjeri("R-06: ekran audita dobija i staru vrijednost", auditEkran?.stare_vrijednosti?.naziv === `${oznaka} jogurt`);
 
     // ── R-09 + R-22 za mjerenje lota ────────────────────────────────────────────────────────

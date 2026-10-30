@@ -83,7 +83,7 @@ function Rute() {
       <Route path="/izvjestaji" element={<Zasticeno uloge={["izvodjac"]}><Izvjestaji /></Zasticeno>} />
       <Route path="/stanje" element={<Zasticeno uloge={["izvodjac"]}><StanjePoslovanja /></Zasticeno>} />
       <Route path="/inspekcija" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Inspekcija /></Zasticeno>} />
-      <Route path="/audit" element={<Zasticeno uloge={["bzr", "izvodjac"]}><Audit /></Zasticeno>} />
+      <Route path="/audit" element={<Zasticeno uloge={["izvodjac"]}><Audit /></Zasticeno>} />
       <Route path="/admin" element={<Zasticeno uloge={["izvodjac"]}><Admin /></Zasticeno>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

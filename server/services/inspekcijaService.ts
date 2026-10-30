@@ -20,6 +20,18 @@ const DAN = /^\d{4}-\d{2}-\d{2}$/;
 /** Najduži period jednog paketa — godina; duže je spisak koji niko ne čita. */
 export const NAJVISE_DANA = 366;
 const PG = (kolona: string) => `(${kolona} at time zone 'Europe/Podgorica')`;
+
+/** Početak rada u aplikaciji (30.10.2026): najraniji „važi od“ plana monitoringa ili prvi zapis — šta je ranije. Dan prije
+ * toga nije „dan bez zapisa“: aplikacija se tada još nije koristila. Ništa se ne sakriva — svaki raniji zapis pomjera
+ * početak unazad. */
+const SQL_POCETAK_RADA = `select to_char(least(
+    (select min(vazi_od) from plan_monitoringa),
+    (select min(datum_prijema) from prijem),
+    (select min(${PG("izmjereno_at")}::date) from mjerenje_temperature),
+    (select min(datum) from zapis),
+    (select min(${PG("created_at")}::date) from porudzbina),
+    (select min(datum) from serija_vitrine)
+  ), 'YYYY-MM-DD') as dan`;
 const VRIJEME = (kolona: string) => `to_char(${PG(kolona)}, 'YYYY-MM-DD HH24:MI')`;
 
 const razlikaDana = (od: string, doDan: string) => Math.round((Date.parse(`${doDan}T12:00:00Z`) - Date.parse(`${od}T12:00:00Z`)) / 86_400_000);
@@ -58,6 +70,7 @@ function odgovori(kod: string, podaci: unknown): string {
 export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) {
   const { od, do: doDan } = periodPaketa(odUlaz, doUlaz);
   const p = [od, doDan];
+  const pocetakRada = (await upit<{ dan: string | null }>(SQL_POCETAK_RADA)).rows[0]?.dan ?? null;
 
   const [firma, kalendar, prijemi, mjerenja, zapisi, porudzbine, nc, povlacenja, termometriProvjere, verifikacije, zaposleni, planObuke, provjereZnanja, izmjene] = await Promise.all([
     upit(`select naziv, adresa, grad, pib, odgovorno_lice_ime from firma limit 1`),
@@ -219,9 +232,11 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
       p,
     ),
 
+    // Izmjene podataka od početka rada — bez naloga i lozinki (to je administracija, ne podatak o hrani).
     upit<{ n: number }>(
-      `select count(*)::int as n from audit_log where akcija = 'IZMJENA' and ${PG("created_at")}::date between $1 and $2`,
-      p,
+      `select count(*)::int as n from audit_log where akcija = 'IZMJENA' and entitet_tip <> 'korisnik'
+         and ${PG("created_at")}::date between greatest($1::date, coalesce($3::date, $1::date)) and $2::date`,
+      [od, doDan, pocetakRada],
     ),
   ]);
 
@@ -262,8 +277,9 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
       ...porudzbine.rows.map((r: Red) => r.predao),
     ].filter(Boolean) as string[],
   );
-  const daniSaZapisom = kalendar.rows.filter((d: Red) => Number(d.mjerenja) + Number(d.zapisi) + Number(d.prijemi) > 0).length;
-  const radniDani = kalendar.rows.filter((d: Red) => Number(d.dan_u_sedmici) !== 7).length;
+  const dani: (Red & { prije_pocetka: boolean })[] = kalendar.rows.map((d: Red) => ({ ...d, prije_pocetka: pocetakRada !== null && String(d.dan) < pocetakRada }));
+  const daniSaZapisom = dani.filter((d) => Number(d.mjerenja) + Number(d.zapisi) + Number(d.prijemi) > 0).length;
+  const radniDani = dani.filter((d) => Number(d.dan_u_sedmici) !== 7 && !d.prije_pocetka).length;
   const vanMreze =
     mjerenja.rows.filter((r: Red) => r.van_mreze).length +
     prviZapisi.filter((r: Red) => r.van_mreze).length +
@@ -308,7 +324,8 @@ export async function paket(odUlaz?: string, doUlaz?: string, izradio?: string) 
       planPropusteno: planIzvrsenje.reduce((z, s) => z + s.propusteno.length, 0),
       planPerioda: planIzvrsenje.reduce((z, s) => z + s.periodaUkupno, 0),
     },
-    kalendar: kalendar.rows,
+    kalendar: dani,
+    pocetakRada,
     plan: { do: plan.do, stavke: planIzvrsenje },
     prijemi: prijemi.rows.map(({ prijem_id: _id, ...r }: Red) => r),
     mjerenja: mjerenja.rows,

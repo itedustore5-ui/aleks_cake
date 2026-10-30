@@ -88,6 +88,16 @@ export async function pokreni({ provjeri }) {
       r.status === 200 && p.period.od === juce && p.period.do === danas && p.period.dana === 2 && p.kalendar.length === 2 && !!p.firma?.naziv && !!p.izradjeno.izradio,
       `${r.status} ${r.tijelo?.error?.message ?? ""} ${JSON.stringify(p?.period)} ${p?.kalendar?.length}`,
     );
+    // Početak rada (30.10.2026): dani prije prvog plana ili zapisa nisu „bez zapisa“ — ne broje se u radne dane.
+    const dugi = (await ana(`/inspekcija?od=${rokZaDana(-400 + 35)}&do=${danas}`)).tijelo;
+    const pocetak = dugi?.pocetakRada;
+    const prije = (dugi?.kalendar ?? []).filter((d) => d.prije_pocetka);
+    const radni = (dugi?.kalendar ?? []).filter((d) => !d.prije_pocetka && d.dan_u_sedmici !== 7).length;
+    provjeri(
+      "Paket: dani prije početka rada (prvi plan ili zapis) označeni i ne broje se kao radni dani bez zapisa",
+      !!pocetak && pocetak <= juce && prije.length > 0 && prije.every((d) => d.dan < pocetak) && dugi.sazetak.radniDani === radni,
+      `${pocetak} · prije ${prije.length} · radni ${dugi?.sazetak?.radniDani}/${radni}`,
+    );
     const st = p.prijemi?.find((x) => x.broj_lota === `${oznaka}-L`);
     provjeri(
       "KKT 1: stavka prijema sa lotom, rokom, temperaturom, granicom iz pravila, ocjenom i termometrom",

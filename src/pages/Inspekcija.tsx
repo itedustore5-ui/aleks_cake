@@ -33,7 +33,9 @@ type Paket = {
     planPropusteno: number;
     planPerioda: number;
   };
-  kalendar: { dan: string; dan_u_sedmici: number; mjerenja: number; zapisi: number; prijemi: number; torte: number }[];
+  kalendar: { dan: string; dan_u_sedmici: number; mjerenja: number; zapisi: number; prijemi: number; torte: number; prije_pocetka: boolean }[];
+  /** Prvi dan rada u aplikaciji (plan monitoringa ili prvi zapis) — dani prije toga nisu „bez zapisa“. */
+  pocetakRada: string | null;
   plan: { do: string; stavke: { naziv: string; ucestalost: string; puta: number; magacin: string | null; periodaUkupno: number; uradjeno: number; propusteno: { od: string; do: string; uradjeno: number }[] }[] };
   prijemi: Red[];
   mjerenja: Red[];
@@ -537,8 +539,14 @@ function Kontinuitet({ rb, paket }: { rb: number; paket: Paket }) {
   // Do dva mjeseca — po danu; duže — po sedmici (godina po danu je 365 redova koje niko ne čita).
   const poDanu = paket.kalendar.length <= 62;
   const redovi = poDanu
-    ? paket.kalendar.map((d) => ({ oznaka: `${DANI[d.dan_u_sedmici]} ${dat(d.dan)}`, ...d, bez: d.dan_u_sedmici !== 7 && d.mjerenja + d.zapisi + d.prijemi + d.torte === 0 ? 1 : 0 }))
+    ? paket.kalendar.map((d) => ({
+        oznaka: `${DANI[d.dan_u_sedmici]} ${dat(d.dan)}`,
+        ...d,
+        prije: d.prije_pocetka,
+        bez: !d.prije_pocetka && d.dan_u_sedmici !== 7 && d.mjerenja + d.zapisi + d.prijemi + d.torte === 0 ? 1 : 0,
+      }))
     : sedmice(paket.kalendar);
+  const pocetakUPeriodu = paket.pocetakRada !== null && paket.pocetakRada > paket.period.od;
   return (
     <Odjeljak rb={rb} naslov="Kontinuitet zapisa" opis="Dokaz da zapisi nastaju svakog dana, u trenutku rada — a ne naknadno, pred inspekciju.">
       <div className="insp-brojke">
@@ -549,6 +557,9 @@ function Kontinuitet({ rb, paket }: { rb: number; paket: Paket }) {
         <Brojka vrijednost={s.planPerioda ? `${s.planPerioda - s.planPropusteno} / ${s.planPerioda}` : "—"} oznaka="obaveza po planu urađeno" losa={s.planPropusteno > 0} />
         <Brojka vrijednost={s.mjerenjaVanGranice} oznaka="mjerenja van granice" />
       </div>
+      {pocetakUPeriodu && (
+        <p className="muted-text">Zapisi se u aplikaciji vode od {dat(paket.pocetakRada)} — dani prije toga se ne broje kao dani bez zapisa.</p>
+      )}
       <Tabela
         kolone={["Vrsta zapisa", "Ukupno", "Od toga upisano naknadno"]}
         redovi={[
@@ -567,7 +578,13 @@ function Kontinuitet({ rb, paket }: { rb: number; paket: Paket }) {
           broj(d.zapisi),
           broj(d.prijemi),
           broj(d.torte),
-          d.bez ? <span className="insp-lose">{poDanu ? "nema zapisa" : `${d.bez} ${d.bez === 1 ? "radni dan" : "radnih dana"} bez zapisa`}</span> : "",
+          d.bez ? (
+            <span className="insp-lose">{poDanu ? "nema zapisa" : `${d.bez} ${d.bez === 1 ? "radni dan" : "radnih dana"} bez zapisa`}</span>
+          ) : d.prije ? (
+            <span className="muted-text">prije početka rada</span>
+          ) : (
+            ""
+          ),
         ])}
         uska
       />
@@ -576,15 +593,17 @@ function Kontinuitet({ rb, paket }: { rb: number; paket: Paket }) {
 }
 
 function sedmice(kalendar: Paket["kalendar"]) {
-  const r: { oznaka: string; mjerenja: number; zapisi: number; prijemi: number; torte: number; bez: number }[] = [];
+  const r: { oznaka: string; mjerenja: number; zapisi: number; prijemi: number; torte: number; bez: number; prije: boolean }[] = [];
   for (const d of kalendar) {
-    if (!r.length || d.dan_u_sedmici === 1) r.push({ oznaka: `od ${dat(d.dan)}`, mjerenja: 0, zapisi: 0, prijemi: 0, torte: 0, bez: 0 });
+    if (!r.length || d.dan_u_sedmici === 1) r.push({ oznaka: `od ${dat(d.dan)}`, mjerenja: 0, zapisi: 0, prijemi: 0, torte: 0, bez: 0, prije: true });
     const s = r[r.length - 1];
     s.mjerenja += d.mjerenja;
     s.zapisi += d.zapisi;
     s.prijemi += d.prijemi;
     s.torte += d.torte;
-    if (d.dan_u_sedmici !== 7 && d.mjerenja + d.zapisi + d.prijemi + d.torte === 0) s.bez += 1;
+    // Sedmica je „prije početka rada“ samo ako je takav svaki njen dan.
+    s.prije = s.prije && d.prije_pocetka;
+    if (!d.prije_pocetka && d.dan_u_sedmici !== 7 && d.mjerenja + d.zapisi + d.prijemi + d.torte === 0) s.bez += 1;
   }
   return r;
 }

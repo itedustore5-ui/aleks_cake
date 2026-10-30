@@ -225,9 +225,9 @@ export async function pokreni({ provjeri }) {
     provjeri("…nepoznata kolona u filteru se ne koristi (bez greške)", (await konsultant(`/izvoz/lotovi/pregled?f_lozinka_hash=x`)).status === 200);
 
     // ── Audit: filteri ───────────────────────────────────────────────────────────────────────
-    const f = (await ana("/audit/filteri")).tijelo;
-    const samoAna = (await ana(`/audit?korisnikId=${NALOZI.ana.id}&akcija=KREIRANJE&od=${danasCG()}`)).tijelo;
-    const trazi = (await ana(`/audit?q=${encodeURIComponent(oznaka)}`)).tijelo;
+    const f = (await konsultant("/audit/filteri")).tijelo;
+    const samoAna = (await konsultant(`/audit?korisnikId=${NALOZI.ana.id}&akcija=KREIRANJE&od=${danasCG()}`)).tijelo;
+    const trazi = (await konsultant(`/audit?q=${encodeURIComponent(oznaka)}`)).tijelo;
     provjeri(
       "Audit: filteri (ko, radnja, od dana, tekst) — spiskovi sa servera",
       f.akcije.includes("KREIRANJE") && f.korisnici.some((k) => k.id === NALOZI.ana.id) &&

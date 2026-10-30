@@ -52,7 +52,7 @@ const STAVKE: StavkaMenija[] = [
   { putanja: "/izvjestaji", naziv: "Izvještaji", ikonica: <BarChart3 size={18} />, uloge: ["izvodjac"] },
   { putanja: "/stanje", naziv: "Stanje poslovanja", ikonica: <TrendingUp size={18} />, uloge: ["izvodjac"] },
   { putanja: "/inspekcija", naziv: "Za inspekciju", ikonica: <FolderCheck size={18} />, uloge: ["bzr", "izvodjac"] },
-  { putanja: "/audit", naziv: "Audit trag", ikonica: <FileCheck2 size={18} />, uloge: ["bzr", "izvodjac"] },
+  { putanja: "/audit", naziv: "Audit trag", ikonica: <FileCheck2 size={18} />, uloge: ["izvodjac"] },
   { putanja: "/admin", naziv: "Podešavanje", ikonica: <ShieldCheck size={18} />, uloge: ["izvodjac"] },
 ];
 

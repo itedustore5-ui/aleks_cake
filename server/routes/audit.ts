@@ -8,6 +8,7 @@ export const auditRuter = Router();
 // .use(...) bez putanje važio za SVAKI zahtjev koji prođe kroz njega — i zaključao bi rute
 // registrovane poslije (ovako je uprava dobijala 403 na /api/tabla).
 
+// Audit trag vidi samo konsultant (odluka 30.10.2026 — vlasnica ateljea ga ne vidi; nosi i IP adrese i uređaje).
 // Filteri (01.10.2026): period (dan po Podgorici — #11), ko, šta (akcija), nad čim (entitet) i tekst u
 // vrijednostima. Bez filtera — posljednjih 500 promjena.
 const tekst = (v: unknown, max = 200) => (typeof v === "string" && v.trim() && v.length <= max ? v.trim() : null);
@@ -16,7 +17,7 @@ const uuid = (v: unknown) => (typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v
 
 auditRuter.get(
   "/audit",
-  requireUloga("bzr", "izvodjac"),
+  requireUloga("izvodjac"),
   asyncRuta(async (request, response) => {
     const q = request.query;
     const rezultat = await upit(
@@ -38,7 +39,7 @@ auditRuter.get(
 /** Vrijednosti za spiskove filtera — šta u dnevniku uopšte postoji. */
 auditRuter.get(
   "/audit/filteri",
-  requireUloga("bzr", "izvodjac"),
+  requireUloga("izvodjac"),
   asyncRuta(async (_request, response) => {
     const [tipovi, akcije, korisnici] = await Promise.all([
       upit<{ v: string }>(`select distinct entitet_tip as v from audit_log order by 1`),

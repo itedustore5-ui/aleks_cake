@@ -261,7 +261,7 @@ alati/                 CLI skripte, pokreću se sa računara konsultantkinje
 |---|---|---|
 | `bzr` | Vlasnica — odgovorno lice za bezbjednost hrane | sve u ateljeu — prva strana poslije prijave je `/tabla` |
 | `operater` | Zaposleni (poslastičar, prodavačica) | porudžbine (sve u ateljeu — P5), prijem, zalihe, HACCP/DHP — upis samo za posljednji 1 dan, u listama svoje unose |
-| `izvodjac` | Konsultant | sve + banka pitanja za provjeru znanja + podešavanje firme (`/admin`) + Izvještaji (izvoz) i Stanje poslovanja — samo on |
+| `izvodjac` | Konsultant | sve + banka pitanja za provjeru znanja + podešavanje firme (`/admin`) + Izvještaji (izvoz), Stanje poslovanja i Audit trag — samo on |
 
 Vrijednosti `vozac` i `uprava` ostaju u enumu baze (dopune se ne mijenjaju), ali ih kod ne dodjeljuje.
 
@@ -642,9 +642,9 @@ ako ima propušteno po planu, otvorenih neusaglašenosti ili knjižica koje ne v
 prije inspekcije: crveno vidi i inspektor.** Naknadni upisi i upisi bez mreže nose svoje oznake i u
 paketu (`naknadno +N`, `bez mreže`) — paket ništa ne uljepšava.
 
-### Audit trag — filteri
+### Audit trag — filteri (samo konsultant)
 
-Period, **ko** (zaposleni), **radnja** (upis, izmjena, promjena statusa, odluka, prijava), **nad
+Audit trag vidi samo konsultant (od 30.10.2026 — vlasnica ateljea ga nema u meniju). Period, **ko** (zaposleni), **radnja** (upis, izmjena, promjena statusa, odluka, prijava), **nad
 čim** (prijem, lot, isporuka, neusaglašenost…) i tekst u vrijednostima (npr. broj lota). Kod
 izmjene se vidi „bilo → sada“. Štampa sa filterima u zaglavlju.
 

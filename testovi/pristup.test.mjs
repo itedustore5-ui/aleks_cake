@@ -11,7 +11,7 @@ export const naziv = "Ko šta smije da vidi";
 const MORA = {
   ana: ["/tabla", "/prijem", "/lotovi", "/zaliha", "/zapisi", "/mjerenja", "/neusaglasenosti",
     "/lica", "/nalozi", "/plan-obuke", "/evidencija-osposobljavanja", "/provjera-znanja/sesije", "/poruke", "/poruke/primaoci", "/zadaci",
-    "/zadaci/izvrsioci", "/obavjestenja", "/skladista", "/kupci", "/dobavljaci", "/artikli", "/povlacenja", "/audit",
+    "/zadaci/izvrsioci", "/obavjestenja", "/skladista", "/kupci", "/dobavljaci", "/artikli", "/povlacenja",
     "/bekap/poslednji", "/firma", "/sledljivost/pretraga?q=PV", "/zdravlje", "/aktivnost", "/pitanja-firme",
     "/provjera-znanja/rezultati",
     "/haccp-plan", "/plan-monitoringa", "/monitoring/danas", "/monitoring/pregled", "/mjerni-uredjaji", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/tabla/detalj/rokovi",
@@ -31,7 +31,7 @@ const NE_SMIJE = {
   marko: ["/porudzbine/pretraga?q=PRD", "/stanje-poslovanja", "/greske", "/aktivnost", "/tabla", "/tabla/detalj/neusaglasenosti", "/lica", "/plan-obuke", "/pravila-kontrole", "/pitanja-firme", "/provjera-znanja/rezultati", "/izvoz/izvori", "/nalozi", "/audit", "/povlacenja", "/sledljivost/pretraga?q=PV", "/pitanja",
     "/haccp-plan", "/plan-monitoringa", "/monitoring/pregled", "/verifikacija-sistema", "/tabla/detalj/monitoring", "/van-mreze/odbijeno", "/inspekcija", "/inspekcija/paket.zip",
     "/prvi-koraci", "/uredjaji-cuvanja", "/kontrolne-tacke/predlog-teksta?sifra=KKT2", "/tabla/detalj/vitrina", "/sledljivost/lot/00000000-0000-0000-0000-000000000000/vitrina"],
-  ana: ["/pitanja", "/greske", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/stanje-poslovanja"], // izvještaji i stanje poslovanja su konsultantovi (11.10.2026) // banka pitanja je samo konsultantova (#14); dnevnik grešaka takođe (#80)
+  ana: ["/audit", "/audit/filteri", "/pitanja", "/greske", "/izvoz/izvori", "/izvoz/prijemi/pregled", "/stanje-poslovanja"], // izvještaji i stanje poslovanja su konsultantovi (11.10.2026) // banka pitanja je samo konsultantova (#14); dnevnik grešaka takođe (#80)
 };
 
 /** Adrese distributera kojih u ateljeu nema — ni za koga. */
